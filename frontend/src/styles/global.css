@@ -1,0 +1,85 @@
+@import './design-tokens.css';
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--fresh-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  color: var(--fresh-text);
+  background: linear-gradient(180deg, #fffefb 0%, var(--fresh-bg) 48%, #f7f4ef 100%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  letter-spacing: 0;
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ==================== Typography ==================== */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--fresh-text);
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+
+h1 { font-size: clamp(25px, 3vw, 34px); }
+h2 { font-size: clamp(20px, 2.5vw, 28px); }
+h3 { font-size: clamp(16px, 2vw, 20px); }
+
+a {
+  color: var(--fresh-coral);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ==================== Scrollbar ==================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #dad4cc;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #c4bcb2;
+}
+
+/* ==================== Utility Classes ==================== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ==================== Responsive Breakpoints Reference ==================== */
+/* Mobile: < 768px */
+/* Tablet: 768px - 1023px */
+/* Desktop: >= 1024px */

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(venv/Scripts/python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\(f'todos:{len\\(d[\\\\\"todos\\\\\"]\\)} expenses:{len\\(d[\\\\\"expenses\\\\\"]\\)} budget:¥{d[\\\\\"budget\\\\\"][\\\\\"total\\\\\"]}'\\)\")",
+      "Bash(pkill -9 -f uvicorn)",
+      "Bash(./venv/Scripts/python.exe -m uvicorn backend.main:app --port 8003)",
+      "Bash(curl -s http://localhost:8003/api/health)",
+      "Bash(pkill -9 -f python)",
+      "Bash(./venv/Scripts/python.exe -m uvicorn backend.main:app --port 8000)",
+      "Bash(curl -s http://localhost:8000/api/health)"
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+:root {
+  /* Background */
+  --fresh-bg: #fbfaf7;
+  --fresh-card: #ffffff;
+  --fresh-soft: #f6f1ec;
+
+  /* Primary - Coral/Orange-Red */
+  --fresh-coral: #e45b3f;
+  --fresh-coral-deep: #c94f36;
+  --fresh-coral-soft: #fff0ea;
+
+  /* Accent - Mint Green */
+  --fresh-green: #5f9f77;
+  --fresh-green-soft: #eef7f1;
+
+  /* Accent - Blue */
+  --fresh-blue: #5c7fa8;
+  --fresh-blue-soft: #eef4fb;
+
+  /* Accent - Amber/Warning */
+  --fresh-amber: #be7b2f;
+  --fresh-amber-soft: #fff8e8;
+
+  /* Text */
+  --fresh-text: #202124;
+  --fresh-muted: #68615b;
+  --fresh-subtle: #9b928b;
+
+  /* Borders & Lines */
+  --fresh-line: #ece7e2;
+
+  /* Shadows */
+  --fresh-shadow-sm: 0 8px 22px rgba(55, 42, 31, .045);
+  --fresh-shadow: 0 16px 38px rgba(55, 42, 31, .07);
+  --fresh-shadow-lg: 0 24px 70px rgba(55, 42, 31, .12);
+  --fresh-shadow-button: 0 10px 22px rgba(228, 91, 63, .17);
+
+  /* Aliases */
+  --primary: var(--fresh-coral);
+  --primary-light: var(--fresh-coral-soft);
+  --bg: var(--fresh-bg);
+  --card: var(--fresh-card);
+  --text: var(--fresh-text);
+  --text2: var(--fresh-muted);
+  --text3: var(--fresh-subtle);
+  --border: var(--fresh-line);
+  --hover: #fff8f4;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+
+  /* Layout */
+  --max-width: 1360px;
+  --navbar-height: 58px;
+}
