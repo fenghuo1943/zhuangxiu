@@ -96,18 +96,39 @@ export function useStore() {
 
 export function setTotalBudget(total: number) {
   const categories = globalState.budget.categories;
+  const oldTotal = globalState.budget.total;
   const allZero = categories.every(c => c.allocated === 0);
   let newCategories = categories;
 
-  if (allZero && total > 0) {
-    // Auto-distribute evenly when setting budget for the first time (§4.2.3)
-    const count = categories.length;
-    const base = Math.floor(total / count / 100) * 100;
-    const remainder = total - base * count;
-    newCategories = categories.map((c, i) => ({
-      ...c,
-      allocated: base + (i < Math.round(remainder / 100) ? 100 : 0),
-    }));
+  if (total > 0) {
+    if (allZero) {
+      // Auto-distribute evenly when setting budget for the first time (§4.2.3)
+      const count = categories.length;
+      const base = Math.floor(total / count / 100) * 100;
+      const remainder = total - base * count;
+      newCategories = categories.map((c, i) => ({
+        ...c,
+        allocated: base + (i < Math.round(remainder / 100) ? 100 : 0),
+      }));
+    } else if (oldTotal > 0 && oldTotal !== total) {
+      // Proportionally scale existing allocations to the new total
+      let distributed = 0;
+      const scaled = categories.map((c, i) => {
+        if (i === categories.length - 1) {
+          // Last category gets the remainder to avoid rounding gaps
+          const alloc = Math.round((total - distributed) / 100) * 100;
+          return { ...c, allocated: Math.max(0, alloc) };
+        }
+        const ratio = c.allocated / oldTotal;
+        const alloc = Math.round((total * ratio) / 100) * 100;
+        distributed += alloc;
+        return { ...c, allocated: Math.max(0, alloc) };
+      });
+      newCategories = scaled;
+    }
+  } else {
+    // Total set to 0 — clear all allocations
+    newCategories = categories.map(c => ({ ...c, allocated: 0 }));
   }
 
   globalState = { ...globalState, budget: { ...globalState.budget, total, categories: newCategories } };
