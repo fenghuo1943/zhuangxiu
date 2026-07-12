@@ -351,7 +351,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 .home-pro > .live-widgets {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 280px minmax(0, 1fr) 280px;
   gap: 16px;
   align-items: stretch;
   margin: 0;

@@ -24,10 +24,11 @@ const HomePage: React.FC = () => {
           <TodayFocus />
         </section>
 
-        {/* Progress + Timeline */}
+        {/* Progress + Timeline + Guide */}
         <section className="live-widgets">
           <ProgressCard />
           <StageRoute />
+          <GuideCard />
         </section>
 
         {/* Main Layout: Left (Budget + Todo) | Right (Sidebar) */}
@@ -39,7 +40,6 @@ const HomePage: React.FC = () => {
           <aside className="stack">
             <PurchaseSummary />
             <ExpenseSummary />
-            <GuideCard />
             <QuickEntries />
             <BackupPanel />
           </aside>

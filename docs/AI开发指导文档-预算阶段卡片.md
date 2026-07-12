@@ -1,0 +1,218 @@
+# 预算设置与阶段分配卡片 AI 开发指导文档
+
+## 1. 文档目标
+
+本文件专注于“首页预算设置与阶段分配”卡片的 AI 开发指导。目标是让开发者能根据屏幕截图和现有 `frontend` 代码，准确完善该卡片的功能与展示逻辑。
+
+## 2. 现有实施位置
+
+以下文件是当前首页预算卡片与阶段路由模块的关键实现：
+
+- `frontend/src/pages/HomePage.tsx`
+  - 首页布局中将 `BudgetPanel` 放在主区域左侧。
+- `frontend/src/components/dashboard/BudgetPanel.tsx`
+  - 预算设置与阶段分配卡片的主要组件。
+- `frontend/src/components/dashboard/StageRoute.tsx`
+  - 阶段路线横向步骤条组件。
+- `frontend/src/data/store.ts`
+  - 预算状态管理：`setTotalBudget`、`setCategoryAllocation`、`getBudgetRemaining`、`getBudgetUsageRate`。
+- `frontend/src/data/mockData.ts`
+  - 默认预算分类定义：`DEFAULT_BUDGET_CATEGORIES`。
+- `frontend/src/styles/components.css`
+  - 预算卡片相关样式，包括 `.budget-summary`、`.budget-bar`、`.budget-cat-row` 等。
+
+## 3. 业务需求概述
+
+“预算设置与阶段分配”卡片需要呈现截图中的核心信息和交互：
+
+1. 卡片标题：`预算设置与阶段分配`
+2. 总预算输入与编辑：点击可切换为输入框，用户可输入预算金额并保存。
+3. 关键指标展示：
+   - 总预算
+   - 已支出
+   - 剩余
+   - 使用率
+4. 预算进度条：显示当前预算消耗的直观视觉占比。
+5. 分类/阶段预算分配表：
+   - 每一项带颜色点
+   - 名称
+   - 分配预算输入
+   - 对应已支出金额
+   - 颜色进度条视觉展示
+6. 预警提示：当分类总分配金额超过总预算时，显示“预算超支”警告。
+7. 空状态提示：当未设置总预算时，用文本提示用户先设置总预算。
+
+## 4. UI 结构与交互说明
+
+### 4.1 顶部摘要区
+
+卡片顶部由四个摘要块组成：
+
+- `总预算`：支持点击切换为编辑态。
+- `已支出`：显示当前累计支出，金额应从 `state.budget.spent` 获取。
+- `剩余`：计算值 `state.budget.total - state.budget.spent`。
+- `使用率`：计算值 `Math.round((spent / total) * 100)`，若 `total` 为 0 则显示 `0%`。
+
+交互细节：
+
+- `总预算` 显示默认文案 `点击设置` 或已设置金额。
+- 点击后出现输入框与“确定/取消”按钮。
+- 按回车或“确定”保存预算。
+- “取消”恢复显示态。
+
+### 4.2 预算进度条
+
+当 `hasBudget` 为真时，展示一条横向进度条。
+
+- 进度条背景为淡灰色。
+- 每个分类的 `spent` 采用对应分类颜色填充宽度。
+- 颜色从 `mockData.ts` 中取，例：`硬装工程` `#e45b3f`、`主材选购` `#5f9f77` 等。
+- 进度条 tooltip 可显示分类名称及已支出金额。
+
+### 4.3 分类预算分配行
+
+每个分类行显示：
+
+- `budget-cat-dot`：颜色圆点
+- `budget-cat-name`：分类名称
+- 进度条区域：`budget-cat-bar`
+  - `allocated` 与 `spent` 分别展示为叠加条
+  - `allocated` 与 `spent` 颜色一致，`spent` 可半透明覆盖
+- 输入框：用于设置该分类预算分配金额
+- 右侧显示已支出金额文本
+
+交互细节：
+
+- 当用户修改某个分类分配金额，调用 `setCategoryAllocation(cat.id, value)`。
+- 输入框允许数字输入，空值视为 `0`。
+- 若总分配金额超过总预算，显示警告行 `⚠️ 预算超支 ¥xxx`。
+
+### 4.4 空状态处理
+
+当 `state.budget.total` 为 0 时，卡片不展示进度条和分类分配内容。应显示空状态提示：
+
+- `预算尚未设置`
+- `点击上方总预算数字，输入您的装修总预算后，即可分配各阶段预算`
+
+## 5. 数据与状态处理
+
+### 5.1 现有数据结构
+
+`frontend/src/data/types.ts` 中已有数据模型：
+
+- `BudgetCategory` 包含 `id`, `name`, `color`, `allocated`, `spent`
+- `Budget` 包含 `total`, `spent`, `categories`
+
+### 5.2 必要方法
+
+当前 `store.ts` 已提供：
+
+- `setTotalBudget(total: number)`
+- `setCategoryAllocation(categoryId: string, allocated: number)`
+- `getBudgetRemaining()`
+- `getBudgetUsageRate()`
+
+建议保持这些方法，并保证：
+
+- `recalculateBudget()` 要自动更新 `budget.spent`。
+- `setTotalBudget` 与 `setCategoryAllocation` 调用后，要 `notify()` 和 `persist()`。
+- 输入值允许浮点数或整数，但前端展示时应保留整数金额。
+
+### 5.3 默认分类
+
+当前默认预算分类由 `DEFAULT_BUDGET_CATEGORIES` 提供：
+
+- `硬装工程`
+- `主材选购`
+- `设备系统`
+- `软装家电`
+- `服务杂项`
+
+这些分类应与卡片中显示顺序保持一致。
+
+## 6. 与阶段路由卡片的协同
+
+虽然截图主题是“预算设置与阶段分配”，但与阶段路线组件关系紧密。
+
+### 6.1 `StageRoute` 作用
+
+`StageRoute` 显示横向装修阶段，当前版本已实现：
+
+- 当前步骤高亮
+- 已完成步骤状态
+- 横向可滚动展示
+- 可进入 `/flow` 页面查看全部流程
+
+### 6.2 期望协同效果
+
+建议目标是让预算分配卡片和阶段路线形成同一行为节奏：
+
+- 预算分类应与阶段方向保持一致，用户感知预算是“阶段拆分”的一部分。
+- 当前阶段切换时，卡片可提示“当前阶段预算是否已分配”。
+- 若需要扩展，可考虑将分类映射到阶段，使每个阶段预算更具体。
+
+## 7. 样式与视觉对齐
+
+### 7.1 卡片样式
+
+- 卡片整体使用白色背景、圆角 14px、轻阴影。
+- 标题行左侧图标圆形底色为珊瑚红。
+- 摘要块间距 12px~16px。
+- `总预算` 显示点击可编辑样式，建议鼠标悬停时显示 `cursor: pointer`。
+
+### 7.2 颜色规范
+
+保持当前 `components.css` 中风格：
+
+- `.budget-bar` 背景 `#eeeae5`
+- `.budget-fill` 颜色采用分类色
+- `.budget-cat-bar` 背景 `#f0f0f0`
+- `.budget-warning` 文字红色 `#EF4444`
+
+### 7.3 响应式
+
+移动端（<768px）应保持：
+
+- `budget-summary` 由 4 列改为 2 列或单列
+- 卡片内间距适度收缩
+- 分类行换行显示，输入框和金额区可在小屏幕下自动换行
+- 横向进度块不出现滚动条遮挡
+
+## 8. 开发建议与验收要点
+
+### 8.1 开发建议
+
+- 使用现有 `Card` 组件构建卡片结构。
+- 保持 `BudgetPanel` 内部状态最小化，尽量让数据来源于 `useStore()` 和 `store.ts` 方法。
+- 优先实现“可编辑总预算 → 显示摘要 → 分类输入 → 预算预警”这条主线。
+- 不要将“阶段预算自动计算”作为首版必须功能，先做手动分配。
+
+### 8.2 验收要点
+
+1. `总预算` 可点击进入编辑态，输入金额后可保存。
+2. `已支出`、`剩余`、`使用率` 能正确反映当前数据。
+3. `预算进度条` 能按分类 `spent` 显示颜色分段。
+4. 每个分类均有 `allocated` 输入框，并能即时更新对应 store。
+5. 总分配超出总预算时能显示红色预警。
+6. 未设置总预算时显示空状态提示。
+7. 桌面端与移动端都能保持可读与可操作性。
+
+## 9. 扩展建议
+
+后续可考虑增加：
+
+- 阶段预算分配模式支持“按阶段分配”与“按分类分配”切换。
+- 预算分配自动计算工具，按常见装修预算比例自动分配。
+- 支出明细与分类预算对比，直接跳转到记账模块。
+- 预算超支时提供修正建议与可调节方案。
+
+---
+
+## 10. 参考代码路径
+
+- `frontend/src/pages/HomePage.tsx`
+- `frontend/src/components/dashboard/BudgetPanel.tsx`
+- `frontend/src/components/dashboard/StageRoute.tsx`
+- `frontend/src/data/store.ts`
+- `frontend/src/data/mockData.ts`
+- `frontend/src/styles/components.css`
