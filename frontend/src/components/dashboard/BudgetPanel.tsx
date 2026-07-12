@@ -16,12 +16,13 @@ const BUDGET_STEP = 100;
 interface SliderHandleProps {
   leftCat: BudgetCategory;
   rightCat: BudgetCategory;
+  leftBoundary: number;
   totalBudget: number;
   barWidth: number;
 }
 
 const BudgetSliderHandle: React.FC<SliderHandleProps> = ({
-  leftCat, rightCat, totalBudget, barWidth,
+  leftCat, rightCat, leftBoundary, totalBudget, barWidth,
 }) => {
   const [dragging, setDragging] = useState(false);
   const [tooltip, setTooltip] = useState<{ left: number; right: number; x: number } | null>(null);
@@ -125,7 +126,7 @@ const BudgetSliderHandle: React.FC<SliderHandleProps> = ({
       <button
         className={`budget-slider-handle${dragging ? ' dragging' : ''}`}
         style={{
-          left: `${(leftCat.allocated / totalBudget) * 100}%`,
+          left: `${(leftBoundary / totalBudget) * 100}%`,
         }}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
@@ -195,15 +196,21 @@ const BudgetProgressBar: React.FC<ProgressBarProps> = ({ categories, totalBudget
           );
         })}
         {/* Slider handles between adjacent segments */}
-        {useCats.slice(0, -1).map((cat, i) => (
-          <BudgetSliderHandle
-            key={`slider-${cat.id}-${useCats[i + 1].id}`}
-            leftCat={cat}
-            rightCat={useCats[i + 1]}
-            totalBudget={totalBudget}
-            barWidth={barWidth}
-          />
-        ))}
+        {useCats.slice(0, -1).map((cat, i) => {
+          const leftBoundary = useCats
+            .slice(0, i + 1)
+            .reduce((sum, item) => sum + item.allocated, 0);
+          return (
+            <BudgetSliderHandle
+              key={`slider-${cat.id}-${useCats[i + 1].id}`}
+              leftCat={cat}
+              rightCat={useCats[i + 1]}
+              leftBoundary={leftBoundary}
+              totalBudget={totalBudget}
+              barWidth={barWidth}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -215,33 +222,25 @@ interface PhaseBlockProps {
   category: BudgetCategory;
   totalBudget: number;
   isCurrentStage?: boolean;
+  onSave: (categoryId: string, newAmount: number) => void;
 }
 
-const PhaseBudgetBlock: React.FC<PhaseBlockProps> = ({ category, totalBudget, isCurrentStage }) => {
+const PhaseBudgetBlock: React.FC<PhaseBlockProps> = ({ category, totalBudget, isCurrentStage, onSave }) => {
   const [editing, setEditing] = useState(false);
   const [inputVal, setInputVal] = useState(String(category.allocated));
+
+  useEffect(() => {
+    setInputVal(String(category.allocated));
+  }, [category.allocated]);
 
   const pct = totalBudget > 0 ? (category.allocated / totalBudget) * 100 : 0;
 
   const handleSave = useCallback(() => {
     const val = Math.round(parseFloat(inputVal) || 0);
     const stepped = Math.round(val / BUDGET_STEP) * BUDGET_STEP;
-    // Direct edit: adjust this phase and its right neighbor (or left if last)
-    const catIdx = useStore().budget.categories.findIndex(c => c.id === category.id);
-    const cats = useStore().budget.categories;
-    const neighborIdx = catIdx < cats.length - 1 ? catIdx + 1 : catIdx - 1;
-    const neighbor = cats[neighborIdx];
-    const combined = category.allocated + neighbor.allocated;
-    const newThis = Math.min(combined, Math.max(0, stepped));
-    const newNeighbor = combined - newThis;
-    adjustAdjacentBudgets(
-      catIdx < cats.length - 1 ? category.id : neighbor.id,
-      catIdx < cats.length - 1 ? neighbor.id : category.id,
-      catIdx < cats.length - 1 ? newThis : newNeighbor,
-      catIdx < cats.length - 1 ? newNeighbor : newThis,
-    );
+    onSave(category.id, stepped);
     setEditing(false);
-  }, [inputVal, category]);
+  }, [inputVal, category.id, onSave]);
 
   const handleCancel = useCallback(() => {
     setInputVal(String(category.allocated));
@@ -315,6 +314,27 @@ export const BudgetPanel: React.FC = () => {
 
   const totalAllocated = state.budget.categories.reduce((sum, c) => sum + c.allocated, 0);
   const overBudget = hasBudget && totalAllocated > state.budget.total;
+
+  const handlePhaseBudgetSave = useCallback((categoryId: string, requestedAmount: number) => {
+    const cats = state.budget.categories;
+    const catIdx = cats.findIndex(c => c.id === categoryId);
+    if (catIdx === -1) return;
+
+    const neighborIdx = catIdx < cats.length - 1 ? catIdx + 1 : catIdx - 1;
+    if (neighborIdx < 0) return;
+
+    const mainCat = cats[catIdx];
+    const neighborCat = cats[neighborIdx];
+    const combined = mainCat.allocated + neighborCat.allocated;
+    const newAmount = Math.min(combined, Math.max(0, requestedAmount));
+    const newNeighbor = combined - newAmount;
+
+    if (catIdx < cats.length - 1) {
+      adjustAdjacentBudgets(mainCat.id, neighborCat.id, newAmount, newNeighbor);
+    } else {
+      adjustAdjacentBudgets(neighborCat.id, mainCat.id, newNeighbor, newAmount);
+    }
+  }, [state.budget.categories]);
 
   // Spent as percentage of category's own allocation
   const getSpentPctOfAlloc = (cat: BudgetCategory) => {
@@ -400,6 +420,7 @@ export const BudgetPanel: React.FC = () => {
                   key={cat.id}
                   category={cat}
                   totalBudget={state.budget.total}
+                  onSave={handlePhaseBudgetSave}
                 />
               ))}
             </div>
