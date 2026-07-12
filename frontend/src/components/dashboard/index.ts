@@ -1,6 +1,7 @@
 export { ReminderCard } from './ReminderCard';
 export { StatCard } from './StatCard';
 export { StageRoute } from './StageRoute';
+export { ProgressCard } from './ProgressCard';
 export { BudgetPanel } from './BudgetPanel';
 export { TodoPanel } from './TodoPanel';
 export { TodayFocus } from './TodayFocus';

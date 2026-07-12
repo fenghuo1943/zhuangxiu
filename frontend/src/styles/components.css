@@ -238,6 +238,8 @@
   box-shadow: 0 10px 26px rgba(55, 42, 31, .045);
   margin-bottom: 0;
   transition: transform .2s ease, box-shadow .2s ease;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .card:hover {
@@ -324,26 +326,34 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 /* ==================== HomePro Layout ==================== */
 .home-pro {
   width: min(1360px, calc(100% - 32px));
+  max-width: 100vw;
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
   align-items: start;
   padding: 16px 0 52px;
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 .home-pro > .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 390px;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
   align-items: stretch;
   margin: 0;
 }
 
+.home-pro > .hero > .card {
+  height: 100%;
+}
+
 .home-pro > .live-widgets {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
   margin: 0;
 }
 
@@ -373,6 +383,8 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   box-shadow: 0 14px 34px rgba(55, 42, 31, .07);
   overflow: hidden;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .hero-card::after {
@@ -388,14 +400,17 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 }
 
 .hero-main {
-  min-height: 260px;
+  flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 210px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   padding: 24px;
+  gap: 20px;
+  min-width: 0;
+  min-height: 0;
 }
 
-.hero-content { min-width: 0; }
+.hero-content { min-width: 0; max-width: 100%; }
 
 .eyebrow {
   display: inline-block;
@@ -472,6 +487,112 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 .state-card span { display: block; font-size: 12px; color: var(--fresh-subtle); font-weight: 720; }
 .state-card b { display: block; margin-top: 5px; font-size: 24px; color: var(--fresh-text); font-weight: 840; }
 .state-card small { display: block; margin-top: 3px; font-size: 11px; color: var(--fresh-subtle); }
+
+/* ==================== Progress Card ==================== */
+.progress-card .card-bd {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  height: 100%;
+}
+
+.progress-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.progress-card-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--fresh-coral);
+  background: var(--fresh-coral-soft);
+  flex-shrink: 0;
+}
+
+.progress-card-title {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--fresh-text);
+  flex: 1;
+}
+
+.progress-card-pct {
+  font-size: 22px;
+  font-weight: 850;
+  color: var(--fresh-coral);
+  line-height: 1;
+}
+
+/* Progress bar */
+.progress-card-bar-wrap {
+  margin-bottom: 14px;
+}
+
+.progress-card-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: #eeeae5;
+  overflow: hidden;
+}
+
+.progress-card-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--fresh-coral), #f08d72);
+  transition: width .5s ease;
+}
+
+/* Current stage info */
+.progress-card-current {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.progress-card-label {
+  font-size: 11px;
+  color: var(--fresh-subtle);
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+.progress-card-stage {
+  display: block;
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--fresh-text);
+  line-height: 1.3;
+}
+
+.progress-card-sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--fresh-subtle);
+  line-height: 1.45;
+}
+
+/* Bottom fraction */
+.progress-card-bottom {
+  padding-top: 10px;
+  border-top: 1px solid var(--fresh-line);
+  text-align: center;
+}
+
+.progress-card-fraction {
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--fresh-muted);
+}
 
 /* ==================== Stage Route ==================== */
 .stage-route-card .card-bd { padding: 0 8px 14px; }
@@ -553,6 +674,45 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 .home-step.done span, .home-step.done b { color: var(--fresh-green); }
 .home-step.current span, .home-step.current b { color: var(--fresh-coral); }
+
+/* View All button at end of stage route */
+.home-step--view-all {
+  opacity: .7;
+  cursor: pointer;
+  transition: opacity .2s;
+}
+.home-step--view-all:hover { opacity: 1; }
+.home-step--view-all::before {
+  border-style: dashed !important;
+  border-color: var(--fresh-coral) !important;
+  background: var(--fresh-coral-soft) !important;
+  box-shadow: none !important;
+}
+.home-step--view-all span {
+  color: var(--fresh-coral) !important;
+}
+.home-step--view-all b {
+  color: var(--fresh-coral) !important;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+/* Ellipsis indicator for earlier phases not shown */
+.home-step-more {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex: 0 0 40px;
+  min-width: 40px;
+  padding: 22px 0 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--fresh-subtle);
+  letter-spacing: 1px;
+  user-select: none;
+}
 
 /* ==================== Budget Panel ==================== */
 .budget-summary {
@@ -726,6 +886,14 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 .mobile-summary-cards { display: none; }
 
 /* ==================== Today Focus ==================== */
+.today-focus-card {
+  display: flex;
+  flex-direction: column;
+}
+.today-focus-card .card-bd {
+  flex: 1;
+}
+
 .focus-priority {
   padding: 10px 12px;
   border-radius: 12px;
@@ -845,6 +1013,12 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .home-pro > .layout > aside.stack {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .home-pro > .live-widgets {
+    grid-template-columns: 1fr;
+  }
+  .progress-card-pct {
+    font-size: 20px;
+  }
   .fresh-navbar {
     grid-template-columns: 1fr auto;
     width: calc(100% - 20px);
@@ -947,6 +1121,11 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
     margin: 0 0 12px;
   }
 
+  .progress-card-pct { font-size: 18px; }
+  .progress-card-stage { font-size: 14px; }
+  .progress-card-sub { font-size: 11px; }
+  .progress-card-current { margin-bottom: 8px; }
+
   .home-pro > .layout {
     display: grid;
     grid-template-columns: 1fr;
@@ -998,6 +1177,9 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
   .home-step span { display: none; }
   .home-step b { font-size: 10px; max-width: 64px; overflow: hidden; white-space: nowrap; }
+
+  .home-step-more { flex: 0 0 28px; min-width: 28px; padding-top: 10px; font-size: 12px; }
+  .home-step--view-all b { font-size: 10px; max-width: none; }
 
   .todo-add-row { flex-direction: column; }
   .todo-add-row .input, .todo-stage-select, .todo-date-input { max-width: none; width: 100%; }
@@ -1084,6 +1266,8 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .home-step { flex: 1 0 62px; min-width: 62px; padding: 0 4px; }
   .home-step::before { width: 16px; height: 16px; margin: 4px auto 5px; border-width: 2px; box-shadow: 0 0 0 4px #fff; }
   .home-step b { font-size: 10px; }
+  .home-step-more { flex: 0 0 24px; min-width: 24px; padding-top: 8px; font-size: 11px; }
+  .home-step--view-all b { font-size: 10px; max-width: none; }
 }
 
 /* Container for placeholder pages */

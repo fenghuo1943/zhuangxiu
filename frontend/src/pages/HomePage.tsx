@@ -3,6 +3,7 @@ import AppShell from '../components/layout/AppShell';
 import {
   ReminderCard,
   StageRoute,
+  ProgressCard,
   BudgetPanel,
   TodoPanel,
   TodayFocus,
@@ -17,13 +18,15 @@ const HomePage: React.FC = () => {
   return (
     <AppShell currentPage="home">
       <div className="home-pro">
-        {/* Hero / Reminder Section */}
+        {/* Hero / Reminder + TodayFocus */}
         <section className="hero">
           <ReminderCard />
+          <TodayFocus />
         </section>
 
-        {/* Progress Timeline */}
+        {/* Progress + Timeline */}
         <section className="live-widgets">
+          <ProgressCard />
           <StageRoute />
         </section>
 
@@ -34,7 +37,6 @@ const HomePage: React.FC = () => {
             <TodoPanel />
           </div>
           <aside className="stack">
-            <TodayFocus />
             <PurchaseSummary />
             <ExpenseSummary />
             <GuideCard />

@@ -9,7 +9,6 @@ export const ReminderCard: React.FC = () => {
   const remaining = getBudgetRemaining();
 
   const hasBudget = state.budget.total > 0;
-  const pendingTodos = state.todos.filter(t => t.projectId === state.activeProjectId && !t.completed).length;
   const currentStage = state.stages.find(s => s.id === state.projects.find(p => p.id === state.activeProjectId)?.currentStageId);
 
   const reminderText = hasBudget
@@ -44,25 +43,6 @@ export const ReminderCard: React.FC = () => {
           <div className="illus-icon">
             <IconClock size={64} />
           </div>
-        </div>
-      </div>
-
-      {/* Summary Cards Row */}
-      <div className="side-state">
-        <div className="state-card">
-          <span>待办事项</span>
-          <b>{pendingTodos}</b>
-          <small>项待处理</small>
-        </div>
-        <div className="state-card">
-          <span>待购材料</span>
-          <b>{state.selectedPurchaseIds.length + state.syncedModelIds.length}</b>
-          <small>项待采购</small>
-        </div>
-        <div className="state-card">
-          <span>预算余额</span>
-          <b>¥{hasBudget ? remaining.toLocaleString() : '--'}</b>
-          <small>{hasBudget ? `使用率 ${Math.round((state.budget.spent / state.budget.total) * 100)}%` : '未设置'}</small>
         </div>
       </div>
     </section>
