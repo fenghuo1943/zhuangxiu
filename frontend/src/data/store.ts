@@ -94,35 +94,59 @@ export function useStore() {
 
 // ==================== Budget Actions ====================
 
+function distributeBudget(total: number, categories: BudgetCategory[]): BudgetCategory[] {
+  const step = 100;
+  const normalizedTotal = Math.max(0, Math.round(total / step) * step);
+
+  if (normalizedTotal <= 0) {
+    return categories.map(c => ({ ...c, allocated: 0 }));
+  }
+
+  const count = categories.length;
+  const base = Math.floor(normalizedTotal / count / step) * step;
+  let remainder = normalizedTotal - base * count;
+
+  return categories.map((c, index) => {
+    let alloc = base;
+    if (index === 0) {
+      alloc += remainder;
+    }
+    return { ...c, allocated: Math.max(0, alloc) };
+  });
+}
+
 export function setTotalBudget(total: number) {
   const categories = globalState.budget.categories;
   const oldTotal = globalState.budget.total;
   const allZero = categories.every(c => c.allocated === 0);
+  const normalizedTotal = Math.max(0, Math.round(total / 100) * 100);
   let newCategories = categories;
 
-  if (total > 0) {
-    if (oldTotal > 0 && oldTotal !== total && !allZero) {
+  if (normalizedTotal > 0) {
+    if (oldTotal > 0 && oldTotal !== normalizedTotal && !allZero) {
       // Proportionally scale existing allocations to the new total
       let distributed = 0;
       const scaled = categories.map((c, i) => {
         if (i === categories.length - 1) {
           // Last category gets the remainder to avoid rounding gaps
-          const alloc = Math.round((total - distributed) / 100) * 100;
+          const alloc = Math.round((normalizedTotal - distributed) / 100) * 100;
           return { ...c, allocated: Math.max(0, alloc) };
         }
         const ratio = c.allocated / oldTotal;
-        const alloc = Math.round((total * ratio) / 100) * 100;
+        const alloc = Math.round((normalizedTotal * ratio) / 100) * 100;
         distributed += alloc;
         return { ...c, allocated: Math.max(0, alloc) };
       });
       newCategories = scaled;
+    } else {
+      newCategories = distributeBudget(normalizedTotal, categories);
     }
   } else {
     // Total set to 0 — clear all allocations
     newCategories = categories.map(c => ({ ...c, allocated: 0 }));
   }
 
-  globalState = { ...globalState, budget: { ...globalState.budget, total, categories: newCategories } };
+  globalState = { ...globalState, budget: { ...globalState.budget, total: normalizedTotal, categories: newCategories } };
   recalculateBudget();
   notify();
   persist();

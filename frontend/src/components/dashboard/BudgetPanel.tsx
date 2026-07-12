@@ -227,10 +227,10 @@ export const BudgetPanel: React.FC = () => {
     if (e.key === 'Enter') commitTotal(budgetInput);
   }, [budgetInput, commitTotal]);
 
-  // Pre-compute segment positions (totalBudget > 0 here since hasBudget guards usage)
+  // Pre-compute segment positions; show the bar once the total budget is set, even if allocations are still zero.
   const segments = cats.map((cat, i) => {
-    const leftPct = cats.slice(0, i).reduce((s, c) => s + c.allocated, 0) / totalBudget * 100;
-    const wPct = Math.max(cat.allocated / totalBudget * 100, 0);
+    const leftPct = totalBudget > 0 ? cats.slice(0, i).reduce((s, c) => s + c.allocated, 0) / totalBudget * 100 : 0;
+    const wPct = totalBudget > 0 ? Math.max(cat.allocated / totalBudget * 100, 0) : 0;
     return { cat, i, leftPct, wPct };
   });
 
@@ -307,7 +307,7 @@ export const BudgetPanel: React.FC = () => {
                 );
               })}
               {cats.slice(0, -1).map((cat, i) => {
-                const boundaryPct = cats.slice(0, i + 1).reduce((s, c) => s + c.allocated, 0) / totalBudget * 100;
+                const boundaryPct = totalBudget > 0 ? cats.slice(0, i + 1).reduce((s, c) => s + c.allocated, 0) / totalBudget * 100 : 0;
                 return (
                   <BudgetSliderHandle
                     key={`h-${cat.id}`}
