@@ -35,17 +35,23 @@ export function useAuth(): AuthState & {
     const cb = () => setTick(t => t + 1);
     listeners.push(cb);
     // Auto-check auth on mount
-    if (globalAuthState.loading && isAuthenticated()) {
-      getMe()
-        .then(user => {
-          globalAuthState = { user, loading: false, error: null, isLoggedIn: true };
-          notify();
-        })
-        .catch(() => {
-          setToken(null);
-          globalAuthState = { user: null, loading: false, error: null, isLoggedIn: false };
-          notify();
-        });
+    if (globalAuthState.loading) {
+      if (isAuthenticated()) {
+        getMe()
+          .then(user => {
+            globalAuthState = { user, loading: false, error: null, isLoggedIn: true };
+            notify();
+          })
+          .catch(() => {
+            setToken(null);
+            globalAuthState = { user: null, loading: false, error: null, isLoggedIn: false };
+            notify();
+          });
+      } else {
+        // No token stored — not loading, just unauthenticated
+        globalAuthState = { user: null, loading: false, error: null, isLoggedIn: false };
+        notify();
+      }
     }
     return () => { listeners.splice(listeners.indexOf(cb), 1); };
   }, []);

@@ -104,7 +104,7 @@ const ToolsPage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `小装家_全部数据_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `装修手记_全部数据_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     setImportMsg({ type: 'success', text: '数据已导出' });

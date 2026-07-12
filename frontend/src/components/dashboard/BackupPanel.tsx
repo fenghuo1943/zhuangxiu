@@ -19,7 +19,7 @@ export const BackupPanel: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `小装家_数据备份_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `装修手记_数据备份_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

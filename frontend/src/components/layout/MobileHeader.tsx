@@ -18,7 +18,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({ currentPage }) => {
           <IconHome size={18} />
         </span>
         <span>
-          小装家
+          装修手记
           <small>清晰装修管家</small>
         </span>
       </a>

@@ -7,7 +7,14 @@
       "Bash(curl -s http://localhost:8003/api/health)",
       "Bash(pkill -9 -f python)",
       "Bash(./venv/Scripts/python.exe -m uvicorn backend.main:app --port 8000)",
-      "Bash(curl -s http://localhost:8000/api/health)"
+      "Bash(curl -s http://localhost:8000/api/health)",
+      "Bash(pip install *)",
+      "Bash(python -c \"import aiomysql; print\\('aiomysql OK'\\)\")",
+      "Bash(python -c \"from backend.main import app; print\\('FastAPI app OK'\\)\")",
+      "Bash(python -c \"from backend.main import app; print\\('✅ 后端模块导入成功'\\)\")",
+      "Bash(python -c \"from backend.main import app; print\\('Import OK'\\)\")",
+      "Bash(python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003)",
+      "Bash(timeout 10 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003)"
     ]
   }
 }

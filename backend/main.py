@@ -12,7 +12,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="小装家 API",
+    title="装修手记 API",
     description="装修项目管理工具后端服务",
     version="1.0.0",
     lifespan=lifespan,
@@ -41,4 +41,4 @@ app.include_router(sync.router)
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "小装家 API"}
+    return {"status": "ok", "service": "装修手记 API"}

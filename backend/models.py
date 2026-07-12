@@ -5,7 +5,7 @@ from .database import Base
 
 
 def _pk():
-    return Column(String, primary_key=True)
+    return Column(String(36), primary_key=True)
 
 def _now():
     return datetime.datetime.utcnow()
@@ -25,7 +25,7 @@ class User(Base):
 class Project(Base):
     __tablename__ = "projects"
     id = _pk()
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     name = Column(String(100), nullable=False)
     owner_name = Column(String(50), default="我")
     current_stage_id = Column(String(50), default="design")
@@ -44,7 +44,7 @@ class Project(Base):
 
 class Budget(Base):
     __tablename__ = "budgets"
-    project_id = Column(String, ForeignKey("projects.id"), primary_key=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), primary_key=True)
     total = Column(Float, default=0.0)
 
     project = relationship("Project", back_populates="budget")
@@ -53,7 +53,7 @@ class Budget(Base):
 class BudgetCategory(Base):
     __tablename__ = "budget_categories"
     id = _pk()
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     name = Column(String(20), nullable=False)
     color = Column(String(10), nullable=False)
     allocated = Column(Float, default=0.0)
@@ -65,7 +65,7 @@ class BudgetCategory(Base):
 class Todo(Base):
     __tablename__ = "todos"
     id = _pk()
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     title = Column(String(200), nullable=False)
     stage_id = Column(String(50), default="design")
     due_date = Column(Date, nullable=True)
@@ -78,7 +78,7 @@ class Todo(Base):
 class Expense(Base):
     __tablename__ = "expenses"
     id = _pk()
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     title = Column(String(200), nullable=False)
     amount = Column(Float, nullable=False)
     category_id = Column(String(50), nullable=False, default="hard")
@@ -94,7 +94,7 @@ class Expense(Base):
 
 class FlowProgress(Base):
     __tablename__ = "flow_progress"
-    project_id = Column(String, ForeignKey("projects.id"), primary_key=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), primary_key=True)
     flow_type = Column(String(10), nullable=False, default="new")
     done_step_ids = Column(JSON, default=list)
     custom_order = Column(JSON, nullable=True)
@@ -115,7 +115,7 @@ class PurchaseRefStage(Base):
 class PurchaseRefSubgroup(Base):
     __tablename__ = "purchase_ref_subgroups"
     id = _pk()
-    stage_id = Column(String, ForeignKey("purchase_ref_stages.id"), nullable=False)
+    stage_id = Column(String(36), ForeignKey("purchase_ref_stages.id"), nullable=False)
     name = Column(String(100), nullable=False)
 
     stage = relationship("PurchaseRefStage", back_populates="subs")
@@ -125,7 +125,7 @@ class PurchaseRefSubgroup(Base):
 class PurchaseRefItem(Base):
     __tablename__ = "purchase_ref_items"
     id = _pk()
-    subgroup_id = Column(String, ForeignKey("purchase_ref_subgroups.id"), nullable=False)
+    subgroup_id = Column(String(36), ForeignKey("purchase_ref_subgroups.id"), nullable=False)
     name = Column(String(200), nullable=False)
     spec = Column(String(100), nullable=True)
     qty = Column(Integer, default=1)
@@ -137,8 +137,8 @@ class PurchaseRefItem(Base):
 class SelectedPurchase(Base):
     __tablename__ = "selected_purchases"
     id = _pk()
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
-    item_id = Column(String, ForeignKey("purchase_ref_items.id"), nullable=False)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
+    item_id = Column(String(36), ForeignKey("purchase_ref_items.id"), nullable=False)
 
     project = relationship("Project", back_populates="selected_purchases")
 
@@ -148,7 +148,7 @@ class SelectedPurchase(Base):
 class PriceCategory(Base):
     __tablename__ = "price_categories"
     id = _pk()
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     name = Column(String(100), nullable=False)
     icon = Column(String(10), default="📦")
 
@@ -159,7 +159,7 @@ class PriceCategory(Base):
 class PriceModel(Base):
     __tablename__ = "price_models"
     id = _pk()
-    category_id = Column(String, ForeignKey("price_categories.id"), nullable=False)
+    category_id = Column(String(36), ForeignKey("price_categories.id"), nullable=False)
     name = Column(String(200), nullable=False)
     spec = Column(String(100), nullable=True)
     note = Column(String(200), nullable=True)
@@ -172,7 +172,7 @@ class PriceModel(Base):
 class ChannelQuote(Base):
     __tablename__ = "channel_quotes"
     id = _pk()
-    model_id = Column(String, ForeignKey("price_models.id"), nullable=False)
+    model_id = Column(String(36), ForeignKey("price_models.id"), nullable=False)
     channel = Column(String(100), nullable=False)
     price = Column(Float, nullable=True)
     url = Column(String(500), nullable=True)
@@ -184,7 +184,7 @@ class ChannelQuote(Base):
 class SyncedModel(Base):
     __tablename__ = "synced_models"
     id = _pk()
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
-    model_id = Column(String, ForeignKey("price_models.id"), nullable=False)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
+    model_id = Column(String(36), ForeignKey("price_models.id"), nullable=False)
 
     project = relationship("Project", back_populates="synced_models")

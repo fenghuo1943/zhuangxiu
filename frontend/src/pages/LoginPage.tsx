@@ -25,7 +25,7 @@ const LoginPage: React.FC = () => {
         <div className="auth-header">
           <Link to="/" className="fresh-brand" style={{ justifyContent: 'center' }}>
             <span className="fresh-iconbox"><IconHome size={18} /></span>
-            <span>小装家<small>清晰装修管家</small></span>
+            <span>装修手记<small>清晰装修管家</small></span>
           </Link>
         </div>
         <h2>登录</h2>
