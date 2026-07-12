@@ -101,16 +101,7 @@ export function setTotalBudget(total: number) {
   let newCategories = categories;
 
   if (total > 0) {
-    if (allZero) {
-      // Auto-distribute evenly when setting budget for the first time (§4.2.3)
-      const count = categories.length;
-      const base = Math.floor(total / count / 100) * 100;
-      const remainder = total - base * count;
-      newCategories = categories.map((c, i) => ({
-        ...c,
-        allocated: base + (i < Math.round(remainder / 100) ? 100 : 0),
-      }));
-    } else if (oldTotal > 0 && oldTotal !== total) {
+    if (oldTotal > 0 && oldTotal !== total && !allZero) {
       // Proportionally scale existing allocations to the new total
       let distributed = 0;
       const scaled = categories.map((c, i) => {

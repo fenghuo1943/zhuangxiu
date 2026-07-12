@@ -139,29 +139,35 @@ const StageBudgetInput: React.FC<{
   cats: BudgetCategory[];
 }> = ({ catIdx, cats }) => {
   const cat = cats[catIdx];
-  const [localVal, setLocalVal] = useState(String(cat.allocated || ''));
+  const [localVal, setLocalVal] = useState(String(cat.allocated));
 
   // Sync from external store changes (slider drags, other edits)
   useEffect(() => {
-    setLocalVal(String(cat.allocated || ''));
+    setLocalVal(String(cat.allocated));
   }, [cat.allocated]);
 
   const handleBlur = useCallback(() => {
-    const v = parseInt(localVal, 10) || 0;
-    const stepped = clampStep(v);
+    const v = Math.max(0, parseInt(localVal, 10) || 0);
     const neighborIdx = catIdx < cats.length - 1 ? catIdx + 1 : catIdx - 1;
     const neighbor = cats[neighborIdx];
     const combined = cat.allocated + neighbor.allocated;
-    const newThis = Math.min(combined, Math.max(0, stepped));
-    const newNeighbor = combined - newThis;
 
-    // Sync local state to the clamped value
-    setLocalVal(String(newThis || ''));
+    // Sync local state
+    setLocalVal(String(v));
 
-    if (catIdx < cats.length - 1) {
-      adjustAdjacentBudgets(cat.id, neighbor.id, newThis, newNeighbor);
+    if (combined === 0) {
+      // No existing allocations — set this category directly, don't touch neighbor
+      setCategoryAllocation(cat.id, v);
     } else {
-      adjustAdjacentBudgets(neighbor.id, cat.id, newNeighbor, newThis);
+      // Existing allocations — keep combined total, adjust between the two
+      const newThis = Math.min(combined, v);
+      const newNeighbor = combined - newThis;
+      setLocalVal(String(newThis));
+      if (catIdx < cats.length - 1) {
+        adjustAdjacentBudgets(cat.id, neighbor.id, newThis, newNeighbor);
+      } else {
+        adjustAdjacentBudgets(neighbor.id, cat.id, newNeighbor, newThis);
+      }
     }
   }, [localVal, catIdx, cats, cat.id, cat.allocated]);
 
@@ -179,7 +185,7 @@ const StageBudgetInput: React.FC<{
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
       title="修改后按回车或点击外部确认"
-      step={BUDGET_STEP}
+      step={1}
     />
   );
 };
@@ -196,20 +202,6 @@ export const BudgetPanel: React.FC = () => {
 
   // Ensure barRef is populated before children read it
   useEffect(() => { forceTick(t => t + 1); }, []);
-
-  // Auto-initialize allocations if total > 0 but all are 0 (handles stale localStorage)
-  useEffect(() => {
-    if (state.budget.total > 0 && state.budget.categories.every(c => c.allocated === 0)) {
-      const cats = state.budget.categories;
-      const count = cats.length;
-      const base = Math.floor(state.budget.total / count / BUDGET_STEP) * BUDGET_STEP;
-      const remainder = state.budget.total - base * count;
-      cats.forEach((c, i) => {
-        const alloc = base + (i < Math.round(remainder / BUDGET_STEP) ? BUDGET_STEP : 0);
-        setCategoryAllocation(c.id, alloc);
-      });
-    }
-  }, []); // run once on mount
 
   const hasBudget = state.budget.total > 0;
   const totalBudget = state.budget.total || 0;
@@ -235,16 +227,10 @@ export const BudgetPanel: React.FC = () => {
     if (e.key === 'Enter') commitTotal(budgetInput);
   }, [budgetInput, commitTotal]);
 
-  // Pre-compute segment positions — use even distribution when total=0
+  // Pre-compute segment positions (totalBudget > 0 here since hasBudget guards usage)
   const segments = cats.map((cat, i) => {
-    if (totalBudget > 0) {
-      const leftPct = cats.slice(0, i).reduce((s, c) => s + c.allocated, 0) / totalBudget * 100;
-      const wPct = Math.max(cat.allocated / totalBudget * 100, 0);
-      return { cat, i, leftPct, wPct };
-    }
-    // When total=0, evenly split the bar
-    const wPct = 100 / cats.length;
-    const leftPct = i * wPct;
+    const leftPct = cats.slice(0, i).reduce((s, c) => s + c.allocated, 0) / totalBudget * 100;
+    const wPct = Math.max(cat.allocated / totalBudget * 100, 0);
     return { cat, i, leftPct, wPct };
   });
 
@@ -299,42 +285,43 @@ export const BudgetPanel: React.FC = () => {
         {/* ===== Divider ===== */}
         <div className="budget-divider" />
 
-        {/* ===== Hint ===== */}
-        <p className="budget-hint">拖动手柄调整各阶段预算分配</p>
-
-        {/* ===== Slider Bar ===== */}
-        <div className="budget-slider-bar" ref={barRef}>
-          <div className="budget-slider-track" />
-          {segments.map(({ cat, i, leftPct, wPct }) => {
-            const isFirst = i === 0;
-            const isLast = i === cats.length - 1;
-            let borderRadius = '0';
-            if (isFirst && isLast) borderRadius = '6px';
-            else if (isFirst) borderRadius = '6px 0 0 6px';
-            else if (isLast) borderRadius = '0 6px 6px 0';
-            return (
-              <div
-                key={cat.id}
-                className="budget-slider-seg"
-                style={{ left: `${leftPct}%`, width: `${wPct}%`, backgroundColor: cat.color, borderRadius }}
-              />
-            );
-          })}
-          {/* Handles — only show when budget is set */}
-          {hasBudget && cats.slice(0, -1).map((cat, i) => {
-            const boundaryPct = cats.slice(0, i + 1).reduce((s, c) => s + c.allocated, 0) / totalBudget * 100;
-            return (
-              <BudgetSliderHandle
-                key={`h-${cat.id}`}
-                leftCat={cat}
-                rightCat={cats[i + 1]}
-                pctLeft={boundaryPct}
-                totalBudget={totalBudget}
-                barEl={barRef.current}
-              />
-            );
-          })}
-        </div>
+        {/* ===== Hint + Slider Bar (only when budget is set) ===== */}
+        {hasBudget && (
+          <>
+            <p className="budget-hint">拖动手柄调整各阶段预算分配</p>
+            <div className="budget-slider-bar" ref={barRef}>
+              <div className="budget-slider-track" />
+              {segments.map(({ cat, i, leftPct, wPct }) => {
+                const isFirst = i === 0;
+                const isLast = i === cats.length - 1;
+                let borderRadius = '0';
+                if (isFirst && isLast) borderRadius = '6px';
+                else if (isFirst) borderRadius = '6px 0 0 6px';
+                else if (isLast) borderRadius = '0 6px 6px 0';
+                return (
+                  <div
+                    key={cat.id}
+                    className="budget-slider-seg"
+                    style={{ left: `${leftPct}%`, width: `${wPct}%`, backgroundColor: cat.color, borderRadius }}
+                  />
+                );
+              })}
+              {cats.slice(0, -1).map((cat, i) => {
+                const boundaryPct = cats.slice(0, i + 1).reduce((s, c) => s + c.allocated, 0) / totalBudget * 100;
+                return (
+                  <BudgetSliderHandle
+                    key={`h-${cat.id}`}
+                    leftCat={cat}
+                    rightCat={cats[i + 1]}
+                    pctLeft={boundaryPct}
+                    totalBudget={totalBudget}
+                    barEl={barRef.current}
+                  />
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {/* ===== Stage Budget Blocks ===== */}
         <div className="budget-stage-blocks">
