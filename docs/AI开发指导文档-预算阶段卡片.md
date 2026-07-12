@@ -98,6 +98,69 @@
 - 若用户拖动到最小值或最大值，应限制阶段预算不低于 `0`，也不高于总预算。
 - 建议在拖动时显示一个弹出浮层或数字提示，明确左右两个阶段当前预算值变化。
 
+### 4.2.3 具体实现建议
+
+#### 数据与状态设计
+
+- 增加阶段预算数组：`stageBudgets = [{ id, name, color, amount }]`。
+- `amount` 值来源于当前总预算均分，若总预算变化则重新计算基础分配。
+- 预算总额固定；滑块与编辑只调整 `stageBudgets` 的相邻项。
+- 额外保留 `totalBudget` 和 `remainingBudget`，用于校验与展示。
+
+#### 初始化与均分逻辑
+
+- 初始化时用 `Math.floor(total / phaseCount / 100) * 100` 计算每个阶段基础金额。
+- 将剩余金额分配给前几个阶段，保证总额完整。
+- 如 `50000` 元，5 个阶段则每阶段 `10000` 元；如 `51000` 元，可将多余 `1000` 元分配给第一个阶段。
+
+#### 渲染进度条与阶段面积
+
+- 进度条中每个阶段段宽按 `amount / totalBudget * 100%` 计算。
+- 阶段块背景使用 `color` 的浅色版本，显示阶段名与金额。
+- 阶段块下方保留可编辑金额，或直接在块内显示一个小型输入框。
+
+#### 阶段预算直接编辑
+
+- 阶段块内添加金额输入字段，用户修改时触发 `setStageBudget(stageId, newAmount)`。
+- 修改后也应同步更新进度条段宽并保证总额不变：若直接编辑某阶段，需将差额分摊到其他阶段或提示用户仅可通过滑块调整相邻阶段。
+- 推荐实现方式：阶段块直接编辑只更新当前阶段和一个默认邻近阶段，例如右侧阶段；若右侧阶段不存在，则调整左侧阶段。
+- 编辑时以 `100` 元为步长校验，输入完成后向最近的 100 元取整。
+
+#### 滑块拖拽逻辑
+
+- 每个相邻阶段边界显示一个可拖动把手组件。
+- 计算 `trackWidth = progressBarRect.width`，把手位置由左侧阶段金额累加比率决定。
+- 拖动时转换为金额增量：
+  - `deltaPx = currentX - startX`
+  - `deltaAmount = Math.round((deltaPx / trackWidth) * totalBudget / 100) * 100`
+- 更新公式：
+  - `leftStage.amount = clamp(startLeftAmount + deltaAmount, 0, startLeftAmount + startRightAmount)`
+  - `rightStage.amount = startLeftAmount + startRightAmount - leftStage.amount`
+- 保证步长为 `100`，建议使用 `Math.round(value / 100) * 100`。
+
+#### 交互细节
+
+- 滑块拖动时显示浮层提示当前左右阶段金额：`硬装工程 ¥20,300 | 主材选购 ¥19,700`。
+- 当拖动超过上下限时，滑块应停止移动，不产生溢出。
+- 释放时提交最终值到 `store`，同时触发 `notify()`、`persist()`。
+- 鼠标和触摸事件都要支持：`mousedown` / `touchstart` 绑定开始，`mousemove` / `touchmove` 绑定移动，`mouseup` / `touchend` 绑定结束。
+
+#### 组件实现建议
+
+- 组件层次：
+  - `BudgetPanel` 负责整体布局与状态读取。
+  - `BudgetProgressBar` 负责进度条段与滑块渲染。
+  - `PhaseBudgetRow` 负责阶段名称、金额展示与编辑入口。
+  - `BudgetSliderHandle` 负责拖拽交互。
+- 这样可以将拖拽逻辑与展示层解耦，便于测试与维护。
+
+#### 可访问性与样式
+
+- 滑块使用 `button` 语义，`aria-label` 说明调整两个阶段预算。
+- 为滑块添加键盘支持：左右方向键按 100 元步长调整。
+- 滑块尺寸建议 `16px x 24px`，交互区域扩大到 `32px`。
+- 阶段预算块文本应在 320px 宽度下仍然可读，金额换行显示。
+
 ### 4.3 分类预算分配行
 
 每个分类行显示：

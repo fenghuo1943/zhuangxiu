@@ -95,7 +95,22 @@ export function useStore() {
 // ==================== Budget Actions ====================
 
 export function setTotalBudget(total: number) {
-  globalState = { ...globalState, budget: { ...globalState.budget, total } };
+  const categories = globalState.budget.categories;
+  const allZero = categories.every(c => c.allocated === 0);
+  let newCategories = categories;
+
+  if (allZero && total > 0) {
+    // Auto-distribute evenly when setting budget for the first time (§4.2.3)
+    const count = categories.length;
+    const base = Math.floor(total / count / 100) * 100;
+    const remainder = total - base * count;
+    newCategories = categories.map((c, i) => ({
+      ...c,
+      allocated: base + (i < Math.round(remainder / 100) ? 100 : 0),
+    }));
+  }
+
+  globalState = { ...globalState, budget: { ...globalState.budget, total, categories: newCategories } };
   recalculateBudget();
   notify();
   persist();
@@ -105,6 +120,19 @@ export function setCategoryAllocation(categoryId: string, allocated: number) {
   const categories = globalState.budget.categories.map(c =>
     c.id === categoryId ? { ...c, allocated } : c
   );
+  globalState = { ...globalState, budget: { ...globalState.budget, categories } };
+  recalculateBudget();
+  notify();
+  persist();
+}
+
+/** Atomically adjust two adjacent category allocations (for slider drag, §4.2.2) */
+export function adjustAdjacentBudgets(leftId: string, rightId: string, newLeft: number, newRight: number) {
+  const categories = globalState.budget.categories.map(c => {
+    if (c.id === leftId) return { ...c, allocated: newLeft };
+    if (c.id === rightId) return { ...c, allocated: newRight };
+    return c;
+  });
   globalState = { ...globalState, budget: { ...globalState.budget, categories } };
   recalculateBudget();
   notify();

@@ -715,11 +715,13 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 }
 
 /* ==================== Budget Panel ==================== */
+
+/* --- Summary Stats (§4.1) --- */
 .budget-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .budget-stat {
@@ -729,7 +731,6 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   text-align: center;
   transition: border-color .2s, box-shadow .2s;
 }
-
 .budget-stat:hover {
   border-color: #e7d7cc;
   box-shadow: 0 4px 12px rgba(55, 42, 31, .04);
@@ -742,11 +743,13 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   font-size: 18px;
   font-weight: 800;
   color: var(--fresh-text);
+  word-break: break-all;
 }
 
 .budget-stat-value.is-placeholder {
   color: var(--fresh-subtle);
   font-size: 14px;
+  cursor: pointer;
   transition: color .2s;
 }
 .budget-stat-value.is-placeholder:hover { color: var(--fresh-coral); }
@@ -756,79 +759,197 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 .budget-edit-row { display: flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap; }
 .budget-input { width: 130px; }
 
-/* Main budget progress bar */
-.budget-bar-wrap { margin-bottom: 16px; }
-.budget-bar {
-  height: 10px;
+/* --- Interactive Progress Bar (§4.2) --- */
+.budget-bar-wrap {
+  margin-bottom: 0;
+  position: relative;
+}
+
+.budget-bar--interactive {
+  height: 12px;
   border-radius: 999px;
   background: #eeeae5;
-  overflow: hidden;
   display: flex;
   position: relative;
-}
-.budget-fill {
-  height: 100%;
-  border-radius: inherit;
-  transition: width .4s ease;
-  position: relative;
-  z-index: 1;
+  overflow: visible;
+  margin-bottom: 20px;
 }
 
-/* Allocation marker lines on the main progress bar */
-.budget-fill-mark {
+/* Colored segment per category */
+.budget-bar-segment {
+  height: 100%;
+  transition: width .25s ease;
+  position: relative;
+}
+.budget-bar-segment:first-child { border-radius: 999px 0 0 999px; }
+.budget-bar-segment:last-child { border-radius: 0 999px 999px 0; }
+.budget-bar-segment:first-child:last-child { border-radius: 999px; }
+
+/* --- Slider Handle (§4.2.2) --- */
+.budget-slider-handle {
   position: absolute;
-  top: 0;
-  height: 100%;
-  border-right: 2px dashed;
-  z-index: 2;
-  pointer-events: none;
-  opacity: .6;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  width: 16px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.15), 0 2px 8px rgba(0,0,0,.12);
+  cursor: ew-resize;
+  transition: box-shadow .15s, background .15s;
+  /* Enlarge touch area */
+  outline: none;
+}
+.budget-slider-handle::after {
+  content: "";
+  position: absolute;
+  inset: -12px -8px;
+  border-radius: inherit;
 }
 
-/* Legend below progress bar */
-.budget-bar-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 8px;
+.budget-slider-handle:hover,
+.budget-slider-handle.dragging {
+  box-shadow: 0 0 0 3px rgba(228, 91, 63, .35), 0 4px 16px rgba(0,0,0,.18);
+  background: var(--fresh-coral);
 }
-.budget-bar-legend-item {
-  display: inline-flex;
+.budget-slider-handle:focus-visible {
+  box-shadow: 0 0 0 3px rgba(228, 91, 63, .45), 0 4px 16px rgba(0,0,0,.18);
+}
+
+/* --- Slider Tooltip (§4.2.2) --- */
+.budget-slider-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #333;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgba(0,0,0,.18);
+  animation: tooltipIn .15s ease;
+}
+.budget-slider-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #333;
+}
+.budget-slider-tooltip-item { color: #fff; }
+.budget-slider-tooltip-divider { color: rgba(255,255,255,.4); }
+
+@keyframes tooltipIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* --- Phase Budget Blocks (§4.2.1) --- */
+.budget-phase-blocks {
+  display: flex;
+  gap: 0;
+  margin-bottom: 18px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--fresh-line);
+}
+
+.budget-phase-block {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
-  color: var(--fresh-muted);
-  font-weight: 550;
+  padding: 12px 6px 10px;
+  text-align: center;
+  background: #fdfcf9;
+  border-right: 1px solid var(--fresh-line);
+  transition: background .2s;
+  min-width: 0;
+}
+.budget-phase-block:last-child { border-right: none; }
+.budget-phase-block:hover { background: #fffaf7; }
+.budget-phase-block.current { background: #fff9f5; }
+
+/* Thin colored bar at top */
+.budget-phase-block-bar {
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
 }
 
-/* Stage-budget synergy hint */
-.budget-stage-hint {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
-  margin-bottom: 14px;
-  border: 1px solid #f0d6cc;
-  border-radius: 10px;
-  background: #fffaf7;
+.budget-phase-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.budget-phase-name {
   font-size: 12px;
-  color: var(--fresh-muted);
-  line-height: 1.6;
-}
-.budget-stage-hint-icon { flex-shrink: 0; margin-top: 1px; }
-.budget-stage-hint strong { color: var(--fresh-text); }
-.budget-stage-tag {
-  display: inline-block;
-  margin-left: 4px;
-  padding: 1px 7px;
-  border: 1px solid;
-  border-radius: 12px;
-  font-size: 11px;
   font-weight: 650;
-  background: #fff;
+  color: var(--fresh-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
-/* Category allocation section */
+.budget-phase-amount {
+  display: block;
+  font-size: 14px;
+  font-weight: 750;
+  color: var(--fresh-text);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+.budget-phase-amount:hover {
+  background: var(--fresh-coral-soft);
+  color: var(--fresh-coral);
+}
+
+.budget-phase-edit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.budget-phase-input {
+  width: 80px;
+  text-align: center;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+.budget-phase-edit-actions {
+  display: flex;
+  gap: 4px;
+}
+.budget-phase-edit-actions .btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  min-height: auto;
+}
+
+/* --- Category Allocation Table (§4.3) --- */
+.budget-categories {
+  border-top: 1px solid var(--fresh-line);
+  padding-top: 14px;
+}
+
 .budget-cat-header {
   display: flex;
   justify-content: space-between;
@@ -875,17 +996,8 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   border-radius: 8px;
   transition: background .2s;
 }
-
 .budget-cat-row:last-child { border-bottom: none; }
 .budget-cat-row:hover { background: #fdfcf9; }
-
-/* Highlight the category row for the current stage */
-.budget-cat-row.current-stage {
-  background: #fffaf7;
-  border-color: #f0d6cc;
-  border-radius: 8px;
-  padding-left: 8px;
-}
 
 .budget-cat-info { display: flex; align-items: center; gap: 8px; width: 110px; flex-shrink: 0; }
 .budget-cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -893,20 +1005,6 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   font-size: 13px;
   font-weight: 550;
   color: var(--fresh-text);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.budget-cat-current-badge {
-  display: inline-block;
-  padding: 0 5px;
-  border-radius: 4px;
-  background: var(--fresh-coral);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 16px;
 }
 
 .budget-cat-bar-wrap { flex: 1; min-width: 60px; }
@@ -925,12 +1023,10 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   left: 0;
   top: 0;
 }
-/* The allocated bar fills the background */
 .budget-cat-fill.allocated {
   opacity: .25;
   z-index: 1;
 }
-/* The spent overlay shows within the allocated portion */
 .budget-cat-fill.spent-overlay {
   opacity: .7;
   z-index: 2;
@@ -944,11 +1040,6 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   transition: border-color .2s, box-shadow .2s;
 }
 
-.budget-cat-input.highlight {
-  border-color: var(--fresh-coral);
-  box-shadow: 0 0 0 2px rgba(228, 91, 63, .08);
-}
-
 .budget-cat-spent {
   width: 105px;
   text-align: right;
@@ -957,26 +1048,29 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   flex-shrink: 0;
 }
 
-/* Budget empty state */
+/* --- Empty State (§4.4) --- */
 .budget-empty-state {
-  padding: 28px 16px !important;
+  padding: 32px 16px;
+  text-align: center;
 }
-.budget-empty-state .empty-state-icon {
-  font-size: 40px;
+.budget-empty-icon {
+  font-size: 42px;
   margin-bottom: 10px;
 }
-.budget-empty-state .empty-state-title {
+.budget-empty-title {
   font-size: 15px;
+  font-weight: 650;
   color: var(--fresh-text);
+  margin: 0;
 }
-.budget-empty-state .empty-state-desc {
-  max-width: 300px;
+.budget-empty-desc {
+  max-width: 320px;
   margin: 8px auto 0;
+  font-size: 13px;
+  color: var(--fresh-subtle);
   line-height: 1.6;
 }
-.budget-empty-state .empty-state-action {
-  margin-top: 16px;
-}
+.budget-empty-state .btn { margin-top: 16px; }
 
 /* ==================== Todo Panel ==================== */
 .mode-switch {
@@ -1348,14 +1442,17 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .budget-edit-row { flex-wrap: wrap; justify-content: center; }
   .budget-input { width: 100px; }
 
-  .budget-stage-hint {
-    flex-direction: column;
-    gap: 4px;
-    font-size: 11px;
-  }
+  /* Phase blocks wrap on mobile */
+  .budget-phase-blocks { flex-wrap: wrap; }
+  .budget-phase-block { flex: 1 1 100px; min-width: 90px; border-right: none; border-bottom: 1px solid var(--fresh-line); }
+  .budget-phase-block:last-child { border-bottom: none; }
+  .budget-phase-name { font-size: 11px; }
+  .budget-phase-amount { font-size: 12px; }
+  .budget-phase-input { width: 64px; font-size: 11px; }
 
-  .budget-bar-legend { gap: 8px; }
-  .budget-bar-legend-item { font-size: 10px; }
+  /* Slider handles smaller on mobile */
+  .budget-slider-handle { width: 14px; height: 22px; }
+  .budget-slider-tooltip { font-size: 10px; padding: 4px 8px; }
 
   .budget-cat-header { flex-direction: column; align-items: flex-start; }
   .budget-cat-header-right { flex-wrap: wrap; }
