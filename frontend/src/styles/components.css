@@ -2115,6 +2115,79 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   flex-wrap: wrap;
 }
 
+/* Big-stat list (stats view) */
+.big-stat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #fff;
+  border: 1px solid var(--fresh-line);
+  border-radius: 14px;
+  padding: 8px 14px;
+  box-shadow: 0 6px 20px rgba(55, 42, 31, .04);
+}
+
+.big-stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--fresh-line);
+}
+
+.big-stat:last-child {
+  border-bottom: 0;
+}
+
+.big-stat-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.big-stat-name {
+  width: 68px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--fresh-dark);
+}
+
+.big-stat-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(55, 42, 31, .06);
+  overflow: hidden;
+  min-width: 40px;
+}
+
+.big-stat-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width .4s ease;
+  min-width: 0;
+}
+
+.big-stat-amount {
+  width: 80px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.big-stat-pct {
+  width: 36px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--fresh-muted);
+}
+
 .view-switcher {
   display: flex;
   align-items: center;

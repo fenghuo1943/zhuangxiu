@@ -588,6 +588,35 @@ const ExpensePage: React.FC = () => {
             </div>
 
           </div>
+        ) : activeView === 'stats' ? (
+          /* ---- Stats View: big-stat list ---- */
+          <div className="big-stat-list">
+            {['hard', 'material', 'equipment', 'soft', 'service'].map(cid => {
+              const catExpenses = expensesByCategory[cid] || [];
+              const catTotal = catExpenses.reduce((s, e) => s + e.amount, 0);
+              const budgetCat = state.budget.categories.find(c => c.id === cid);
+              const allocated = budgetCat?.allocated || 0;
+              const pct = allocated > 0 ? Math.round((catTotal / allocated) * 100) : 0;
+              const barPct = Math.min(pct, 100);
+              const color = CATEGORY_COLORS[cid];
+              return (
+                <div key={cid} className="big-stat">
+                  <div className="big-stat-dot" style={{ background: color }} />
+                  <span className="big-stat-name">{CATEGORY_NAMES[cid]}</span>
+                  <div className="big-stat-bar">
+                    <div
+                      className="big-stat-fill"
+                      style={{ width: `${barPct}%`, background: color }}
+                    />
+                  </div>
+                  <span className="big-stat-amount" style={{ color }}>
+                    ¥{formatAmount(catTotal)}
+                  </span>
+                  <span className="big-stat-pct">{pct}%</span>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <>
             {filteredExpenses.length === 0 ? (
