@@ -2334,6 +2334,60 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   background: rgba(0,0,0,.08);
 }
 
+/* Drag & select states */
+.group-tag.selected {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+  transform: translateY(-1px);
+}
+
+.group-tag:active {
+  cursor: grabbing;
+}
+
+.group-box.drag-over {
+  border-color: var(--fresh-coral);
+  box-shadow: 0 0 0 3px var(--fresh-coral-soft), 0 6px 20px rgba(55, 42, 31, .08);
+  background: rgba(255, 255, 255, .98);
+}
+
+.pool-area.drag-over {
+  border-color: var(--fresh-coral);
+  border-style: solid;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 0 0 3px var(--fresh-coral-soft);
+}
+
+/* Selected hint bar */
+.group-select-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--fresh-coral-soft);
+  border-radius: 10px;
+  background: var(--fresh-coral-soft);
+  color: var(--fresh-coral);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.group-select-hint button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+  opacity: .7;
+  font-family: inherit;
+}
+
+.group-select-hint button:hover {
+  opacity: 1;
+}
+
 .group-empty {
   color: #ccc;
   font-size: 12px;

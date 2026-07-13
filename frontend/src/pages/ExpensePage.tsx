@@ -160,6 +160,8 @@ const ExpensePage: React.FC = () => {
   const [formStage, setFormStage] = useState('');
   const [formSubCategory, setFormSubCategory] = useState('');
   const [stageFilter, setStageFilter] = useState('');
+  const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
+  const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'stats' | 'bills' | 'group'>('stats');
 
   const openAddModal = () => {
@@ -493,12 +495,46 @@ const ExpensePage: React.FC = () => {
               </div>
             </div>
 
+            {selectedSubId && (
+              <div className="group-select-hint">
+                <span>
+                  已选中「{state.expenseSubCategories.find(s => s.id === selectedSubId)?.name || '未知'}」
+                  — 点击目标分组即可移入
+                </span>
+                <button onClick={() => setSelectedSubId(null)} title="取消选择">✕</button>
+              </div>
+            )}
+
             <div className="group-area">
               {state.expenseGroups.map(group => {
                 const subs = state.expenseSubCategories.filter(s => s.categoryId === group.id);
                 const color = CATEGORY_COLORS[group.id] || group.color;
+                const isDragOver = dragOverGroupId === group.id;
                 return (
-                  <div key={group.id} className="group-box">
+                  <div
+                    key={group.id}
+                    className={`group-box${isDragOver ? ' drag-over' : ''}`}
+                    onClick={() => {
+                      if (selectedSubId) {
+                        moveSubCategory(selectedSubId, group.id);
+                        setSelectedSubId(null);
+                      }
+                    }}
+                    onDragOver={e => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      setDragOverGroupId(group.id);
+                    }}
+                    onDragLeave={() => setDragOverGroupId(null)}
+                    onDrop={e => {
+                      e.preventDefault();
+                      setDragOverGroupId(null);
+                      const subId = e.dataTransfer.getData('text/plain');
+                      if (subId) {
+                        moveSubCategory(subId, group.id);
+                      }
+                    }}
+                  >
                     <div className="group-hd">
                       <input
                         className="group-name-input"
@@ -509,35 +545,53 @@ const ExpensePage: React.FC = () => {
                       <span style={{ fontSize: 11, color: '#999' }}>{subs.length}项</span>
                     </div>
                     <div className="group-bd">
-                      {subs.length === 0 ? (
+                      {subs.length === 0 && !isDragOver ? (
                         <div className="group-empty">拖到这里</div>
                       ) : (
-                        subs.map(sub => (
-                          <div
-                            key={sub.id}
-                            className="group-tag"
-                            style={{
-                              background: `${color}08`,
-                              border: `1px solid ${color}25`,
-                              color: color,
-                            }}
-                          >
-                            <svg viewBox="0 0 24 24" className="fresh-svg" aria-hidden="true">
-                              <circle cx="12" cy="12" r="3.5" />
-                            </svg>
-                            <span>{sub.name}</span>
-                            <button
-                              className="group-tag-del"
-                              title="删除"
+                        subs.map(sub => {
+                          const isSelected = selectedSubId === sub.id;
+                          return (
+                            <div
+                              key={sub.id}
+                              className={`group-tag${isSelected ? ' selected' : ''}`}
+                              style={{
+                                background: isSelected ? `${color}18` : `${color}08`,
+                                border: `1px solid ${isSelected ? color : `${color}25`}`,
+                                color: color,
+                                boxShadow: isSelected ? `0 0 0 2px ${color}30` : undefined,
+                              }}
+                              draggable
+                              onDragStart={e => {
+                                e.dataTransfer.setData('text/plain', sub.id);
+                                e.dataTransfer.effectAllowed = 'move';
+                                setSelectedSubId(null);
+                              }}
+                              onDragEnd={() => setDragOverGroupId(null)}
                               onClick={e => {
                                 e.stopPropagation();
-                                if (confirm(`删除小项「${sub.name}」?`)) deleteSubCategory(sub.id);
+                                setSelectedSubId(isSelected ? null : sub.id);
                               }}
                             >
-                              ×
-                            </button>
-                          </div>
-                        ))
+                              <svg viewBox="0 0 24 24" className="fresh-svg" aria-hidden="true">
+                                <circle cx="12" cy="12" r="3.5" />
+                              </svg>
+                              <span>{sub.name}</span>
+                              <button
+                                className="group-tag-del"
+                                title="删除"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  if (confirm(`删除小项「${sub.name}」?`)) {
+                                    if (selectedSubId === sub.id) setSelectedSubId(null);
+                                    deleteSubCategory(sub.id);
+                                  }
+                                }}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   </div>
@@ -545,8 +599,24 @@ const ExpensePage: React.FC = () => {
               })}
             </div>
 
-            <div className="pool-area">
-              <div style={{ fontSize: 11, color: '#999', marginBottom: 6 }}>未分组</div>
+            <div
+              className={`pool-area${dragOverGroupId === '_pool' ? ' drag-over' : ''}`}
+              onDragOver={e => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                setDragOverGroupId('_pool');
+              }}
+              onDragLeave={() => setDragOverGroupId(null)}
+              onDrop={e => {
+                e.preventDefault();
+                setDragOverGroupId(null);
+                const subId = e.dataTransfer.getData('text/plain');
+                if (subId && state.expenseGroups.length > 0) {
+                  moveSubCategory(subId, state.expenseGroups[0].id);
+                }
+              }}
+            >
+              <div style={{ fontSize: 11, color: '#999', marginBottom: 6 }}>未分组（拖到此处放回第一个分组）</div>
               <div className="pool-bd">
                 {(() => {
                   const groupIds = new Set(state.expenseGroups.map(g => g.id));
@@ -554,7 +624,14 @@ const ExpensePage: React.FC = () => {
                   return ungrouped.length === 0
                     ? <div style={{ color: '#ccc', fontSize: 11 }}>全部已分组</div>
                     : ungrouped.map(s => (
-                        <div key={s.id} className="group-tag" style={{ background: '#f0f0f0', border: '1px solid #ddd', color: '#888' }}>
+                        <div key={s.id} className="group-tag" style={{ background: '#f0f0f0', border: '1px solid #ddd', color: '#888' }}
+                          draggable
+                          onDragStart={e => {
+                            e.dataTransfer.setData('text/plain', s.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                            setSelectedSubId(null);
+                          }}
+                        >
                           <svg viewBox="0 0 24 24" className="fresh-svg"><circle cx="12" cy="12" r="3.5" /></svg>
                           <span>{s.name}</span>
                         </div>
