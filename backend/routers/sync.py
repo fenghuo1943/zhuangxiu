@@ -3,47 +3,57 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database import get_db
 from ..models import User, Project
 from ..schemas import AppStateSync
-from ..auth import get_current_user_or_guest
+from ..auth import get_current_user
 
 router = APIRouter(prefix="/api/projects/{project_id}/sync", tags=["Sync"])
 
 
+def _scoped_project_id(raw_project_id: str, user_id: str) -> str:
+    """Scope a frontend project ID (like 'p1') to the current user."""
+    scope = user_id.replace("-", "")[:8]
+    return f"{raw_project_id}_{scope}"
+
+
 async def _ensure_project(project_id: str, user: User, db: AsyncSession) -> Project:
-    """Return the project if it belongs to the user; create it for guest if missing."""
+    """Return the project if it belongs to the user; auto-create if missing."""
     from sqlalchemy import select
+    scoped_id = _scoped_project_id(project_id, user.id)
     result = await db.execute(
-        select(Project).where(Project.id == project_id, Project.user_id == user.id)
+        select(Project).where(Project.id == scoped_id, Project.user_id == user.id)
     )
     project = result.scalar_one_or_none()
     if project:
         return project
-    if user.id == "guest":
-        project = Project(id=project_id, user_id=user.id, name="默认项目", owner_name="游客")
-        db.add(project)
-        await db.commit()
-        await db.refresh(project)
-        return project
-    raise HTTPException(status_code=404, detail="项目不存在")
+    is_guest = user.id.startswith("g_")
+    project = Project(
+        id=scoped_id, user_id=user.id, name="默认项目",
+        owner_name=user.username if is_guest else (user.username or "我"),
+    )
+    db.add(project)
+    await db.commit()
+    await db.refresh(project)
+    return project
 
 
 @router.post("/export")
-async def export_state(project_id: str, user: User = Depends(get_current_user_or_guest), db: AsyncSession = Depends(get_db)):
+async def export_state(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Export all project data as JSON (same format as frontend localStorage)."""
     from sqlalchemy import select
     from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceCategory, PriceModel, ChannelQuote, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep
 
     proj = await _ensure_project(project_id, user, db)
+    sid = proj.id  # scoped project ID
 
-    todos = (await db.execute(select(Todo).where(Todo.project_id == project_id))).scalars().all()
-    expenses = (await db.execute(select(Expense).where(Expense.project_id == project_id))).scalars().all()
+    todos = (await db.execute(select(Todo).where(Todo.project_id == sid))).scalars().all()
+    expenses = (await db.execute(select(Expense).where(Expense.project_id == sid))).scalars().all()
 
-    budget_result = await db.execute(select(Budget).where(Budget.project_id == project_id))
+    budget_result = await db.execute(select(Budget).where(Budget.project_id == sid))
     budget = budget_result.scalar_one_or_none()
-    cats = (await db.execute(select(BudgetCategory).where(BudgetCategory.project_id == project_id))).scalars().all()
+    cats = (await db.execute(select(BudgetCategory).where(BudgetCategory.project_id == sid))).scalars().all()
 
-    fp = (await db.execute(select(FlowProgress).where(FlowProgress.project_id == project_id))).scalar_one_or_none()
+    fp = (await db.execute(select(FlowProgress).where(FlowProgress.project_id == sid))).scalar_one_or_none()
 
-    price_cats = (await db.execute(select(PriceCategory).where(PriceCategory.project_id == project_id))).scalars().all()
+    price_cats = (await db.execute(select(PriceCategory).where(PriceCategory.project_id == sid))).scalars().all()
     price_data = []
     for pc in price_cats:
         models = (await db.execute(select(PriceModel).where(PriceModel.category_id == pc.id))).scalars().all()
@@ -54,11 +64,11 @@ async def export_state(project_id: str, user: User = Depends(get_current_user_or
                 "channelQuotes": [{"id": q.id, "channel": q.channel, "price": q.price, "url": q.url, "updatedAt": q.updated_at.isoformat() if q.updated_at else None} for q in quotes]})
         price_data.append({"id": pc.id, "name": pc.name, "icon": pc.icon, "models": models_data})
 
-    sel = (await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == project_id))).scalars().all()
-    synced = (await db.execute(select(SyncedModel).where(SyncedModel.project_id == project_id))).scalars().all()
+    sel = (await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == sid))).scalars().all()
+    synced = (await db.execute(select(SyncedModel).where(SyncedModel.project_id == sid))).scalars().all()
 
     # Stage notes
-    notes = (await db.execute(select(StageNote).where(StageNote.project_id == project_id))).scalars().all()
+    notes = (await db.execute(select(StageNote).where(StageNote.project_id == sid))).scalars().all()
     notes_by_stage: dict = {}
     for n in notes:
         notes_by_stage.setdefault(n.stage_id, []).append({
@@ -67,7 +77,7 @@ async def export_state(project_id: str, user: User = Depends(get_current_user_or
         })
 
     # Custom flow steps
-    custom_steps = (await db.execute(select(CustomFlowStep).where(CustomFlowStep.project_id == project_id))).scalars().all()
+    custom_steps = (await db.execute(select(CustomFlowStep).where(CustomFlowStep.project_id == sid))).scalars().all()
     custom_steps_data = [{
         "id": cs.id, "project_id": cs.project_id, "flow_type": cs.flow_type,
         "title": cs.title, "days": cs.days, "desc": cs.desc,
@@ -97,48 +107,49 @@ async def export_state(project_id: str, user: User = Depends(get_current_user_or
 
 
 @router.post("/import")
-async def import_state(project_id: str, data: AppStateSync, user: User = Depends(get_current_user_or_guest), db: AsyncSession = Depends(get_db)):
+async def import_state(project_id: str, data: AppStateSync, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Import full project state from JSON."""
     from sqlalchemy import select, delete
     from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceCategory, PriceModel, ChannelQuote, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep
     import uuid
     from datetime import date as date_type, datetime, timezone
 
-    await _ensure_project(project_id, user, db)
+    proj = await _ensure_project(project_id, user, db)
+    sid = proj.id  # scoped project ID
 
     # Clear existing data
     for model in [Todo, Expense, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep]:
-        await db.execute(delete(model).where(model.project_id == project_id))
-    await db.execute(delete(Budget).where(Budget.project_id == project_id))
-    await db.execute(delete(BudgetCategory).where(BudgetCategory.project_id == project_id))
-    await db.execute(delete(FlowProgress).where(FlowProgress.project_id == project_id))
+        await db.execute(delete(model).where(model.project_id == sid))
+    await db.execute(delete(Budget).where(Budget.project_id == sid))
+    await db.execute(delete(BudgetCategory).where(BudgetCategory.project_id == sid))
+    await db.execute(delete(FlowProgress).where(FlowProgress.project_id == sid))
     # Clear price categories
-    existing_pc = (await db.execute(select(PriceCategory).where(PriceCategory.project_id == project_id))).scalars().all()
+    existing_pc = (await db.execute(select(PriceCategory).where(PriceCategory.project_id == sid))).scalars().all()
     for pc in existing_pc:
         await db.delete(pc)
 
     # Import todos
     for t in data.todos:
-        db.add(Todo(id=t.get("id", f"todo_{uuid.uuid4().hex[:12]}"), project_id=project_id, title=t["title"], stage_id=t.get("stage_id", "design"),
+        db.add(Todo(id=t.get("id", f"todo_{uuid.uuid4().hex[:12]}"), project_id=sid, title=t["title"], stage_id=t.get("stage_id", "design"),
             due_date=date_type.fromisoformat(t["due_date"]) if t.get("due_date") else None, completed=t.get("completed", False)))
 
     # Import expenses
     for e in data.expenses:
-        db.add(Expense(id=e.get("id", f"exp_{uuid.uuid4().hex[:12]}"), project_id=project_id, title=e["title"], amount=e["amount"],
+        db.add(Expense(id=e.get("id", f"exp_{uuid.uuid4().hex[:12]}"), project_id=sid, title=e["title"], amount=e["amount"],
             category_id=e.get("category_id", "hard"), stage_id=e.get("stage_id"),
             date=date_type.fromisoformat(e["date"]) if e.get("date") else date_type.today(),
             status=e.get("status", "paid"), payer=e.get("payer"), note=e.get("note")))
 
     # Import budget
     if data.budget:
-        db.add(Budget(project_id=project_id, total=data.budget.get("total", 0.0)))
+        db.add(Budget(project_id=sid, total=data.budget.get("total", 0.0)))
         for c in data.budget.get("categories", []):
-            db.add(BudgetCategory(id=f"{project_id}_{c['id']}", project_id=project_id, name=c["name"], color=c.get("color", "#999"), allocated=c.get("allocated", 0.0), spent=c.get("spent", 0.0)))
+            db.add(BudgetCategory(id=f"{sid}_{c['id']}", project_id=sid, name=c["name"], color=c.get("color", "#999"), allocated=c.get("allocated", 0.0), spent=c.get("spent", 0.0)))
 
     # Import flow
     if data.flow_progress:
         fp = data.flow_progress
-        db.add(FlowProgress(project_id=project_id, flow_type=fp.get("flow_type", "new"),
+        db.add(FlowProgress(project_id=sid, flow_type=fp.get("flow_type", "new"),
             done_step_ids=fp.get("done_step_ids", []), custom_order=fp.get("custom_order")))
 
     # Import stage notes
@@ -147,7 +158,7 @@ async def import_state(project_id: str, data: AppStateSync, user: User = Depends
             for n in note_list:
                 db.add(StageNote(
                     id=n.get("id", f"sn_{uuid.uuid4().hex[:12]}"),
-                    project_id=project_id,
+                    project_id=sid,
                     stage_id=stage_id,
                     content=n["content"],
                 ))
@@ -156,7 +167,7 @@ async def import_state(project_id: str, data: AppStateSync, user: User = Depends
     for cs in data.custom_flow_steps:
         db.add(CustomFlowStep(
             id=cs.get("id", f"cs_{uuid.uuid4().hex[:12]}"),
-            project_id=project_id,
+            project_id=sid,
             flow_type=cs.get("flow_type", "new"),
             title=cs["title"],
             days=cs.get("days", ""),

@@ -9,34 +9,42 @@ from ..schemas import (
     StageNoteCreate, StageNoteUpdate, StageNoteOut,
     CustomFlowStepCreate, CustomFlowStepUpdate, CustomFlowStepOut,
 )
-from ..auth import get_current_user_or_guest
+from ..auth import get_current_user
 
 router = APIRouter(prefix="/api/projects/{project_id}/flow", tags=["Flow"])
 
 
-async def _ensure_project(project_id: str, user: User, db: AsyncSession) -> Project:
-    """Return the project if it belongs to the user; create it for guest if missing."""
+# ---------- helpers ----------
+
+def _scoped_id(raw_project_id: str, user_id: str) -> str:
+    """Scope a frontend project ID to the current user for data isolation."""
+    scope = user_id.replace("-", "")[:8]
+    return f"{raw_project_id}_{scope}"
+
+
+async def _ensure_project(raw_project_id: str, user: User, db: AsyncSession) -> str:
+    """Ensure a project exists for this user. Returns the scoped project ID.
+    All subsequent DB queries MUST use this scoped ID, not the raw URL param."""
+    sid = _scoped_id(raw_project_id, user.id)
+
     result = await db.execute(
-        select(Project).where(Project.id == project_id, Project.user_id == user.id)
+        select(Project).where(Project.id == sid, Project.user_id == user.id)
     )
     project = result.scalar_one_or_none()
     if project:
-        return project
+        return sid
 
-    # Only auto-create for guest users
-    if user.id == "guest":
-        project = Project(
-            id=project_id,
-            user_id=user.id,
-            name="默认项目",
-            owner_name="游客",
-        )
-        db.add(project)
-        await db.commit()
-        await db.refresh(project)
-        return project
-
-    raise HTTPException(status_code=404, detail="项目不存在")
+    # Auto-create
+    is_guest = user.id.startswith("g_")
+    project = Project(
+        id=sid,
+        user_id=user.id,
+        name="默认项目",
+        owner_name=user.username if is_guest else (user.username or "我"),
+    )
+    db.add(project)
+    await db.commit()
+    return sid
 
 
 # ==================== Flow Progress ====================
@@ -44,14 +52,14 @@ async def _ensure_project(project_id: str, user: User, db: AsyncSession) -> Proj
 @router.get("", response_model=FlowProgressOut)
 async def get_flow(
     project_id: str,
-    user: User = Depends(get_current_user_or_guest),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _ensure_project(project_id, user, db)
-    fp_result = await db.execute(select(FlowProgress).where(FlowProgress.project_id == project_id))
+    sid = await _ensure_project(project_id, user, db)
+    fp_result = await db.execute(select(FlowProgress).where(FlowProgress.project_id == sid))
     fp = fp_result.scalar_one_or_none()
     if not fp:
-        fp = FlowProgress(project_id=project_id)
+        fp = FlowProgress(project_id=sid)
         db.add(fp)
         await db.commit()
         await db.refresh(fp)
@@ -62,14 +70,14 @@ async def get_flow(
 async def update_flow(
     project_id: str,
     data: FlowProgressUpdate,
-    user: User = Depends(get_current_user_or_guest),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _ensure_project(project_id, user, db)
-    fp_result = await db.execute(select(FlowProgress).where(FlowProgress.project_id == project_id))
+    sid = await _ensure_project(project_id, user, db)
+    fp_result = await db.execute(select(FlowProgress).where(FlowProgress.project_id == sid))
     fp = fp_result.scalar_one_or_none()
     if not fp:
-        fp = FlowProgress(project_id=project_id)
+        fp = FlowProgress(project_id=sid)
         db.add(fp)
     update = data.model_dump(exclude_unset=True)
     for k, v in update.items():
@@ -83,15 +91,14 @@ async def update_flow(
 async def mark_step_done(
     project_id: str,
     step_id: str,
-    user: User = Depends(get_current_user_or_guest),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Toggle a step's completion status. Returns the updated done_step_ids."""
-    await _ensure_project(project_id, user, db)
-    fp_result = await db.execute(select(FlowProgress).where(FlowProgress.project_id == project_id))
+    sid = await _ensure_project(project_id, user, db)
+    fp_result = await db.execute(select(FlowProgress).where(FlowProgress.project_id == sid))
     fp = fp_result.scalar_one_or_none()
     if not fp:
-        fp = FlowProgress(project_id=project_id)
+        fp = FlowProgress(project_id=sid)
         db.add(fp)
 
     done_ids = list(fp.done_step_ids or [])
@@ -110,13 +117,13 @@ async def mark_step_done(
 async def list_stage_notes(
     project_id: str,
     stage_id: str,
-    user: User = Depends(get_current_user_or_guest),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _ensure_project(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
     notes_result = await db.execute(
         select(StageNote).where(
-            StageNote.project_id == project_id,
+            StageNote.project_id == sid,
             StageNote.stage_id == stage_id,
         ).order_by(StageNote.created_at.desc())
     )
@@ -128,13 +135,13 @@ async def create_stage_note(
     project_id: str,
     stage_id: str,
     data: StageNoteCreate,
-    user: User = Depends(get_current_user_or_guest),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _ensure_project(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
     note = StageNote(
         id=f"sn_{uuid.uuid4().hex[:12]}",
-        project_id=project_id,
+        project_id=sid,
         stage_id=stage_id,
         content=data.content,
     )
@@ -150,13 +157,13 @@ async def update_stage_note(
     stage_id: str,
     note_id: str,
     data: StageNoteUpdate,
-    user: User = Depends(get_current_user_or_guest),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _ensure_project(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
     result = await db.execute(select(StageNote).where(
         StageNote.id == note_id,
-        StageNote.project_id == project_id,
+        StageNote.project_id == sid,
         StageNote.stage_id == stage_id,
     ))
     note = result.scalar_one_or_none()
@@ -173,13 +180,13 @@ async def delete_stage_note(
     project_id: str,
     stage_id: str,
     note_id: str,
-    user: User = Depends(get_current_user_or_guest),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _ensure_project(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
     result = await db.execute(select(StageNote).where(
         StageNote.id == note_id,
-        StageNote.project_id == project_id,
+        StageNote.project_id == sid,
         StageNote.stage_id == stage_id,
     ))
     note = result.scalar_one_or_none()
@@ -196,13 +203,13 @@ async def delete_stage_note(
 async def list_custom_steps(
     project_id: str,
     flow_type: str = "new",
-    user: User = Depends(get_current_user_or_guest),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _ensure_project(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
     steps_result = await db.execute(
         select(CustomFlowStep).where(
-            CustomFlowStep.project_id == project_id,
+            CustomFlowStep.project_id == sid,
             CustomFlowStep.flow_type == flow_type,
         ).order_by(CustomFlowStep.sort_order)
     )
@@ -213,13 +220,13 @@ async def list_custom_steps(
 async def create_custom_step(
     project_id: str,
     data: CustomFlowStepCreate,
-    user: User = Depends(get_current_user_or_guest),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _ensure_project(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
     step = CustomFlowStep(
         id=f"cs_{uuid.uuid4().hex[:12]}",
-        project_id=project_id,
+        project_id=sid,
         flow_type=data.flow_type,
         title=data.title,
         days=data.days,
@@ -237,13 +244,13 @@ async def update_custom_step(
     project_id: str,
     step_id: str,
     data: CustomFlowStepUpdate,
-    user: User = Depends(get_current_user_or_guest),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _ensure_project(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
     result = await db.execute(select(CustomFlowStep).where(
         CustomFlowStep.id == step_id,
-        CustomFlowStep.project_id == project_id,
+        CustomFlowStep.project_id == sid,
     ))
     step = result.scalar_one_or_none()
     if not step:
@@ -260,13 +267,13 @@ async def update_custom_step(
 async def delete_custom_step(
     project_id: str,
     step_id: str,
-    user: User = Depends(get_current_user_or_guest),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _ensure_project(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
     result = await db.execute(select(CustomFlowStep).where(
         CustomFlowStep.id == step_id,
-        CustomFlowStep.project_id == project_id,
+        CustomFlowStep.project_id == sid,
     ))
     step = result.scalar_one_or_none()
     if not step:
