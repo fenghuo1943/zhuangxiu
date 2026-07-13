@@ -157,6 +157,7 @@ const ExpensePage: React.FC = () => {
   const [formNote, setFormNote] = useState('');
   const [formStage, setFormStage] = useState('');
   const [stageFilter, setStageFilter] = useState('');
+  const [activeView, setActiveView] = useState<'stats' | 'bills' | 'group'>('stats');
 
   const openAddModal = () => {
     setEditingId(null);
@@ -361,53 +362,83 @@ const ExpensePage: React.FC = () => {
           })}
         </div>
 
-        {/* Filters & Actions */}
-        <div className="expense-toolbar">
-          <div className="expense-filters">
-            {STATUS_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                className={`filter-btn ${statusFilter === opt.value ? 'active' : ''}`}
-                onClick={() => setStatusFilter(opt.value)}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          <div className="expense-search">
-            <IconSearch size={14} />
-            <input
-              className="input"
-              placeholder="搜索记账记录..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              style={{ width: 180, paddingLeft: 32 }}
-            />
-          </div>
-          <div className="expense-actions">
-            {/* Export dropdown */}
-            <div className="export-dropdown" style={{ position: 'relative' }}>
-              <button className="btn btn-outline btn-sm" onClick={() => setShowExportMenu(!showExportMenu)}>
-                <IconDownload size={14} /> 导出 ▾
-              </button>
-              {showExportMenu && (
-                <div className="export-menu" style={{ position: 'absolute', top: '100%', right: 0, zIndex: 200, marginTop: 4, background: '#fff', border: '1px solid var(--fresh-line)', borderRadius: 10, boxShadow: '0 8px 24px rgba(55,42,31,.12)', overflow: 'hidden', minWidth: 140 }}>
-                  <button className="export-menu-item" onClick={() => { handleExportCSV(); setShowExportMenu(false); }}>📊 导出 CSV (Excel)</button>
-                  <button className="export-menu-item" onClick={() => { handleExportJSON(); setShowExportMenu(false); }}>📋 导出 JSON</button>
-                </div>
-              )}
-            </div>
-            <button className="btn btn-outline btn-sm" onClick={handleImportJSON} title="导入 JSON">
-              <IconUpload size={14} /> 导入 JSON
+        {/* View Switcher */}
+        <div className="toolbar-row">
+          <div className="tabs">
+            <button
+              className={`tab ${activeView === 'stats' ? 'active' : ''}`}
+              onClick={() => setActiveView('stats')}
+            >
+              分类统计
             </button>
-            <button className="btn btn-outline btn-sm" onClick={handleImportCSV} title="导入 CSV">
-              <IconUpload size={14} /> 导入 CSV
-            </button>
-            <button className="btn btn-primary btn-sm" onClick={openAddModal}>
-              <IconPlus size={14} /> 记一笔
+            <button
+              className={`tab ${activeView === 'bills' ? 'active' : ''}`}
+              onClick={() => setActiveView('bills')}
+            >
+              全部账单
             </button>
           </div>
+          <button
+            className={`icon-btn icon-btn--settings ${activeView === 'group' ? 'active' : ''}`}
+            onClick={() => setActiveView('group')}
+            title="分组设置"
+            aria-label="分组设置"
+          >
+            <svg viewBox="0 0 24 24">
+              <path d="M12 8.2a3.8 3.8 0 1 1 0 7.6 3.8 3.8 0 0 1 0-7.6z" />
+              <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.2a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.2a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3h.1a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.2a1.6 1.6 0 0 0 1 1.5h.1a1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8v.1a1.6 1.6 0 0 0 1.5 1h.2a2 2 0 0 1 0 4h-.2a1.6 1.6 0 0 0-1.5 1z" />
+            </svg>
+          </button>
         </div>
+
+        {activeView === 'bills' && (
+          <div className="expense-toolbar">
+            <div className="expense-filters">
+              {STATUS_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  className={`filter-btn ${statusFilter === opt.value ? 'active' : ''}`}
+                  onClick={() => setStatusFilter(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="expense-search">
+              <IconSearch size={14} />
+              <input
+                className="input"
+                placeholder="搜索记账记录..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{ width: 180, paddingLeft: 32 }}
+              />
+            </div>
+            <div className="expense-actions">
+              {/* Export dropdown */}
+              <div className="export-dropdown" style={{ position: 'relative' }}>
+                <button className="btn btn-outline btn-sm" onClick={() => setShowExportMenu(!showExportMenu)}>
+                  <IconDownload size={14} /> 导出 ▾
+                </button>
+                {showExportMenu && (
+                  <div className="export-menu" style={{ position: 'absolute', top: '100%', right: 0, zIndex: 200, marginTop: 4, background: '#fff', border: '1px solid var(--fresh-line)', borderRadius: 10, boxShadow: '0 8px 24px rgba(55,42,31,.12)', overflow: 'hidden', minWidth: 140 }}>
+                    <button className="export-menu-item" onClick={() => { handleExportCSV(); setShowExportMenu(false); }}>📊 导出 CSV (Excel)</button>
+                    <button className="export-menu-item" onClick={() => { handleExportJSON(); setShowExportMenu(false); }}>📋 导出 JSON</button>
+                  </div>
+                )}
+              </div>
+              <button className="btn btn-outline btn-sm" onClick={handleImportJSON} title="导入 JSON">
+                <IconUpload size={14} /> 导入 JSON
+              </button>
+              <button className="btn btn-outline btn-sm" onClick={handleImportCSV} title="导入 CSV">
+                <IconUpload size={14} /> 导入 CSV
+              </button>
+              <button className="btn btn-primary btn-sm" onClick={openAddModal}>
+                <IconPlus size={14} /> 记一笔
+              </button>
+            </div>
+          </div>
+        )}
 
         {importMsg && (
           <div className={`backup-msg ${importMsg.type}`} style={{ marginBottom: 12 }}>
@@ -419,141 +450,184 @@ const ExpensePage: React.FC = () => {
         )}
 
         {/* Category Accordion */}
-        {filteredExpenses.length === 0 ? (
-          <div className="card">
-            <div className="card-bd">
-              <div className="empty-state">
-                <div className="empty-state-icon">💰</div>
-                <p className="empty-state-title">暂无记录</p>
-                <p className="empty-state-desc">
-                  {searchQuery ? '未找到匹配的记账记录' : '还没有记账记录，点击"记一笔"开始记录'}
-                </p>
-                {!searchQuery && (
-                  <div className="empty-state-action">
-                    <button className="btn btn-primary" onClick={openAddModal}>
-                      <IconPlus size={14} /> 记一笔
-                    </button>
+        {activeView === 'group' ? (
+          <div className="expense-view-panel">
+            <div className="card expense-group-card">
+              <div className="expense-group-header">
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>记账视图设置</h3>
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--fresh-subtle)' }}>
+                    参考参考页中的分类统计、全部账单与设置三种视图，后续可继续接入分组拖拽与显示开关。
+                  </p>
+                </div>
+                <div className="expense-group-badges">
+                  <span className="badge badge-default">分类统计</span>
+                  <span className="badge badge-default">全部账单</span>
+                  <span className="badge badge-default">设置</span>
+                </div>
+              </div>
+              <div className="expense-group-body">
+                <div className="expense-group-block">
+                  <h4>分类显示</h4>
+                  <p>当前默认展示五大一级分类，可在后续扩展为按阶段或自定义分组管理。</p>
+                  <div className="expense-group-list">
+                    {Object.entries(CATEGORY_NAMES).map(([id, name]) => (
+                      <span key={id} className="expense-group-item" style={{ color: CATEGORY_COLORS[id] }}>
+                        {name}
+                      </span>
+                    ))}
                   </div>
-                )}
+                </div>
+                <div className="expense-group-block">
+                  <h4>账单操作</h4>
+                  <p>当前“全部账单”视图保留原有筛选、导入导出与新增记账按钮，便于保持现有交互不变。</p>
+                  <div className="expense-group-actions">
+                    <button className="btn btn-outline btn-sm" onClick={() => setActiveView('bills')}>查看全部账单</button>
+                    <button className="btn btn-primary btn-sm" onClick={() => setActiveView('stats')}>查看分类统计</button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="expense-accordion">
-            {['hard', 'material', 'equipment', 'soft', 'service'].map(cid => {
-              const catExpenses = expensesByCategory[cid] || [];
-              if (catExpenses.length === 0) return null;
-              const isOpen = expandedCats.has(cid);
-              const catTotal = catExpenses.reduce((s, e) => s + e.amount, 0);
-              return (
-                <div key={cid} className={`expense-cat-group ${isOpen ? 'open' : ''}`}>
-                  <div
-                    className="expense-cat-header"
-                    onClick={() => toggleCat(cid)}
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={isOpen}
-                  >
-                    <div className="expense-cat-header-left">
-                      <span className="expense-cat-dot" style={{ background: CATEGORY_COLORS[cid] }} />
-                      <strong>{CATEGORY_NAMES[cid]}</strong>
-                      <span className="badge badge-default">{catExpenses.length} 笔</span>
-                    </div>
-                    <div className="expense-cat-header-right">
-                      <b>¥{formatAmount(catTotal)}</b>
-                      <span className={`expense-cat-chevron ${isOpen ? 'open' : ''}`}>
-                        <IconChevronDown size={16} />
-                      </span>
-                    </div>
+          <>
+            {filteredExpenses.length === 0 ? (
+              <div className="card">
+                <div className="card-bd">
+                  <div className="empty-state">
+                    <div className="empty-state-icon">💰</div>
+                    <p className="empty-state-title">暂无记录</p>
+                    <p className="empty-state-desc">
+                      {searchQuery ? '未找到匹配的记账记录' : '还没有记账记录，点击"记一笔"开始记录'}
+                    </p>
+                    {!searchQuery && (
+                      <div className="empty-state-action">
+                        <button className="btn btn-primary" onClick={openAddModal}>
+                          <IconPlus size={14} /> 记一笔
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {isOpen && (
-                    <div className="expense-cat-body">
-                      {/* Stage chips */}
-                      {(() => {
-                        const stageIds = [...new Set(catExpenses.map(e => e.stageId).filter(Boolean))];
-                        if (stageIds.length === 0) return null;
-                        return (
-                          <div className="expense-stage-chips">
-                            {stageIds.map(sid => {
-                              const stg = DEFAULT_STAGES.find(s => s.id === sid);
-                              const isActive = stageFilter === sid;
-                              return (
-                                <button
-                                  key={sid!}
-                                  className={`expense-stage-chip ${isActive ? 'active' : ''}`}
-                                  onClick={(e) => { e.stopPropagation(); setStageFilter(isActive ? '' : sid!); }}
-                                >
-                                  {stg?.name || sid}
-                                  {isActive && <IconX size={10} />}
-                                </button>
-                              );
-                            })}
-                            {stageFilter && (
-                              <button className="expense-stage-chip clear" onClick={(e) => { e.stopPropagation(); setStageFilter(''); }}>
-                                清除筛选
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })()}
-                      {catExpenses.map(exp => (
-                        <div key={exp.id} className={`expense-item ${deleteConfirm === exp.id ? 'deleting' : ''}`}>
-                          <div className="expense-item-main">
-                            <div className="expense-item-info">
-                              <span className="expense-item-title">{exp.title}</span>
-                              <div className="expense-item-meta-row">
-                                <span className="expense-item-date">{exp.date}</span>
-                                {exp.stageId && (() => {
-                                  const s = DEFAULT_STAGES.find(st => st.id === exp.stageId);
-                                  return s ? <span className="expense-item-stage-tag">{s.name}</span> : null;
-                                })()}
-                              </div>
-                              {exp.note && <span className="expense-item-note">{exp.note}</span>}
-                            </div>
-                            <div className="expense-item-right">
-                              <b className="expense-item-amount">¥{formatAmount(exp.amount)}</b>
-                              <span className={`badge ${exp.status === 'paid' ? 'badge-success' : exp.status === 'unpaid' ? 'badge-danger' : 'badge-warning'}`}>
-                                {STATUS_LABELS[exp.status] || exp.status}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="expense-item-actions">
-                            <select
-                              className="input"
-                              value={exp.status}
-                              onChange={e => updateExpenseStatus(exp.id, e.target.value as Expense['status'])}
-                              style={{ fontSize: 11, padding: '2px 6px' }}
-                            >
-                              <option value="paid">已支付</option>
-                              <option value="prepaid">预付款</option>
-                              <option value="unpaid">未支付</option>
-                            </select>
-                            <button className="fresh-icon-btn" title="编辑" onClick={() => openEditModal(exp)}>
-                              <IconEdit size={14} />
-                            </button>
-                            {deleteConfirm === exp.id ? (
-                              <>
-                                <button className="btn btn-sm" style={{ color: '#EF4444', fontSize: 11 }} onClick={() => handleDeleteWithUndo(exp)}>
-                                  确认
-                                </button>
-                                <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => setDeleteConfirm(null)}>
-                                  取消
-                                </button>
-                              </>
-                            ) : (
-                              <button className="fresh-icon-btn" title="删除" onClick={() => setDeleteConfirm(exp.id)}>
-                                <IconTrash size={14} />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            ) : (
+              <div className="expense-accordion">
+                {['hard', 'material', 'equipment', 'soft', 'service'].map(cid => {
+                  const catExpenses = expensesByCategory[cid] || [];
+                  if (catExpenses.length === 0) return null;
+                  const isOpen = expandedCats.has(cid);
+                  const catTotal = catExpenses.reduce((s, e) => s + e.amount, 0);
+                  return (
+                    <div key={cid} className={`expense-cat-group ${isOpen ? 'open' : ''}`}>
+                      <div
+                        className="expense-cat-header"
+                        onClick={() => toggleCat(cid)}
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={isOpen}
+                      >
+                        <div className="expense-cat-header-left">
+                          <span className="expense-cat-dot" style={{ background: CATEGORY_COLORS[cid] }} />
+                          <strong>{CATEGORY_NAMES[cid]}</strong>
+                          <span className="badge badge-default">{catExpenses.length} 笔</span>
+                        </div>
+                        <div className="expense-cat-header-right">
+                          <b>¥{formatAmount(catTotal)}</b>
+                          <span className={`expense-cat-chevron ${isOpen ? 'open' : ''}`}>
+                            <IconChevronDown size={16} />
+                          </span>
+                        </div>
+                      </div>
+                      {isOpen && (
+                        <div className="expense-cat-body">
+                          {/* Stage chips */}
+                          {(() => {
+                            const stageIds = [...new Set(catExpenses.map(e => e.stageId).filter(Boolean))];
+                            if (stageIds.length === 0) return null;
+                            return (
+                              <div className="expense-stage-chips">
+                                {stageIds.map(sid => {
+                                  const stg = DEFAULT_STAGES.find(s => s.id === sid);
+                                  const isActive = stageFilter === sid;
+                                  return (
+                                    <button
+                                      key={sid!}
+                                      className={`expense-stage-chip ${isActive ? 'active' : ''}`}
+                                      onClick={(e) => { e.stopPropagation(); setStageFilter(isActive ? '' : sid!); }}
+                                    >
+                                      {stg?.name || sid}
+                                      {isActive && <IconX size={10} />}
+                                    </button>
+                                  );
+                                })}
+                                {stageFilter && (
+                                  <button className="expense-stage-chip clear" onClick={(e) => { e.stopPropagation(); setStageFilter(''); }}>
+                                    清除筛选
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
+                          {catExpenses.map(exp => (
+                            <div key={exp.id} className={`expense-item ${deleteConfirm === exp.id ? 'deleting' : ''}`}>
+                              <div className="expense-item-main">
+                                <div className="expense-item-info">
+                                  <span className="expense-item-title">{exp.title}</span>
+                                  <div className="expense-item-meta-row">
+                                    <span className="expense-item-date">{exp.date}</span>
+                                    {exp.stageId && (() => {
+                                      const s = DEFAULT_STAGES.find(st => st.id === exp.stageId);
+                                      return s ? <span className="expense-item-stage-tag">{s.name}</span> : null;
+                                    })()}
+                                  </div>
+                                  {exp.note && <span className="expense-item-note">{exp.note}</span>}
+                                </div>
+                                <div className="expense-item-right">
+                                  <b className="expense-item-amount">¥{formatAmount(exp.amount)}</b>
+                                  <span className={`badge ${exp.status === 'paid' ? 'badge-success' : exp.status === 'unpaid' ? 'badge-danger' : 'badge-warning'}`}>
+                                    {STATUS_LABELS[exp.status] || exp.status}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="expense-item-actions">
+                                <select
+                                  className="input"
+                                  value={exp.status}
+                                  onChange={e => updateExpenseStatus(exp.id, e.target.value as Expense['status'])}
+                                  style={{ fontSize: 11, padding: '2px 6px' }}
+                                >
+                                  <option value="paid">已支付</option>
+                                  <option value="prepaid">预付款</option>
+                                  <option value="unpaid">未支付</option>
+                                </select>
+                                <button className="fresh-icon-btn" title="编辑" onClick={() => openEditModal(exp)}>
+                                  <IconEdit size={14} />
+                                </button>
+                                {deleteConfirm === exp.id ? (
+                                  <>
+                                    <button className="btn btn-sm" style={{ color: '#EF4444', fontSize: 11 }} onClick={() => handleDeleteWithUndo(exp)}>
+                                      确认
+                                    </button>
+                                    <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => setDeleteConfirm(null)}>
+                                      取消
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button className="fresh-icon-btn" title="删除" onClick={() => setDeleteConfirm(exp.id)}>
+                                    <IconTrash size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
 
         {/* Add / Edit Modal */}

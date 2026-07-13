@@ -29,7 +29,9 @@
       "Bash(curl -s -X POST http://localhost:8003/api/projects/p1/flow/stages/design/notes -H \"Content-Type: application/json\" -d \"{\\\\\"stage_id\\\\\":\\\\\"design\\\\\",\\\\\"content\\\\\":\\\\\"test note\\\\\"}\")",
       "Bash(curl -s -X PUT http://localhost:8003/api/projects/p1/flow -H \"Content-Type: application/json\" -d \"{\\\\\"flow_type\\\\\":\\\\\"new\\\\\",\\\\\"done_step_ids\\\\\":[\\\\\"design\\\\\",\\\\\"demolish\\\\\"],\\\\\"custom_order\\\\\":null}\")",
       "Bash(curl -s -X DELETE http://localhost:8003/api/projects/p1/flow/stages/design/notes/sn_6d7342be1876)",
-      "Bash(curl -s -X PUT http://localhost:8003/api/projects/p1/flow -H \"Content-Type: application/json\" -d \"{\\\\\"flow_type\\\\\":\\\\\"new\\\\\",\\\\\"done_step_ids\\\\\":[],\\\\\"custom_order\\\\\":null}\")"
+      "Bash(curl -s -X PUT http://localhost:8003/api/projects/p1/flow -H \"Content-Type: application/json\" -d \"{\\\\\"flow_type\\\\\":\\\\\"new\\\\\",\\\\\"done_step_ids\\\\\":[],\\\\\"custom_order\\\\\":null}\")",
+      "Bash(npm run *)",
+      "WebFetch(domain:localhost)"
     ]
   }
 }
