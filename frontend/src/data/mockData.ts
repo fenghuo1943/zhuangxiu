@@ -1,4 +1,4 @@
-import type { Stage, BudgetCategory, FlowStep } from './types';
+import type { Stage, BudgetCategory, FlowStep, ExpenseSubCategory, ExpenseGroup } from './types';
 
 export const DEFAULT_STAGES: Stage[] = [
   { id: 'design', name: '设计与开工准备', order: 1, description: '收房验房、量房设计、物业报备', totalTasks: 3, completedTasks: 0 },
@@ -31,6 +31,60 @@ export const DEFAULT_BUDGET_CATEGORIES: BudgetCategory[] = [
   { id: 'equipment', name: '设备系统', color: '#5c7fa8', allocated: 0, spent: 0 },
   { id: 'soft', name: '软装家电', color: '#be7b2f', allocated: 0, spent: 0 },
   { id: 'service', name: '服务杂项', color: '#9b928b', allocated: 0, spent: 0 },
+];
+
+export const DEFAULT_EXPENSE_GROUPS: ExpenseGroup[] = [
+  { id: 'hard', name: '硬装工程', color: '#e45b3f', visible: true },
+  { id: 'material', name: '主材选购', color: '#5f9f77', visible: true },
+  { id: 'equipment', name: '设备系统', color: '#5c7fa8', visible: true },
+  { id: 'soft', name: '软装家电', color: '#be7b2f', visible: true },
+  { id: 'service', name: '服务杂项', color: '#9b928b', visible: true },
+];
+
+export const DEFAULT_SUB_CATEGORIES: ExpenseSubCategory[] = [
+  // 硬装工程
+  { id: 'hetong', name: '合同款项', categoryId: 'hard' },
+  { id: 'chaigai', name: '拆改', categoryId: 'hard' },
+  { id: 'qiangti', name: '墙体砌筑', categoryId: 'hard' },
+  { id: 'baohu', name: '成品保护', categoryId: 'hard' },
+  { id: 'shuidian', name: '水电', categoryId: 'hard' },
+  { id: 'wagong', name: '瓦工', categoryId: 'hard' },
+  { id: 'fangshui', name: '防水', categoryId: 'hard' },
+  { id: 'baoguan', name: '包管隔音', categoryId: 'hard' },
+  { id: 'mugong', name: '木工', categoryId: 'hard' },
+  { id: 'youqi', name: '油漆', categoryId: 'hard' },
+  { id: 'meifeng', name: '美缝', categoryId: 'hard' },
+  // 主材选购
+  { id: 'cizhuan', name: '瓷砖', categoryId: 'material' },
+  { id: 'diban', name: '地板', categoryId: 'material' },
+  { id: 'shicai', name: '石材', categoryId: 'material' },
+  { id: 'menchuang', name: '门窗', categoryId: 'material' },
+  { id: 'fengchuang', name: '封窗', categoryId: 'material' },
+  { id: 'xingcaimen', name: '型材门', categoryId: 'material' },
+  { id: 'chugui', name: '橱柜', categoryId: 'material' },
+  { id: 'quanwudingzhi', name: '全屋定制', categoryId: 'material' },
+  { id: 'weiyu', name: '卫浴', categoryId: 'material' },
+  { id: 'jichengdiaoding', name: '集成吊顶', categoryId: 'material' },
+  // 设备系统
+  { id: 'dinuan', name: '地暖', categoryId: 'equipment' },
+  { id: 'xinfeng', name: '新风', categoryId: 'equipment' },
+  { id: 'jingshui', name: '净水', categoryId: 'equipment' },
+  { id: 'kongtiao', name: '空调', categoryId: 'equipment' },
+  { id: 'ranqi', name: '燃气改造', categoryId: 'equipment' },
+  { id: 'zhineng', name: '智能家居', categoryId: 'equipment' },
+  // 软装家电
+  { id: 'jiaju', name: '家具', categoryId: 'soft' },
+  { id: 'jiadian', name: '家电', categoryId: 'soft' },
+  { id: 'ruanzhuang', name: '软装', categoryId: 'soft' },
+  { id: 'dengju', name: '灯具', categoryId: 'soft' },
+  { id: 'chuanglian', name: '窗帘', categoryId: 'soft' },
+  // 服务杂项
+  { id: 'wujin', name: '五金', categoryId: 'service' },
+  { id: 'fucai', name: '辅材杂料', categoryId: 'service' },
+  { id: 'yunshu', name: '运输上楼', categoryId: 'service' },
+  { id: 'fuwufei', name: '服务费', categoryId: 'service' },
+  { id: 'kaihuang', name: '开荒保洁', categoryId: 'service' },
+  { id: 'other', name: '其他', categoryId: 'service' },
 ];
 
 export const FLOW_STEPS_NEW: FlowStep[] = [

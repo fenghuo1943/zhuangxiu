@@ -2191,71 +2191,184 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 .expense-view-panel { margin-bottom: 14px; }
 
-.expense-group-card {
-  display: grid;
-  gap: 14px;
-  padding: 16px;
-}
-
-.expense-group-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.expense-group-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.expense-group-body {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.expense-group-block {
-  border: 1px solid var(--fresh-line);
-  border-radius: 12px;
-  padding: 12px;
-  background: #fff;
-}
-
-.expense-group-block h4 {
-  margin: 0 0 6px;
-  font-size: 14px;
-}
-
-.expense-group-block p {
-  margin: 0 0 8px;
-  font-size: 12px;
-  color: var(--fresh-subtle);
-  line-height: 1.55;
-}
-
-.expense-group-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.expense-group-item {
-  display: inline-flex;
-  align-items: center;
-  padding: 5px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .84);
-  border: 1px solid var(--fresh-line);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.expense-group-actions {
+/* Group visibility panel */
+.group-visible-panel {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.group-visible-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px solid var(--fresh-line);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fresh-muted);
+  cursor: pointer;
+  transition: all .18s;
+  user-select: none;
+}
+
+.group-visible-chip:hover {
+  border-color: var(--fresh-coral);
+  color: var(--fresh-coral);
+}
+
+.group-visible-chip input[type="checkbox"] {
+  accent-color: var(--fresh-coral);
+}
+
+/* Group area */
+.group-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.group-box {
+  border: 1px solid var(--fresh-line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 4px 14px rgba(55, 42, 31, .04);
+  overflow: hidden;
+  transition: box-shadow .2s, border-color .2s;
+}
+
+.group-box:hover {
+  border-color: var(--fresh-coral-soft);
+  box-shadow: 0 6px 20px rgba(55, 42, 31, .07);
+}
+
+.group-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(55, 42, 31, .025);
+  border-bottom: 1px solid var(--fresh-line);
+  gap: 10px;
+}
+
+.group-name-input {
+  border: 0;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--fresh-dark);
+  font-family: inherit;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  border-radius: 6px;
+  transition: background .15s;
+}
+
+.group-name-input:hover,
+.group-name-input:focus {
+  background: rgba(255, 255, 255, .8);
+}
+
+.group-bd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px;
+  min-height: 44px;
+  align-items: flex-start;
+}
+
+.group-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: default;
+  transition: all .15s;
+  user-select: none;
+}
+
+.group-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(55, 42, 31, .08);
+}
+
+.group-tag .fresh-svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  fill: currentColor;
+  opacity: .7;
+}
+
+.group-tag-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  opacity: .4;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all .15s;
+  padding: 0;
+  margin-left: 2px;
+}
+
+.group-tag-del:hover {
+  opacity: 1;
+  background: rgba(0,0,0,.08);
+}
+
+.group-empty {
+  color: #ccc;
+  font-size: 12px;
+  padding: 8px 0;
+  width: 100%;
+  text-align: center;
+}
+
+/* Pool area */
+.pool-area {
+  border: 1px dashed var(--fresh-line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, .6);
+}
+
+.pool-bd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 32px;
+  align-items: flex-start;
+}
+
+/* Subcategory tag in expense list */
+.expense-item-sub-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--fresh-subtle-bg, #f5f0eb);
+  color: var(--fresh-muted);
+  font-size: 10px;
+  font-weight: 600;
+  vertical-align: middle;
 }
 
 .expense-filters { display: flex; gap: 4px; }

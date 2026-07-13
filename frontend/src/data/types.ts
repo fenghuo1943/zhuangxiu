@@ -72,12 +72,26 @@ export interface PurchaseReferenceStage {
   subs: PurchaseReferenceSubgroup[];
 }
 
+export interface ExpenseSubCategory {
+  id: string;
+  name: string;
+  categoryId: string;
+}
+
+export interface ExpenseGroup {
+  id: string;
+  name: string;
+  color: string;
+  visible: boolean;
+}
+
 export interface Expense {
   id: string;
   projectId: string;
   title: string;
   amount: number;
   categoryId: string;
+  subCategoryId?: string;
   stageId?: string;
   date: string;
   status: 'paid' | 'prepaid' | 'unpaid' | 'refunded';
@@ -181,6 +195,8 @@ export interface AppState {
   selectedPurchaseIds: string[];
   expenses: Expense[];
   recentExpenses: Expense[];
+  expenseSubCategories: ExpenseSubCategory[];
+  expenseGroups: ExpenseGroup[];
   flowType: FlowType;
   flowDoneStepIds: string[];
   flowCustomOrder: string[] | null;

@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import AppShell from '../components/layout/AppShell';
 import {
   useStore, addExpense, deleteExpense, updateExpenseStatus, updateExpense,
+  getSubCategoriesByCategory, renameGroup, setGroupVisibility, deleteSubCategory,
+  addSubCategory, renameSubCategory, moveSubCategory,
 } from '../data/store';
 import type { Expense } from '../data/types';
 import {
@@ -156,6 +158,7 @@ const ExpensePage: React.FC = () => {
   const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
   const [formNote, setFormNote] = useState('');
   const [formStage, setFormStage] = useState('');
+  const [formSubCategory, setFormSubCategory] = useState('');
   const [stageFilter, setStageFilter] = useState('');
   const [activeView, setActiveView] = useState<'stats' | 'bills' | 'group'>('stats');
 
@@ -163,6 +166,7 @@ const ExpensePage: React.FC = () => {
     setEditingId(null);
     setFormTitle(''); setFormAmount(''); setFormCategory('hard');
     setFormStatus('paid'); setFormDate(new Date().toISOString().slice(0, 10)); setFormNote(''); setFormStage('');
+    setFormSubCategory('');
     setShowModal(true);
   };
 
@@ -175,6 +179,7 @@ const ExpensePage: React.FC = () => {
     setFormDate(exp.date);
     setFormNote(exp.note || '');
     setFormStage(exp.stageId || '');
+    setFormSubCategory(exp.subCategoryId || '');
     setShowModal(true);
   };
 
@@ -190,6 +195,7 @@ const ExpensePage: React.FC = () => {
       status: formStatus,
       note: formNote.trim() || undefined,
       stageId: formStage || undefined,
+      subCategoryId: formSubCategory || undefined,
     };
     if (editingId) {
       updateExpense(editingId, base);
@@ -451,43 +457,109 @@ const ExpensePage: React.FC = () => {
           </div>
         )}
 
-        {/* Category Accordion */}
+        {/* Settings / Group Management */}
         {activeView === 'group' ? (
           <div className="expense-view-panel">
-            <div className="card expense-group-card">
-              <div className="expense-group-header">
-                <div>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>记账视图设置</h3>
-                  <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--fresh-subtle)' }}>
-                    参考参考页中的分类统计、全部账单与设置三种视图，后续可继续接入分组拖拽与显示开关。
-                  </p>
+            <div className="card" style={{ padding: '14px 18px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+                <div style={{ fontSize: 13, color: '#666', lineHeight: 1.55 }}>
+                  手机先点选小分类，再拖到大分类；也可以点选后直接点目标大分类。下方勾选哪些分组显示在主页预算和统计里。
                 </div>
-                <div className="expense-group-badges">
-                  <span className="badge badge-default">分类统计</span>
-                  <span className="badge badge-default">全部账单</span>
-                  <span className="badge badge-default">设置</span>
-                </div>
+                <button
+                  className="btn btn-outline btn-sm"
+                  style={{ flexShrink: 0 }}
+                  onClick={() => {
+                    const name = prompt('输入新小项名称:');
+                    if (name && name.trim()) {
+                      const catId = state.expenseGroups[0]?.id || 'hard';
+                      addSubCategory(name.trim(), catId);
+                    }
+                  }}
+                >
+                  添加小项
+                </button>
               </div>
-              <div className="expense-group-body">
-                <div className="expense-group-block">
-                  <h4>分类显示</h4>
-                  <p>当前默认展示五大一级分类，可在后续扩展为按阶段或自定义分组管理。</p>
-                  <div className="expense-group-list">
-                    {Object.entries(CATEGORY_NAMES).map(([id, name]) => (
-                      <span key={id} className="expense-group-item" style={{ color: CATEGORY_COLORS[id] }}>
-                        {name}
-                      </span>
-                    ))}
+              <div className="group-visible-panel">
+                {state.expenseGroups.map(g => (
+                  <label key={g.id} className="group-visible-chip">
+                    <input
+                      type="checkbox"
+                      checked={g.visible}
+                      onChange={e => setGroupVisibility(g.id, e.target.checked)}
+                    />
+                    {' '}{g.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="group-area">
+              {state.expenseGroups.map(group => {
+                const subs = state.expenseSubCategories.filter(s => s.categoryId === group.id);
+                const color = CATEGORY_COLORS[group.id] || group.color;
+                return (
+                  <div key={group.id} className="group-box">
+                    <div className="group-hd">
+                      <input
+                        className="group-name-input"
+                        value={group.name}
+                        onChange={e => renameGroup(group.id, e.target.value)}
+                        onClick={e => e.stopPropagation()}
+                      />
+                      <span style={{ fontSize: 11, color: '#999' }}>{subs.length}项</span>
+                    </div>
+                    <div className="group-bd">
+                      {subs.length === 0 ? (
+                        <div className="group-empty">拖到这里</div>
+                      ) : (
+                        subs.map(sub => (
+                          <div
+                            key={sub.id}
+                            className="group-tag"
+                            style={{
+                              background: `${color}08`,
+                              border: `1px solid ${color}25`,
+                              color: color,
+                            }}
+                          >
+                            <svg viewBox="0 0 24 24" className="fresh-svg" aria-hidden="true">
+                              <circle cx="12" cy="12" r="3.5" />
+                            </svg>
+                            <span>{sub.name}</span>
+                            <button
+                              className="group-tag-del"
+                              title="删除"
+                              onClick={e => {
+                                e.stopPropagation();
+                                if (confirm(`删除小项「${sub.name}」?`)) deleteSubCategory(sub.id);
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="expense-group-block">
-                  <h4>账单操作</h4>
-                  <p>当前“全部账单”视图保留原有筛选、导入导出与新增记账按钮，便于保持现有交互不变。</p>
-                  <div className="expense-group-actions">
-                    <button className="btn btn-outline btn-sm" onClick={() => setActiveView('bills')}>查看全部账单</button>
-                    <button className="btn btn-primary btn-sm" onClick={() => setActiveView('stats')}>查看分类统计</button>
-                  </div>
-                </div>
+                );
+              })}
+            </div>
+
+            <div className="pool-area">
+              <div style={{ fontSize: 11, color: '#999', marginBottom: 6 }}>未分组</div>
+              <div className="pool-bd">
+                {(() => {
+                  const groupIds = new Set(state.expenseGroups.map(g => g.id));
+                  const ungrouped = state.expenseSubCategories.filter(s => !groupIds.has(s.categoryId));
+                  return ungrouped.length === 0
+                    ? <div style={{ color: '#ccc', fontSize: 11 }}>全部已分组</div>
+                    : ungrouped.map(s => (
+                        <div key={s.id} className="group-tag" style={{ background: '#f0f0f0', border: '1px solid #ddd', color: '#888' }}>
+                          <svg viewBox="0 0 24 24" className="fresh-svg"><circle cx="12" cy="12" r="3.5" /></svg>
+                          <span>{s.name}</span>
+                        </div>
+                      ));
+                })()}
               </div>
             </div>
           </div>
@@ -574,7 +646,13 @@ const ExpensePage: React.FC = () => {
                             <div key={exp.id} className={`expense-item ${deleteConfirm === exp.id ? 'deleting' : ''}`}>
                               <div className="expense-item-main">
                                 <div className="expense-item-info">
-                                  <span className="expense-item-title">{exp.title}</span>
+                                  <span className="expense-item-title">
+                                    {exp.title}
+                                    {exp.subCategoryId && (() => {
+                                      const sub = state.expenseSubCategories.find(s => s.id === exp.subCategoryId);
+                                      return sub ? <span className="expense-item-sub-tag">{sub.name}</span> : null;
+                                    })()}
+                                  </span>
                                   <div className="expense-item-meta-row">
                                     <span className="expense-item-date">{exp.date}</span>
                                     {exp.stageId && (() => {
@@ -657,7 +735,7 @@ const ExpensePage: React.FC = () => {
                   </div>
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>分类</label>
-                    <select className="input" style={{ width: '100%' }} value={formCategory} onChange={e => setFormCategory(e.target.value)}>
+                    <select className="input" style={{ width: '100%' }} value={formCategory} onChange={e => { setFormCategory(e.target.value); setFormSubCategory(''); }}>
                       {Object.entries(CATEGORY_NAMES).map(([id, name]) => (
                         <option key={id} value={id}>{name}</option>
                       ))}
@@ -666,9 +744,20 @@ const ExpensePage: React.FC = () => {
                 </div>
                 <div className="form-row">
                   <div className="form-group" style={{ flex: 1 }}>
+                    <label>子分类 (可选)</label>
+                    <select className="input" style={{ width: '100%' }} value={formSubCategory} onChange={e => setFormSubCategory(e.target.value)}>
+                      <option value="">不选择</option>
+                      {getSubCategoriesByCategory(formCategory).map(sub => (
+                        <option key={sub.id} value={sub.id}>{sub.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ flex: 1 }}>
                     <label>日期</label>
                     <input className="input" style={{ width: '100%' }} type="date" value={formDate} onChange={e => setFormDate(e.target.value)} />
                   </div>
+                </div>
+                <div className="form-row">
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>状态</label>
                     <select className="input" style={{ width: '100%' }} value={formStatus} onChange={e => setFormStatus(e.target.value as Expense['status'])}>
@@ -677,10 +766,10 @@ const ExpensePage: React.FC = () => {
                       <option value="unpaid">未支付</option>
                     </select>
                   </div>
-                </div>
-                <div className="form-group">
-                  <label>备注</label>
-                  <input className="input" style={{ width: '100%' }} value={formNote} onChange={e => setFormNote(e.target.value)} placeholder="可选备注" />
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label>备注</label>
+                    <input className="input" style={{ width: '100%' }} value={formNote} onChange={e => setFormNote(e.target.value)} placeholder="可选备注" />
+                  </div>
                 </div>
                 <div className="form-group">
                   <label>关联阶段 (可选)</label>

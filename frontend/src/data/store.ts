@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { AppState, Todo, BudgetCategory, Expense, PurchaseItem, PriceCategory, PriceModel, ChannelQuote, FlowStep, StageNote, CustomFlowStep } from './types';
+import type { AppState, Todo, BudgetCategory, Expense, PurchaseItem, PriceCategory, PriceModel, ChannelQuote, FlowStep, StageNote, CustomFlowStep, ExpenseSubCategory, ExpenseGroup } from './types';
 import {
   DEFAULT_STAGES,
   DEFAULT_BUDGET_CATEGORIES,
+  DEFAULT_SUB_CATEGORIES,
+  DEFAULT_EXPENSE_GROUPS,
   FLOW_STEPS_NEW,
   FLOW_STEPS_OLD,
   PURCHASE_REFERENCES,
@@ -42,6 +44,8 @@ function getInitialState(): AppState {
         syncedModelIds: parsed.syncedModelIds || [],
         priceCategories: parsed.priceCategories || [],
         projectStates: parsed.projectStates || {},
+        expenseSubCategories: parsed.expenseSubCategories || DEFAULT_SUB_CATEGORIES,
+        expenseGroups: parsed.expenseGroups || DEFAULT_EXPENSE_GROUPS,
       };
     }
   } catch {
@@ -67,6 +71,8 @@ function getInitialState(): AppState {
     syncedModelIds: [],
     priceCategories: [],
     projectStates: {},
+    expenseSubCategories: DEFAULT_SUB_CATEGORIES,
+    expenseGroups: DEFAULT_EXPENSE_GROUPS,
   };
 }
 
@@ -899,4 +905,112 @@ export function getFirstUndoneStepId(): string {
 export function getCurrentStageName(): string {
   const stage = globalState.stages.find(s => s.id === getFirstUndoneStepId());
   return stage?.name || '设计与开工准备';
+}
+
+// ==================== Expense SubCategory Actions ====================
+
+export function addSubCategory(name: string, categoryId: string): ExpenseSubCategory {
+  const sub: ExpenseSubCategory = {
+    id: `sub_${Date.now()}`,
+    name: name.trim(),
+    categoryId,
+  };
+  globalState = {
+    ...globalState,
+    expenseSubCategories: [...globalState.expenseSubCategories, sub],
+  };
+  notify();
+  persist();
+  return sub;
+}
+
+export function deleteSubCategory(subId: string) {
+  globalState = {
+    ...globalState,
+    expenseSubCategories: globalState.expenseSubCategories.filter(s => s.id !== subId),
+  };
+  notify();
+  persist();
+}
+
+export function renameSubCategory(subId: string, name: string) {
+  globalState = {
+    ...globalState,
+    expenseSubCategories: globalState.expenseSubCategories.map(s =>
+      s.id === subId ? { ...s, name: name.trim() } : s
+    ),
+  };
+  notify();
+  persist();
+}
+
+export function moveSubCategory(subId: string, toCategoryId: string) {
+  globalState = {
+    ...globalState,
+    expenseSubCategories: globalState.expenseSubCategories.map(s =>
+      s.id === subId ? { ...s, categoryId: toCategoryId } : s
+    ),
+  };
+  notify();
+  persist();
+}
+
+export function getSubCategoriesByCategory(categoryId: string): ExpenseSubCategory[] {
+  return globalState.expenseSubCategories.filter(s => s.categoryId === categoryId);
+}
+
+// ==================== Expense Group Actions ====================
+
+export function setGroupVisibility(groupId: string, visible: boolean) {
+  globalState = {
+    ...globalState,
+    expenseGroups: globalState.expenseGroups.map(g =>
+      g.id === groupId ? { ...g, visible } : g
+    ),
+  };
+  notify();
+  persist();
+}
+
+export function renameGroup(groupId: string, name: string) {
+  globalState = {
+    ...globalState,
+    expenseGroups: globalState.expenseGroups.map(g =>
+      g.id === groupId ? { ...g, name: name.trim() } : g
+    ),
+  };
+  notify();
+  persist();
+}
+
+export function addGroup(name: string, color: string): ExpenseGroup {
+  const group: ExpenseGroup = {
+    id: `grp_${Date.now()}`,
+    name: name.trim(),
+    color,
+    visible: true,
+  };
+  globalState = {
+    ...globalState,
+    expenseGroups: [...globalState.expenseGroups, group],
+  };
+  notify();
+  persist();
+  return group;
+}
+
+export function deleteGroup(groupId: string) {
+  // Move subcategories in this group to "other" or first available group
+  const firstGroup = globalState.expenseGroups.find(g => g.id !== groupId);
+  const targetId = firstGroup?.id || 'hard';
+  const updatedSubs = globalState.expenseSubCategories.map(s =>
+    s.categoryId === groupId ? { ...s, categoryId: targetId } : s
+  );
+  globalState = {
+    ...globalState,
+    expenseGroups: globalState.expenseGroups.filter(g => g.id !== groupId),
+    expenseSubCategories: updatedSubs,
+  };
+  notify();
+  persist();
 }
