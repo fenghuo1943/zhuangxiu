@@ -1993,6 +1993,35 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   background: #fff0ed;
 }
 
+.flow-notes-edit-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--fresh-subtle);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  transition: color .15s, background .15s;
+}
+
+.flow-notes-edit-btn:hover {
+  color: var(--fresh-coral);
+  background: #fff0ed;
+}
+
+.flow-notes-edit-row {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  align-items: center;
+}
+
+.flow-notes-edit-row .flow-notes-input {
+  flex: 1;
+}
+
 .flow-notes-input-row {
   display: flex;
   gap: 6px;

@@ -43,6 +43,10 @@ export async function updateStageNote(projectId: string, stageId: string, noteId
   return apiPut<StageNote>(`/api/projects/${projectId}/flow/stages/${stageId}/notes/${noteId}`, { content });
 }
 
+export async function editStageNote(projectId: string, stageId: string, noteId: string, content: string): Promise<StageNote> {
+  return apiPut<StageNote>(`/api/projects/${projectId}/flow/stages/${stageId}/notes/${noteId}`, { content });
+}
+
 export async function deleteStageNote(projectId: string, stageId: string, noteId: string): Promise<void> {
   return apiDelete(`/api/projects/${projectId}/flow/stages/${stageId}/notes/${noteId}`);
 }

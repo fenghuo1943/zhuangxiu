@@ -11,7 +11,7 @@ import { isAuthenticated } from '../api/client';
 import {
   fetchFlowProgress, updateFlowProgress, toggleStepDone as apiToggleStepDone,
   fetchStageNotes, createStageNote as apiCreateStageNote,
-  deleteStageNote as apiDeleteStageNote,
+  editStageNote as apiEditStageNote, deleteStageNote as apiDeleteStageNote,
   fetchCustomSteps, createCustomStep as apiCreateCustomStep,
   updateCustomStep as apiUpdateCustomStep, deleteCustomStep as apiDeleteCustomStep,
 } from '../api/flow';
@@ -623,6 +623,41 @@ export async function addStageNote(stageId: string, content: string): Promise<vo
   globalState = {
     ...globalState,
     stageNotes: { ...globalState.stageNotes, [stageId]: [note, ...existing] },
+  };
+  notify();
+  persist();
+}
+
+export async function updateStageNote(stageId: string, noteId: string, content: string): Promise<void> {
+  if (!content.trim()) return;
+
+  if (isAuthenticated()) {
+    try {
+      const updated = await apiEditStageNote(globalState.activeProjectId, stageId, noteId, content);
+      const existing = globalState.stageNotes[stageId] || [];
+      globalState = {
+        ...globalState,
+        stageNotes: {
+          ...globalState.stageNotes,
+          [stageId]: existing.map(n => n.id === noteId ? updated : n),
+        },
+      };
+      notify();
+      persist();
+      return;
+    } catch {
+      // Fall through to local-only
+    }
+  }
+
+  // Local-only fallback
+  const existing = globalState.stageNotes[stageId] || [];
+  globalState = {
+    ...globalState,
+    stageNotes: {
+      ...globalState.stageNotes,
+      [stageId]: existing.map(n => n.id === noteId ? { ...n, content: content.trim() } : n),
+    },
   };
   notify();
   persist();

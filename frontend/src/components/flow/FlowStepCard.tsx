@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import type { FlowStep } from '../../data/types';
-import { useStore, toggleFlowStepDone, getStageNotes, addStageNote, removeStageNote, loadStageNotes } from '../../data/store';
+import { useStore, toggleFlowStepDone, getStageNotes, addStageNote, updateStageNote, removeStageNote, loadStageNotes } from '../../data/store';
 import { IconCheck, IconChevronDown, IconBook, IconShield, IconStar, IconAlert, IconEdit } from '../common/Icons';
 
 interface FlowStepCardProps {
@@ -35,6 +35,8 @@ export const FlowStepCard: React.FC<FlowStepCardProps> = ({ step, isExpanded, on
   const isDone = state.flowDoneStepIds.includes(step.id);
   const [noteInput, setNoteInput] = useState('');
   const [showNotes, setShowNotes] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editNoteContent, setEditNoteContent] = useState('');
 
   const notes = getStageNotes(step.id);
 
@@ -67,6 +69,32 @@ export const FlowStepCard: React.FC<FlowStepCardProps> = ({ step, isExpanded, on
   const handleDeleteNote = useCallback(async (noteId: string) => {
     await removeStageNote(step.id, noteId);
   }, [step.id]);
+
+  const handleStartEditNote = useCallback((noteId: string, content: string) => {
+    setEditingNoteId(noteId);
+    setEditNoteContent(content);
+  }, []);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingNoteId(null);
+    setEditNoteContent('');
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingNoteId || !editNoteContent.trim()) return;
+    await updateStageNote(step.id, editingNoteId, editNoteContent.trim());
+    setEditingNoteId(null);
+    setEditNoteContent('');
+  }, [editingNoteId, editNoteContent, step.id]);
+
+  const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSaveEdit();
+    } else if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
+  }, [handleSaveEdit, handleCancelEdit]);
 
   const handleNoteKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -155,17 +183,55 @@ export const FlowStepCard: React.FC<FlowStepCardProps> = ({ step, isExpanded, on
                   <ul className="flow-notes-list">
                     {notes.map(note => (
                       <li key={note.id} className="flow-notes-item">
-                        <span className="flow-notes-content">{note.content}</span>
-                        <span className="flow-notes-meta">
-                          {new Date(note.created_at).toLocaleDateString('zh-CN')}
-                        </span>
-                        <button
-                          className="flow-notes-delete"
-                          onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}
-                          title="删除备注"
-                        >
-                          ×
-                        </button>
+                        {editingNoteId === note.id ? (
+                          /* Edit mode */
+                          <div className="flow-notes-edit-row">
+                            <input
+                              type="text"
+                              className="flow-notes-input"
+                              value={editNoteContent}
+                              onChange={e => setEditNoteContent(e.target.value)}
+                              onKeyDown={handleEditKeyDown}
+                              onClick={e => e.stopPropagation()}
+                              autoFocus
+                            />
+                            <button
+                              className="btn btn-sm btn-primary"
+                              onClick={(e) => { e.stopPropagation(); handleSaveEdit(); }}
+                              disabled={!editNoteContent.trim()}
+                            >
+                              保存
+                            </button>
+                            <button
+                              className="btn btn-sm btn-ghost"
+                              onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}
+                            >
+                              取消
+                            </button>
+                          </div>
+                        ) : (
+                          /* View mode */
+                          <>
+                            <span className="flow-notes-content">{note.content}</span>
+                            <span className="flow-notes-meta">
+                              {new Date(note.created_at).toLocaleDateString('zh-CN')}
+                            </span>
+                            <button
+                              className="flow-notes-edit-btn"
+                              onClick={(e) => { e.stopPropagation(); handleStartEditNote(note.id, note.content); }}
+                              title="编辑备注"
+                            >
+                              <IconEdit size={12} />
+                            </button>
+                            <button
+                              className="flow-notes-delete"
+                              onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}
+                              title="删除备注"
+                            >
+                              ×
+                            </button>
+                          </>
+                        )}
                       </li>
                     ))}
                   </ul>
