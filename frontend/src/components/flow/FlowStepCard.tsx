@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import type { FlowStep } from '../../data/types';
-import { useStore, toggleFlowStepDone } from '../../data/store';
-import { IconCheck, IconChevronDown, IconBook, IconShield, IconStar, IconAlert } from '../common/Icons';
+import { useStore, toggleFlowStepDone, getStageNotes, addStageNote, removeStageNote, loadStageNotes } from '../../data/store';
+import { IconCheck, IconChevronDown, IconBook, IconShield, IconStar, IconAlert, IconEdit } from '../common/Icons';
 
 interface FlowStepCardProps {
   step: FlowStep;
@@ -33,6 +33,18 @@ const resourceBadgeClass: Record<string, string> = {
 export const FlowStepCard: React.FC<FlowStepCardProps> = ({ step, isExpanded, onToggle }) => {
   const state = useStore();
   const isDone = state.flowDoneStepIds.includes(step.id);
+  const [noteInput, setNoteInput] = useState('');
+  const [showNotes, setShowNotes] = useState(false);
+
+  const notes = getStageNotes(step.id);
+
+  // Load notes from backend when expanded
+  useEffect(() => {
+    if (isExpanded) {
+      loadStageNotes(step.id);
+    }
+  }, [isExpanded, step.id]);
+
   const resources = [
     ...step.standards.map(r => ({ ...r, group: 'standard' as const })),
     ...step.acceptance.map(r => ({ ...r, group: 'acceptance' as const })),
@@ -46,18 +58,43 @@ export const FlowStepCard: React.FC<FlowStepCardProps> = ({ step, isExpanded, on
     grouped[r.group].push(r);
   });
 
+  const handleAddNote = useCallback(async () => {
+    if (!noteInput.trim()) return;
+    await addStageNote(step.id, noteInput.trim());
+    setNoteInput('');
+  }, [noteInput, step.id]);
+
+  const handleDeleteNote = useCallback(async (noteId: string) => {
+    await removeStageNote(step.id, noteId);
+  }, [step.id]);
+
+  const handleNoteKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleAddNote();
+    }
+  }, [handleAddNote]);
+
   return (
     <div className={`flow-step-card ${isDone ? 'done' : ''} ${isExpanded ? 'expanded' : ''}`} id={`step-${step.id}`}>
       <div className="flow-step-header" onClick={onToggle} role="button" tabIndex={0} aria-expanded={isExpanded}>
         <div className="flow-step-header-left">
           <span className="flow-step-num">{step.order}</span>
           <div className="flow-step-info">
-            <strong className="flow-step-title">{step.title}</strong>
+            <strong className="flow-step-title">
+              {step.title}
+              {step.isCustom && <span className="badge badge-warning" style={{ marginLeft: 8, fontSize: 10 }}>自定义</span>}
+            </strong>
             <span className="flow-step-days">预计工期：{step.days}</span>
           </div>
         </div>
         <div className="flow-step-header-right">
           {isDone && <span className="badge badge-success">✓ 已完成</span>}
+          {notes.length > 0 && (
+            <span className="badge" style={{ background: '#f0e6dc', color: '#8b7355', marginRight: 4 }}>
+              📝 {notes.length}
+            </span>
+          )}
           <span className={`flow-step-chevron ${isExpanded ? 'open' : ''}`}>
             <IconChevronDown size={18} />
           </span>
@@ -99,6 +136,64 @@ export const FlowStepCard: React.FC<FlowStepCardProps> = ({ step, isExpanded, on
             </div>
           )}
 
+          {/* ===== Stage Notes Section ===== */}
+          <div className="flow-notes-section">
+            <button
+              className="flow-notes-toggle"
+              onClick={(e) => { e.stopPropagation(); setShowNotes(!showNotes); }}
+            >
+              <span>📝 备注 ({notes.length})</span>
+              <span className={`flow-step-chevron ${showNotes ? 'open' : ''}`}>
+                <IconChevronDown size={14} />
+              </span>
+            </button>
+
+            {showNotes && (
+              <div className="flow-notes-body">
+                {/* Existing notes */}
+                {notes.length > 0 && (
+                  <ul className="flow-notes-list">
+                    {notes.map(note => (
+                      <li key={note.id} className="flow-notes-item">
+                        <span className="flow-notes-content">{note.content}</span>
+                        <span className="flow-notes-meta">
+                          {new Date(note.created_at).toLocaleDateString('zh-CN')}
+                        </span>
+                        <button
+                          className="flow-notes-delete"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}
+                          title="删除备注"
+                        >
+                          ×
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {/* Add note input */}
+                <div className="flow-notes-input-row">
+                  <input
+                    type="text"
+                    className="flow-notes-input"
+                    placeholder="添加备注... (Enter 提交)"
+                    value={noteInput}
+                    onChange={e => setNoteInput(e.target.value)}
+                    onKeyDown={handleNoteKeyDown}
+                    onClick={e => e.stopPropagation()}
+                  />
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={(e) => { e.stopPropagation(); handleAddNote(); }}
+                    disabled={!noteInput.trim()}
+                  >
+                    添加
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flow-step-footer">
             <button
               className={`btn ${isDone ? 'btn-outline' : 'btn-green'}`}
@@ -107,6 +202,11 @@ export const FlowStepCard: React.FC<FlowStepCardProps> = ({ step, isExpanded, on
               <IconCheck size={16} />
               {isDone ? '取消完成' : '标记完成'}
             </button>
+            {step.isCustom && (
+              <span style={{ fontSize: 12, color: 'var(--fresh-subtle)', marginLeft: 12 }}>
+                自定义阶段 — 可在流程页面中删除
+              </span>
+            )}
           </div>
         </div>
       )}

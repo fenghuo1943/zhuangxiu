@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/projects/{project_id}/sync", tags=["Sync"])
 async def export_state(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Export all project data as JSON (same format as frontend localStorage)."""
     from sqlalchemy import select
-    from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceCategory, PriceModel, ChannelQuote, SelectedPurchase, SyncedModel
+    from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceCategory, PriceModel, ChannelQuote, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep
 
     result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
     if not result.scalar_one_or_none():
@@ -44,6 +44,23 @@ async def export_state(project_id: str, user: User = Depends(get_current_user), 
     sel = (await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == project_id))).scalars().all()
     synced = (await db.execute(select(SyncedModel).where(SyncedModel.project_id == project_id))).scalars().all()
 
+    # Stage notes
+    notes = (await db.execute(select(StageNote).where(StageNote.project_id == project_id))).scalars().all()
+    notes_by_stage: dict = {}
+    for n in notes:
+        notes_by_stage.setdefault(n.stage_id, []).append({
+            "id": n.id, "project_id": n.project_id, "stage_id": n.stage_id,
+            "content": n.content, "created_at": n.created_at.isoformat(),
+        })
+
+    # Custom flow steps
+    custom_steps = (await db.execute(select(CustomFlowStep).where(CustomFlowStep.project_id == project_id))).scalars().all()
+    custom_steps_data = [{
+        "id": cs.id, "project_id": cs.project_id, "flow_type": cs.flow_type,
+        "title": cs.title, "days": cs.days, "desc": cs.desc,
+        "sort_order": cs.sort_order, "created_at": cs.created_at.isoformat(),
+    } for cs in custom_steps]
+
     return {
         "projects": [{"id": proj.id, "name": proj.name, "ownerName": proj.owner_name, "createdAt": proj.created_at.isoformat(), "currentStageId": proj.current_stage_id}],
         "activeProjectId": project_id,
@@ -61,6 +78,8 @@ async def export_state(project_id: str, user: User = Depends(get_current_user), 
         "priceCategories": price_data,
         "selectedPurchaseIds": [s.item_id for s in sel],
         "syncedModelIds": [s.model_id for s in synced],
+        "stageNotes": notes_by_stage,
+        "customFlowSteps": custom_steps_data,
     }
 
 
@@ -68,7 +87,7 @@ async def export_state(project_id: str, user: User = Depends(get_current_user), 
 async def import_state(project_id: str, data: AppStateSync, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Import full project state from JSON."""
     from sqlalchemy import select, delete
-    from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceCategory, PriceModel, ChannelQuote, SelectedPurchase, SyncedModel
+    from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceCategory, PriceModel, ChannelQuote, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep
     import uuid
     from datetime import date as date_type, datetime, timezone
 
@@ -77,7 +96,7 @@ async def import_state(project_id: str, data: AppStateSync, user: User = Depends
         raise HTTPException(status_code=404, detail="项目不存在")
 
     # Clear existing data
-    for model in [Todo, Expense, SelectedPurchase, SyncedModel]:
+    for model in [Todo, Expense, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep]:
         await db.execute(delete(model).where(model.project_id == project_id))
     await db.execute(delete(Budget).where(Budget.project_id == project_id))
     await db.execute(delete(BudgetCategory).where(BudgetCategory.project_id == project_id))
@@ -110,6 +129,29 @@ async def import_state(project_id: str, data: AppStateSync, user: User = Depends
         fp = data.flow_progress
         db.add(FlowProgress(project_id=project_id, flow_type=fp.get("flow_type", "new"),
             done_step_ids=fp.get("done_step_ids", []), custom_order=fp.get("custom_order")))
+
+    # Import stage notes
+    if data.stage_notes:
+        for stage_id, note_list in data.stage_notes.items():
+            for n in note_list:
+                db.add(StageNote(
+                    id=n.get("id", f"sn_{uuid.uuid4().hex[:12]}"),
+                    project_id=project_id,
+                    stage_id=stage_id,
+                    content=n["content"],
+                ))
+
+    # Import custom flow steps
+    for cs in data.custom_flow_steps:
+        db.add(CustomFlowStep(
+            id=cs.get("id", f"cs_{uuid.uuid4().hex[:12]}"),
+            project_id=project_id,
+            flow_type=cs.get("flow_type", "new"),
+            title=cs["title"],
+            days=cs.get("days", ""),
+            desc=cs.get("desc", ""),
+            sort_order=cs.get("sort_order", 0),
+        ))
 
     # Import price categories
     for pc in data.price_categories:

@@ -1910,6 +1910,110 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   justify-content: flex-end;
 }
 
+/* ===== Flow Stage Notes ===== */
+.flow-notes-section {
+  margin-top: 16px;
+  border-top: 1px solid var(--fresh-line);
+  padding-top: 12px;
+}
+
+.flow-notes-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 6px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fresh-text);
+  cursor: pointer;
+}
+
+.flow-notes-toggle:hover {
+  color: var(--fresh-coral);
+}
+
+.flow-notes-body {
+  margin-top: 8px;
+}
+
+.flow-notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.flow-notes-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #fdfaf7;
+  border-radius: 6px;
+  border: 1px solid #f0e6dc;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.flow-notes-content {
+  flex: 1;
+  color: var(--fresh-text);
+  word-break: break-word;
+}
+
+.flow-notes-meta {
+  font-size: 11px;
+  color: var(--fresh-subtle);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.flow-notes-delete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--fresh-subtle);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color .15s, background .15s;
+}
+
+.flow-notes-delete:hover {
+  color: var(--fresh-coral);
+  background: #fff0ed;
+}
+
+.flow-notes-input-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.flow-notes-input {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--fresh-line);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .2s;
+}
+
+.flow-notes-input:focus {
+  border-color: var(--fresh-coral);
+}
+
 /* ==================== Expense Page ==================== */
 .expense-page {
   width: min(1320px, calc(100% - 32px));

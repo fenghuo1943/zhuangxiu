@@ -40,6 +40,8 @@ class Project(Base):
     price_categories = relationship("PriceCategory", back_populates="project", cascade="all, delete-orphan")
     selected_purchases = relationship("SelectedPurchase", back_populates="project", cascade="all, delete-orphan")
     synced_models = relationship("SyncedModel", back_populates="project", cascade="all, delete-orphan")
+    stage_notes = relationship("StageNote", back_populates="project", cascade="all, delete-orphan")
+    custom_flow_steps = relationship("CustomFlowStep", back_populates="project", cascade="all, delete-orphan")
 
 
 class Budget(Base):
@@ -188,3 +190,30 @@ class SyncedModel(Base):
     model_id = Column(String(36), ForeignKey("price_models.id"), nullable=False)
 
     project = relationship("Project", back_populates="synced_models")
+
+
+class StageNote(Base):
+    """User notes attached to a specific flow stage."""
+    __tablename__ = "stage_notes"
+    id = _pk()
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    stage_id = Column(String(50), nullable=False, index=True)
+    content = Column(String(2000), nullable=False)
+    created_at = Column(DateTime, default=_now)
+
+    project = relationship("Project")
+
+
+class CustomFlowStep(Base):
+    """User-inserted custom stages in the renovation flow."""
+    __tablename__ = "custom_flow_steps"
+    id = _pk()
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    flow_type = Column(String(10), nullable=False, default="new")
+    title = Column(String(100), nullable=False)
+    days = Column(String(20), default="")
+    desc = Column(String(1000), default="")
+    sort_order = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=_now)
+
+    project = relationship("Project")

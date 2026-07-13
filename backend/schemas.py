@@ -213,6 +213,51 @@ class PriceCategoryOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ---- Stage Notes ----
+class StageNoteCreate(BaseModel):
+    stage_id: str = Field(..., max_length=50)
+    content: str = Field(..., max_length=2000)
+
+class StageNoteUpdate(BaseModel):
+    content: str = Field(..., max_length=2000)
+
+class StageNoteOut(BaseModel):
+    id: str
+    project_id: str
+    stage_id: str
+    content: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ---- Custom Flow Steps ----
+class CustomFlowStepCreate(BaseModel):
+    flow_type: str = Field("new", max_length=10)
+    title: str = Field(..., max_length=100)
+    days: str = Field("", max_length=20)
+    desc: str = Field("", max_length=1000)
+    sort_order: int
+
+class CustomFlowStepUpdate(BaseModel):
+    title: Optional[str] = None
+    days: Optional[str] = None
+    desc: Optional[str] = None
+    sort_order: Optional[int] = None
+
+class CustomFlowStepOut(BaseModel):
+    id: str
+    project_id: str
+    flow_type: str
+    title: str
+    days: str
+    desc: str
+    sort_order: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 # ---- Sync ----
 class AppStateSync(BaseModel):
     projects: List[dict] = []
@@ -223,3 +268,5 @@ class AppStateSync(BaseModel):
     price_categories: List[dict] = []
     selected_purchase_ids: List[str] = []
     synced_model_ids: List[str] = []
+    stage_notes: Optional[dict] = None
+    custom_flow_steps: List[dict] = []

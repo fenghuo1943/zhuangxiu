@@ -14,7 +14,11 @@
       "Bash(python -c \"from backend.main import app; print\\('✅ 后端模块导入成功'\\)\")",
       "Bash(python -c \"from backend.main import app; print\\('Import OK'\\)\")",
       "Bash(python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003)",
-      "Bash(timeout 10 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003)"
+      "Bash(timeout 10 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003)",
+      "Bash(sqlite3 xiaozhuangjia.db \".schema\")",
+      "Bash(/d/python/装修网站/venv/Scripts/python -c \"import sqlite3; conn=sqlite3.connect\\('d:/python/装修网站/xiaozhuangjia.db'\\); [print\\(row[0]\\) for row in conn.execute\\(\\\\\"SELECT sql FROM sqlite_master WHERE type='table' AND sql IS NOT NULL\\\\\"\\).fetchall\\(\\)]\")",
+      "Bash(python -c \"from backend.models import StageNote, CustomFlowStep; from backend.schemas import StageNoteCreate, StageNoteOut, CustomFlowStepCreate, CustomFlowStepOut; print\\('Backend models and schemas OK'\\)\")",
+      "Bash(python -c \"from backend.routers.flow import router; print\\('Flow router OK, endpoints:', [r.path for r in router.routes]\\)\")"
     ]
   }
 }

@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useStore, getFirstUndoneStepId } from '../../data/store';
-import { FLOW_STEPS_NEW } from '../../data/mockData';
+import { useStore, getFirstUndoneStepId, getOrderedFlowSteps } from '../../data/store';
 import { IconMap, IconArrowRight } from '../common/Icons';
 import { Card, CardHeader, CardBody } from '../common/Card';
 
@@ -11,7 +10,7 @@ export const StageRoute: React.FC = () => {
   const state = useStore();
   const navigate = useNavigate();
   const currentStepId = getFirstUndoneStepId();
-  const steps = FLOW_STEPS_NEW;
+  const steps = getOrderedFlowSteps('new');
   const completedCount = state.flowDoneStepIds.length;
   const totalCount = steps.length;
 

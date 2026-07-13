@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { AppState, Todo, BudgetCategory, Expense, PurchaseItem, PriceCategory, PriceModel, ChannelQuote, FlowStep } from './types';
+import type { AppState, Todo, BudgetCategory, Expense, PurchaseItem, PriceCategory, PriceModel, ChannelQuote, FlowStep, StageNote, CustomFlowStep } from './types';
 import {
   DEFAULT_STAGES,
   DEFAULT_BUDGET_CATEGORIES,
@@ -7,6 +7,14 @@ import {
   FLOW_STEPS_OLD,
   PURCHASE_REFERENCES,
 } from './mockData';
+import { isAuthenticated } from '../api/client';
+import {
+  fetchFlowProgress, updateFlowProgress, toggleStepDone as apiToggleStepDone,
+  fetchStageNotes, createStageNote as apiCreateStageNote,
+  deleteStageNote as apiDeleteStageNote,
+  fetchCustomSteps, createCustomStep as apiCreateCustomStep,
+  updateCustomStep as apiUpdateCustomStep, deleteCustomStep as apiDeleteCustomStep,
+} from '../api/flow';
 
 const STORAGE_KEY = 'xiaozhuangjia_state_v1';
 
@@ -30,6 +38,8 @@ function getInitialState(): AppState {
         flowType: parsed.flowType || 'new',
         flowDoneStepIds: parsed.flowDoneStepIds || [],
         flowCustomOrder: parsed.flowCustomOrder || null,
+        stageNotes: parsed.stageNotes || {},
+        customFlowSteps: parsed.customFlowSteps || [],
         syncedModelIds: parsed.syncedModelIds || [],
         priceCategories: parsed.priceCategories || [],
         projectStates: parsed.projectStates || {},
@@ -53,6 +63,8 @@ function getInitialState(): AppState {
     flowType: 'new',
     flowDoneStepIds: [],
     flowCustomOrder: null,
+    stageNotes: {},
+    customFlowSteps: [],
     syncedModelIds: [],
     priceCategories: [],
     projectStates: {},
@@ -527,20 +539,6 @@ export function setFlowCustomOrder(order: string[] | null) {
   persist();
 }
 
-export function getOrderedFlowSteps(flowType: 'new' | 'old'): FlowStep[] {
-  const baseSteps: FlowStep[] = flowType === 'new' ? FLOW_STEPS_NEW : FLOW_STEPS_OLD;
-  const customOrder = globalState.flowCustomOrder;
-
-  if (customOrder && customOrder.length > 0) {
-    const stepMap = new Map(baseSteps.map((s: FlowStep) => [s.id, s]));
-    const ordered: FlowStep[] = customOrder.map(id => stepMap.get(id)).filter((s): s is FlowStep => !!s);
-    const orderedIds = new Set(customOrder);
-    baseSteps.forEach((s: FlowStep) => { if (!orderedIds.has(s.id)) ordered.push(s); });
-    return ordered;
-  }
-  return baseSteps;
-}
-
 export function toggleFlowStepDone(stepId: string) {
   const doneSet = new Set(globalState.flowDoneStepIds);
   if (doneSet.has(stepId)) {
@@ -551,6 +549,243 @@ export function toggleFlowStepDone(stepId: string) {
   globalState = { ...globalState, flowDoneStepIds: Array.from(doneSet) };
   notify();
   persist();
+
+  // Sync to backend if authenticated
+  syncFlowToBackend();
+}
+
+async function syncFlowToBackend() {
+  if (!isAuthenticated()) return;
+  try {
+    await updateFlowProgress(globalState.activeProjectId, {
+      flow_type: globalState.flowType,
+      done_step_ids: globalState.flowDoneStepIds,
+      custom_order: globalState.flowCustomOrder,
+    });
+  } catch {
+    // Silently fail — local state is still correct
+  }
+}
+
+/** Load flow progress from backend, merging with local state */
+export async function loadFlowFromBackend(): Promise<void> {
+  if (!isAuthenticated()) return;
+  try {
+    const remote = await fetchFlowProgress(globalState.activeProjectId);
+    // Merge: remote is authoritative for flow_type, done_step_ids, custom_order
+    globalState = {
+      ...globalState,
+      flowType: (remote.flow_type as 'new' | 'old') || globalState.flowType,
+      flowDoneStepIds: remote.done_step_ids || [],
+      flowCustomOrder: remote.custom_order || null,
+    };
+    notify();
+    persist();
+  } catch {
+    // Silently fail
+  }
+}
+
+// ==================== Stage Notes Actions ====================
+
+export function getStageNotes(stageId: string): StageNote[] {
+  return globalState.stageNotes[stageId] || [];
+}
+
+export async function addStageNote(stageId: string, content: string): Promise<void> {
+  if (!content.trim()) return;
+
+  if (isAuthenticated()) {
+    try {
+      const note = await apiCreateStageNote(globalState.activeProjectId, stageId, content);
+      const existing = globalState.stageNotes[stageId] || [];
+      globalState = {
+        ...globalState,
+        stageNotes: { ...globalState.stageNotes, [stageId]: [note, ...existing] },
+      };
+      notify();
+      persist();
+      return;
+    } catch {
+      // Fall through to local-only
+    }
+  }
+
+  // Local-only fallback
+  const note: StageNote = {
+    id: `note_${Date.now()}`,
+    project_id: globalState.activeProjectId,
+    stage_id: stageId,
+    content: content.trim(),
+    created_at: new Date().toISOString(),
+  };
+  const existing = globalState.stageNotes[stageId] || [];
+  globalState = {
+    ...globalState,
+    stageNotes: { ...globalState.stageNotes, [stageId]: [note, ...existing] },
+  };
+  notify();
+  persist();
+}
+
+export async function removeStageNote(stageId: string, noteId: string): Promise<void> {
+  if (isAuthenticated()) {
+    try {
+      await apiDeleteStageNote(globalState.activeProjectId, stageId, noteId);
+    } catch {
+      // Continue with local removal
+    }
+  }
+
+  const existing = globalState.stageNotes[stageId] || [];
+  globalState = {
+    ...globalState,
+    stageNotes: {
+      ...globalState.stageNotes,
+      [stageId]: existing.filter(n => n.id !== noteId),
+    },
+  };
+  notify();
+  persist();
+}
+
+export async function loadStageNotes(stageId: string): Promise<void> {
+  if (!isAuthenticated()) return;
+  try {
+    const notes = await fetchStageNotes(globalState.activeProjectId, stageId);
+    globalState = {
+      ...globalState,
+      stageNotes: { ...globalState.stageNotes, [stageId]: notes },
+    };
+    notify();
+    persist();
+  } catch {
+    // Silently fail
+  }
+}
+
+// ==================== Custom Flow Steps Actions ====================
+
+/** Merge custom steps into the built-in flow step list */
+export function getOrderedFlowSteps(flowType: 'new' | 'old'): FlowStep[] {
+  const baseSteps: FlowStep[] = flowType === 'new' ? FLOW_STEPS_NEW : FLOW_STEPS_OLD;
+  const customOrder = globalState.flowCustomOrder;
+
+  // Build list: base steps + custom steps converted to FlowStep format
+  const customAsFlowSteps: FlowStep[] = globalState.customFlowSteps
+    .filter(cs => cs.flow_type === flowType)
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map(cs => ({
+      id: cs.id,
+      type: flowType,
+      order: cs.sort_order,
+      title: cs.title,
+      days: cs.days || '自定义',
+      desc: cs.desc || '',
+      standards: [],
+      acceptance: [],
+      articles: [],
+      pitfalls: [],
+      isCustom: true,
+    }));
+
+  // Combine all steps
+  const allSteps = [...baseSteps, ...customAsFlowSteps];
+
+  if (customOrder && customOrder.length > 0) {
+    const stepMap = new Map(allSteps.map(s => [s.id, s]));
+    const ordered: FlowStep[] = customOrder.map(id => stepMap.get(id)).filter((s): s is FlowStep => !!s);
+    const orderedIds = new Set(customOrder);
+    allSteps.forEach(s => { if (!orderedIds.has(s.id)) ordered.push(s); });
+    return ordered;
+  }
+  return allSteps;
+}
+
+export async function addCustomFlowStep(
+  flowType: string, title: string, days: string, desc: string, sortOrder: number
+): Promise<CustomFlowStep | null> {
+  if (isAuthenticated()) {
+    try {
+      const step = await apiCreateCustomStep(globalState.activeProjectId, {
+        flow_type: flowType,
+        title,
+        days,
+        desc,
+        sort_order: sortOrder,
+      });
+      globalState = {
+        ...globalState,
+        customFlowSteps: [...globalState.customFlowSteps, step],
+      };
+      notify();
+      persist();
+      return step;
+    } catch {
+      // Fall through to local-only
+    }
+  }
+
+  // Local-only fallback
+  const step: CustomFlowStep = {
+    id: `custom_${Date.now()}`,
+    project_id: globalState.activeProjectId,
+    flow_type: flowType,
+    title,
+    days,
+    desc,
+    sort_order: sortOrder,
+    created_at: new Date().toISOString(),
+  };
+  globalState = {
+    ...globalState,
+    customFlowSteps: [...globalState.customFlowSteps, step],
+  };
+  notify();
+  persist();
+  return step;
+}
+
+export async function removeCustomFlowStep(stepId: string): Promise<void> {
+  if (isAuthenticated()) {
+    try {
+      await apiDeleteCustomStep(globalState.activeProjectId, stepId);
+    } catch {
+      // Continue with local removal
+    }
+  }
+
+  // Remove from custom steps
+  const customFlowSteps = globalState.customFlowSteps.filter(s => s.id !== stepId);
+  // Also remove from done_step_ids and custom_order
+  const flowDoneStepIds = globalState.flowDoneStepIds.filter(id => id !== stepId);
+  const flowCustomOrder = globalState.flowCustomOrder
+    ? globalState.flowCustomOrder.filter(id => id !== stepId)
+    : globalState.flowCustomOrder;
+
+  globalState = {
+    ...globalState,
+    customFlowSteps,
+    flowDoneStepIds,
+    flowCustomOrder,
+  };
+  notify();
+  persist();
+}
+
+export async function loadCustomFlowSteps(): Promise<void> {
+  if (!isAuthenticated()) return;
+  try {
+    const steps = await fetchCustomSteps(globalState.activeProjectId, globalState.flowType);
+    globalState = {
+      ...globalState,
+      customFlowSteps: steps,
+    };
+    notify();
+    persist();
+  } catch {
+    // Silently fail
+  }
 }
 
 // ==================== Project Actions ====================
@@ -629,18 +864,20 @@ export function resetAllData() {
 // ==================== Computed Helpers ====================
 
 export function getCompletedStageCount(): number {
-  const flowSteps = FLOW_STEPS_NEW;
+  const flowSteps = getOrderedFlowSteps('new');
   return globalState.flowDoneStepIds.filter(id =>
     flowSteps.some(s => s.id === id)
   ).length;
 }
 
 export function getTotalStageCount(flowType: 'new' | 'old' = 'new'): number {
-  return flowType === 'new' ? 22 : 9;
+  const baseCount = flowType === 'new' ? 22 : 9;
+  const customCount = globalState.customFlowSteps.filter(cs => cs.flow_type === flowType).length;
+  return baseCount + customCount;
 }
 
 export function getFirstUndoneStepId(): string {
-  const flowSteps = globalState.flowType === 'new' ? FLOW_STEPS_NEW : [];
+  const flowSteps = getOrderedFlowSteps(globalState.flowType);
   const doneSet = new Set(globalState.flowDoneStepIds);
   const firstUndone = flowSteps.find(s => !doneSet.has(s.id));
   return firstUndone?.id || flowSteps[0]?.id || 'design';

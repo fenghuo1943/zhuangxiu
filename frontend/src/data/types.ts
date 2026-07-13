@@ -109,6 +109,7 @@ export interface FlowStep {
   acceptance: FlowResource[];
   articles: FlowResource[];
   pitfalls: FlowResource[];
+  isCustom?: boolean;
 }
 
 export interface FlowProgress {
@@ -116,6 +117,29 @@ export interface FlowProgress {
   flowType: FlowType;
   doneStepIds: string[];
   customOrder?: string[];
+}
+
+// ==================== Stage Notes ====================
+
+export interface StageNote {
+  id: string;
+  project_id: string;
+  stage_id: string;
+  content: string;
+  created_at: string;
+}
+
+// ==================== Custom Flow Steps ====================
+
+export interface CustomFlowStep {
+  id: string;
+  project_id: string;
+  flow_type: string;
+  title: string;
+  days: string;
+  desc: string;
+  sort_order: number;
+  created_at: string;
 }
 
 // ==================== Price Comparison Types ====================
@@ -160,6 +184,8 @@ export interface AppState {
   flowType: FlowType;
   flowDoneStepIds: string[];
   flowCustomOrder: string[] | null;
+  stageNotes: Record<string, StageNote[]>;  // stageId -> notes
+  customFlowSteps: CustomFlowStep[];
   syncedModelIds: string[];
   priceCategories: PriceCategory[];
   projectStates: Record<string, ProjectState>;

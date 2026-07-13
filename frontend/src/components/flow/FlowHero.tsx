@@ -1,12 +1,11 @@
 import React from 'react';
-import { useStore, setFlowType } from '../../data/store';
-import { FLOW_STEPS_NEW, FLOW_STEPS_OLD } from '../../data/mockData';
+import { useStore, setFlowType, getOrderedFlowSteps } from '../../data/store';
 import { IconFlow, IconLayout } from '../common/Icons';
 
 const FlowHero: React.FC = () => {
   const state = useStore();
   const isNew = state.flowType === 'new';
-  const steps = isNew ? FLOW_STEPS_NEW : FLOW_STEPS_OLD;
+  const steps = getOrderedFlowSteps(state.flowType);
   const doneCount = steps.filter(s => state.flowDoneStepIds.includes(s.id)).length;
   const total = steps.length;
   const firstUndone = steps.find(s => !state.flowDoneStepIds.includes(s.id));

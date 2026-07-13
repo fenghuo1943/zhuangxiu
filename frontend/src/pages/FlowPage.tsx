@@ -2,15 +2,22 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import AppShell from '../components/layout/AppShell';
 import FlowHero from '../components/flow/FlowHero';
 import FlowStepCard from '../components/flow/FlowStepCard';
-import { useStore, setFlowCustomOrder, getOrderedFlowSteps } from '../data/store';
-import { FLOW_STEPS_NEW, FLOW_STEPS_OLD } from '../data/mockData';
-import { IconEdit, IconCheck, IconChevronUp, IconChevronDown } from '../components/common/Icons';
+import { useStore, setFlowCustomOrder, getOrderedFlowSteps, addCustomFlowStep, removeCustomFlowStep, loadCustomFlowSteps, loadFlowFromBackend } from '../data/store';
+import { IconEdit, IconCheck, IconChevronUp, IconChevronDown, IconPlus } from '../components/common/Icons';
 
 const FlowPage: React.FC = () => {
   const state = useStore();
-  const orderedSteps = useMemo(() => getOrderedFlowSteps(state.flowType), [state.flowType, state.flowCustomOrder]);
+  const orderedSteps = useMemo(() => getOrderedFlowSteps(state.flowType), [state.flowType, state.flowCustomOrder, state.customFlowSteps]);
   const doneSet = new Set(state.flowDoneStepIds);
   const [isEditing, setIsEditing] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newStage, setNewStage] = useState({ title: '', days: '', desc: '' });
+
+  // Load flow data from backend on mount
+  useEffect(() => {
+    loadFlowFromBackend();
+    loadCustomFlowSteps();
+  }, []);
 
   const firstUndoneId = useMemo(() => {
     const first = orderedSteps.find(s => !doneSet.has(s.id));
@@ -53,7 +60,6 @@ const FlowPage: React.FC = () => {
   }, [orderedSteps]);
 
   const startEditing = () => {
-    // Initialize custom order from current display order
     if (!state.flowCustomOrder) {
       setFlowCustomOrder(orderedSteps.map(s => s.id));
     }
@@ -66,6 +72,24 @@ const FlowPage: React.FC = () => {
     setFlowCustomOrder(null);
     setIsEditing(false);
   };
+
+  // Add custom stage
+  const handleAddStage = useCallback(async () => {
+    if (!newStage.title.trim()) return;
+    const sortOrder = orderedSteps.length + 1;
+    await addCustomFlowStep(state.flowType, newStage.title.trim(), newStage.days.trim(), newStage.desc.trim(), sortOrder);
+    setNewStage({ title: '', days: '', desc: '' });
+    setShowAddForm(false);
+  }, [newStage, orderedSteps.length, state.flowType]);
+
+  // Delete custom stage
+  const handleDeleteCustom = useCallback(async (stepId: string) => {
+    if (!confirm('确定要删除这个自定义阶段吗？')) return;
+    await removeCustomFlowStep(stepId);
+  }, []);
+
+  // Custom step count
+  const customCount = state.customFlowSteps.filter(cs => cs.flow_type === state.flowType).length;
 
   return (
     <AppShell currentPage="flow">
@@ -95,7 +119,10 @@ const FlowPage: React.FC = () => {
                         onClick={() => scrollToStep(step.id)}
                       >
                         <span className="flow-chip-num">{i + 1}</span>
-                        <span className="flow-chip-name">{step.title}</span>
+                        <span className="flow-chip-name">
+                          {step.title}
+                          {step.isCustom && ' *'}
+                        </span>
                         {isDone && <IconCheckSmall />}
                       </button>
                     );
@@ -110,9 +137,14 @@ const FlowPage: React.FC = () => {
             {/* Edit Order Toolbar */}
             <div className="flow-edit-toolbar">
               {!isEditing ? (
-                <button className="btn btn-outline btn-sm" onClick={startEditing}>
-                  <IconEdit size={14} /> 编辑顺序
-                </button>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button className="btn btn-outline btn-sm" onClick={startEditing}>
+                    <IconEdit size={14} /> 编辑顺序
+                  </button>
+                  <button className="btn btn-outline btn-sm" onClick={() => setShowAddForm(!showAddForm)}>
+                    <IconPlus size={14} /> 插入阶段
+                  </button>
+                </div>
               ) : (
                 <div className="flow-edit-actions">
                   <span className="flow-edit-hint">拖动或点击箭头调整阶段顺序</span>
@@ -125,6 +157,48 @@ const FlowPage: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Add Custom Stage Form */}
+            {showAddForm && (
+              <div className="card" style={{ marginBottom: 16, border: '2px dashed var(--fresh-coral)' }}>
+                <div className="card-bd" style={{ padding: 16 }}>
+                  <h4 style={{ margin: '0 0 12px', fontSize: 14, color: 'var(--fresh-coral)' }}>
+                    ✨ 插入自定义阶段
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="阶段名称（必填）"
+                      value={newStage.title}
+                      onChange={e => setNewStage({ ...newStage, title: e.target.value })}
+                    />
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="预计工期，如：2-3天"
+                      value={newStage.days}
+                      onChange={e => setNewStage({ ...newStage, days: e.target.value })}
+                    />
+                    <textarea
+                      className="input"
+                      placeholder="阶段描述（可选）"
+                      rows={2}
+                      value={newStage.desc}
+                      onChange={e => setNewStage({ ...newStage, desc: e.target.value })}
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn btn-primary btn-sm" onClick={handleAddStage} disabled={!newStage.title.trim()}>
+                        添加阶段
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => { setShowAddForm(false); setNewStage({ title: '', days: '', desc: '' }); }}>
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flow-timeline">
               {orderedSteps.map((step, index) => (
@@ -148,6 +222,16 @@ const FlowPage: React.FC = () => {
                       >
                         <IconChevronDown size={16} />
                       </button>
+                      {step.isCustom && (
+                        <button
+                          className="icon-btn"
+                          onClick={() => handleDeleteCustom(step.id)}
+                          title="删除此阶段"
+                          style={{ color: 'var(--fresh-coral)', marginLeft: 4 }}
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
                   )}
                   <div className="flow-step-card-wrap">
@@ -156,6 +240,17 @@ const FlowPage: React.FC = () => {
                       isExpanded={expandedIds.has(step.id)}
                       onToggle={() => toggleExpand(step.id)}
                     />
+                    {/* Show delete button for custom steps outside edit mode */}
+                    {step.isCustom && !isEditing && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => handleDeleteCustom(step.id)}
+                        style={{ marginTop: 4, color: 'var(--fresh-coral)', fontSize: 11 }}
+                        title="删除自定义阶段"
+                      >
+                        删除此自定义阶段
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
