@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import AppShell from '../components/layout/AppShell';
 import {
   useStore, addExpense, deleteExpense, updateExpenseStatus, updateExpense,
-  getSubCategoriesByCategory, renameGroup, setGroupVisibility, deleteSubCategory,
+  getSubCategoriesByCategory, renameGroup, deleteSubCategory,
   addSubCategory, renameSubCategory, moveSubCategory,
 } from '../data/store';
 import type { Expense } from '../data/types';
@@ -463,9 +463,9 @@ const ExpensePage: React.FC = () => {
         {activeView === 'group' ? (
           <div className="expense-view-panel">
             <div className="card" style={{ padding: '14px 18px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                 <div style={{ fontSize: 13, color: '#666', lineHeight: 1.55 }}>
-                  手机先点选小分类，再拖到大分类；也可以点选后直接点目标大分类。下方勾选哪些分组显示在主页预算和统计里。
+                  点选小分类后点击目标大分类即可移入，也可以直接拖拽小分类到目标大分类。
                 </div>
                 <button
                   className="btn btn-outline btn-sm"
@@ -480,18 +480,6 @@ const ExpensePage: React.FC = () => {
                 >
                   添加小项
                 </button>
-              </div>
-              <div className="group-visible-panel">
-                {state.expenseGroups.map(g => (
-                  <label key={g.id} className="group-visible-chip">
-                    <input
-                      type="checkbox"
-                      checked={g.visible}
-                      onChange={e => setGroupVisibility(g.id, e.target.checked)}
-                    />
-                    {' '}{g.name}
-                  </label>
-                ))}
               </div>
             </div>
 
