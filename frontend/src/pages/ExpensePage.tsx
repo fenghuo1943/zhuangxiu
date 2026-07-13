@@ -599,46 +599,6 @@ const ExpensePage: React.FC = () => {
               })}
             </div>
 
-            <div
-              className={`pool-area${dragOverGroupId === '_pool' ? ' drag-over' : ''}`}
-              onDragOver={e => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                setDragOverGroupId('_pool');
-              }}
-              onDragLeave={() => setDragOverGroupId(null)}
-              onDrop={e => {
-                e.preventDefault();
-                setDragOverGroupId(null);
-                const subId = e.dataTransfer.getData('text/plain');
-                if (subId && state.expenseGroups.length > 0) {
-                  moveSubCategory(subId, state.expenseGroups[0].id);
-                }
-              }}
-            >
-              <div style={{ fontSize: 11, color: '#999', marginBottom: 6 }}>未分组（拖到此处放回第一个分组）</div>
-              <div className="pool-bd">
-                {(() => {
-                  const groupIds = new Set(state.expenseGroups.map(g => g.id));
-                  const ungrouped = state.expenseSubCategories.filter(s => !groupIds.has(s.categoryId));
-                  return ungrouped.length === 0
-                    ? <div style={{ color: '#ccc', fontSize: 11 }}>全部已分组</div>
-                    : ungrouped.map(s => (
-                        <div key={s.id} className="group-tag" style={{ background: '#f0f0f0', border: '1px solid #ddd', color: '#888' }}
-                          draggable
-                          onDragStart={e => {
-                            e.dataTransfer.setData('text/plain', s.id);
-                            e.dataTransfer.effectAllowed = 'move';
-                            setSelectedSubId(null);
-                          }}
-                        >
-                          <svg viewBox="0 0 24 24" className="fresh-svg"><circle cx="12" cy="12" r="3.5" /></svg>
-                          <span>{s.name}</span>
-                        </div>
-                      ));
-                })()}
-              </div>
-            </div>
           </div>
         ) : (
           <>
