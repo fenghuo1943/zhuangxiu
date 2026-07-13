@@ -153,32 +153,16 @@ const StageBudgetInput: React.FC<{
 
   const handleBlur = useCallback(() => {
     const v = Math.max(0, parseInt(localVal, 10) || 0);
-    const neighborIdx = catIdx < cats.length - 1 ? catIdx + 1 : catIdx - 1;
-    const neighbor = cats[neighborIdx];
-    const combined = cat.allocated + neighbor.allocated;
+    log(`StageBudgetInput blur | catIdx=${catIdx}  ${cat.name}: input="${localVal}"→parsed=${v}`);
 
-    log(`StageBudgetInput blur | catIdx=${catIdx}  ${cat.name}: input="${localVal}"→parsed=${v}  neighbor=${neighbor.name}(${neighbor.allocated})  combined=${combined}`);
-
-    // Sync local state
     setLocalVal(String(v));
+    setCategoryAllocation(cat.id, v);
 
-    if (combined === 0) {
-      log(`  → combined=0, setCategoryAllocation(${cat.id}, ${v})`);
-      // No existing allocations — set this category directly, don't touch neighbor
-      setCategoryAllocation(cat.id, v);
-    } else {
-      // Existing allocations — keep combined total, adjust between the two
-      const newThis = Math.min(combined, v);
-      const newNeighbor = combined - newThis;
-      log(`  → combined>0, adjustAdjacentBudgets | ${cat.name}=${newThis}  ${neighbor.name}=${newNeighbor}`);
-      setLocalVal(String(newThis));
-      if (catIdx < cats.length - 1) {
-        adjustAdjacentBudgets(cat.id, neighbor.id, newThis, newNeighbor);
-      } else {
-        adjustAdjacentBudgets(neighbor.id, cat.id, newNeighbor, newThis);
-      }
-    }
-  }, [localVal, catIdx, cats, cat.id, cat.allocated]);
+    // Recalc total budget from all categories
+    const newTotal = cats.reduce((sum, c) => sum + (c.id === cat.id ? v : c.allocated), 0);
+    log(`  → setCategoryAllocation(${cat.id}, ${v}), newTotal=${newTotal}`);
+    setTotalBudget(newTotal, false); // scaleStages=false: don't redistribute, just update total
+  }, [localVal, catIdx, cats, cat.id]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
@@ -214,6 +198,11 @@ export const BudgetPanel: React.FC = () => {
   // Ensure barRef is populated before children read it
   useEffect(() => { forceTick(t => t + 1); }, []);
 
+  // Sync budgetInput when store total changes externally (e.g. stage input blur)
+  useEffect(() => {
+    setBudgetInput(state.budget.total > 0 ? String(Math.round(state.budget.total)) : '');
+  }, [state.budget.total]);
+
   const hasBudget = state.budget.total > 0;
   const totalBudget = state.budget.total || 0;
   const spent = state.budget.spent;
@@ -235,7 +224,7 @@ export const BudgetPanel: React.FC = () => {
     const v = Math.round(parseFloat(raw) || 0);
     const stepped = Math.round(v / BUDGET_STEP) * BUDGET_STEP || 0;
     log(`commitTotal | raw="${raw}" → parsed=${v} → stepped=${stepped}`);
-    setTotalBudget(stepped);
+    setTotalBudget(stepped); // scaleStages=true (default): proportionally redistribute to stages
     setBudgetInput(String(stepped || ''));
   }, []);
 

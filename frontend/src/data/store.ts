@@ -126,7 +126,7 @@ function distributeBudget(total: number, categories: BudgetCategory[]): BudgetCa
   });
 }
 
-export function setTotalBudget(total: number) {
+export function setTotalBudget(total: number, scaleStages = true) {
   const categories = globalState.budget.categories;
   const oldTotal = globalState.budget.total;
   const allZero = categories.every(c => c.allocated === 0);
@@ -134,12 +134,14 @@ export function setTotalBudget(total: number) {
   let newCategories = categories;
 
   if (normalizedTotal > 0) {
-    if (oldTotal > 0 && oldTotal !== normalizedTotal && !allZero) {
-      // Proportionally scale existing allocations to the new total
+    if (allZero) {
+      // Initial setup with no allocations yet — distribute evenly
+      newCategories = distributeBudget(normalizedTotal, categories);
+    } else if (scaleStages && oldTotal > 0 && oldTotal !== normalizedTotal) {
+      // Manual total change: proportionally scale existing allocations
       let distributed = 0;
       const scaled = categories.map((c, i) => {
         if (i === categories.length - 1) {
-          // Last category gets the remainder to avoid rounding gaps
           const alloc = Math.round((normalizedTotal - distributed) / 100) * 100;
           return { ...c, allocated: Math.max(0, alloc) };
         }
@@ -149,9 +151,8 @@ export function setTotalBudget(total: number) {
         return { ...c, allocated: Math.max(0, alloc) };
       });
       newCategories = scaled;
-    } else {
-      newCategories = distributeBudget(normalizedTotal, categories);
     }
+    // scaleStages=false: stage-driven change, keep allocations as-is
   } else {
     // Total set to 0 — clear all allocations
     newCategories = categories.map(c => ({ ...c, allocated: 0 }));
