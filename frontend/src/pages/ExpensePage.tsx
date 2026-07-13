@@ -159,7 +159,7 @@ const ExpensePage: React.FC = () => {
   const [formNote, setFormNote] = useState('');
   const [formStage, setFormStage] = useState('');
   const [formSubCategory, setFormSubCategory] = useState('');
-  const [stageFilter, setStageFilter] = useState('');
+  const [subCategoryFilter, setSubCategoryFilter] = useState('');
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'stats' | 'bills' | 'group'>('stats');
@@ -214,11 +214,11 @@ const ExpensePage: React.FC = () => {
       const q = searchQuery.trim().toLowerCase();
       list = list.filter(e => e.title.toLowerCase().includes(q) || (e.note && e.note.toLowerCase().includes(q)));
     }
-    if (stageFilter) {
-      list = list.filter(e => e.stageId === stageFilter);
+    if (subCategoryFilter) {
+      list = list.filter(e => e.subCategoryId === subCategoryFilter);
     }
     return list;
-  }, [state.expenses, statusFilter, searchQuery, stageFilter]);
+  }, [state.expenses, statusFilter, searchQuery, subCategoryFilter]);
 
   const totalSpent = useMemo(() => filteredExpenses.reduce((sum, e) => sum + e.amount, 0), [filteredExpenses]);
 
@@ -668,28 +668,28 @@ const ExpensePage: React.FC = () => {
                       </div>
                       {isOpen && (
                         <div className="expense-cat-body">
-                          {/* Stage chips */}
+                          {/* SubCategory chips */}
                           {(() => {
-                            const stageIds = [...new Set(catExpenses.map(e => e.stageId).filter(Boolean))];
-                            if (stageIds.length === 0) return null;
+                            const subIds = [...new Set(catExpenses.map(e => e.subCategoryId).filter(Boolean))];
+                            if (subIds.length === 0) return null;
                             return (
                               <div className="expense-stage-chips">
-                                {stageIds.map(sid => {
-                                  const stg = DEFAULT_STAGES.find(s => s.id === sid);
-                                  const isActive = stageFilter === sid;
+                                {subIds.map(sid => {
+                                  const sub = state.expenseSubCategories.find(s => s.id === sid);
+                                  const isActive = subCategoryFilter === sid;
                                   return (
                                     <button
                                       key={sid!}
                                       className={`expense-stage-chip ${isActive ? 'active' : ''}`}
-                                      onClick={(e) => { e.stopPropagation(); setStageFilter(isActive ? '' : sid!); }}
+                                      onClick={(e) => { e.stopPropagation(); setSubCategoryFilter(isActive ? '' : sid!); }}
                                     >
-                                      {stg?.name || sid}
+                                      {sub?.name || sid}
                                       {isActive && <IconX size={10} />}
                                     </button>
                                   );
                                 })}
-                                {stageFilter && (
-                                  <button className="expense-stage-chip clear" onClick={(e) => { e.stopPropagation(); setStageFilter(''); }}>
+                                {subCategoryFilter && (
+                                  <button className="expense-stage-chip clear" onClick={(e) => { e.stopPropagation(); setSubCategoryFilter(''); }}>
                                     清除筛选
                                   </button>
                                 )}
