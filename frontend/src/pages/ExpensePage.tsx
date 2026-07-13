@@ -363,20 +363,22 @@ const ExpensePage: React.FC = () => {
         </div>
 
         {/* View Switcher */}
-        <div className="toolbar-row">
-          <div className="tabs">
-            <button
-              className={`tab ${activeView === 'stats' ? 'active' : ''}`}
-              onClick={() => setActiveView('stats')}
-            >
-              分类统计
-            </button>
-            <button
-              className={`tab ${activeView === 'bills' ? 'active' : ''}`}
-              onClick={() => setActiveView('bills')}
-            >
-              全部账单
-            </button>
+        <div className="view-switcher">
+          <div className="toolbar-row">
+            <div className="tabs">
+              <button
+                className={`tab ${activeView === 'stats' ? 'active' : ''}`}
+                onClick={() => setActiveView('stats')}
+              >
+                分类统计
+              </button>
+              <button
+                className={`tab ${activeView === 'bills' ? 'active' : ''}`}
+                onClick={() => setActiveView('bills')}
+              >
+                全部账单
+              </button>
+            </div>
           </div>
           <button
             className={`icon-btn icon-btn--settings ${activeView === 'group' ? 'active' : ''}`}
