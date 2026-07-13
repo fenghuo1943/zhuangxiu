@@ -10,6 +10,8 @@ import { IconPiggy } from '../common/Icons';
 // ==================== Constants ====================
 
 const BUDGET_STEP = 100;
+const DEBUG = true;
+const log = (...args: any[]) => { if (DEBUG) console.log('[BudgetPanel]', ...args); };
 
 function formatCompact(n: number): string {
   if (n >= 1e4) return `¥${(n / 1e4).toFixed(1)}万`;
@@ -39,6 +41,7 @@ const BudgetSliderHandle: React.FC<SliderHandleProps> = ({
 
   const onStart = useCallback((clientX: number) => {
     startRef.current = { x: clientX, leftAlloc: leftCat.allocated, rightAlloc: rightCat.allocated };
+    log(`Slider drag START | ${leftCat.name}(${leftCat.allocated}) ↔ ${rightCat.name}(${rightCat.allocated})`);
     setDragging(true);
   }, [leftCat.allocated, rightCat.allocated]);
 
@@ -66,6 +69,7 @@ const BudgetSliderHandle: React.FC<SliderHandleProps> = ({
     const deltaAmount = Math.round((deltaPx / barWidth) * totalBudget / BUDGET_STEP) * BUDGET_STEP;
     const combined = leftAlloc + rightAlloc;
     const newLeft = clampStep(Math.min(combined, Math.max(0, leftAlloc + deltaAmount)));
+    log(`Slider drag END   | ${leftCat.name}=${newLeft}  ${rightCat.name}=${combined - newLeft}  (combined=${combined}, delta=${deltaAmount})`);
     adjustAdjacentBudgets(leftCat.id, rightCat.id, newLeft, combined - newLeft);
     setDragging(false); setTooltip(null); startRef.current = null;
   }, [barEl, totalBudget, leftCat.id, rightCat.id]);
@@ -143,6 +147,7 @@ const StageBudgetInput: React.FC<{
 
   // Sync from external store changes (slider drags, other edits)
   useEffect(() => {
+    log(`StageBudgetInput sync | ${cat.name}: store=${cat.allocated}, local was="${localVal}"`);
     setLocalVal(String(cat.allocated));
   }, [cat.allocated]);
 
@@ -152,16 +157,20 @@ const StageBudgetInput: React.FC<{
     const neighbor = cats[neighborIdx];
     const combined = cat.allocated + neighbor.allocated;
 
+    log(`StageBudgetInput blur | catIdx=${catIdx}  ${cat.name}: input="${localVal}"→parsed=${v}  neighbor=${neighbor.name}(${neighbor.allocated})  combined=${combined}`);
+
     // Sync local state
     setLocalVal(String(v));
 
     if (combined === 0) {
+      log(`  → combined=0, setCategoryAllocation(${cat.id}, ${v})`);
       // No existing allocations — set this category directly, don't touch neighbor
       setCategoryAllocation(cat.id, v);
     } else {
       // Existing allocations — keep combined total, adjust between the two
       const newThis = Math.min(combined, v);
       const newNeighbor = combined - newThis;
+      log(`  → combined>0, adjustAdjacentBudgets | ${cat.name}=${newThis}  ${neighbor.name}=${newNeighbor}`);
       setLocalVal(String(newThis));
       if (catIdx < cats.length - 1) {
         adjustAdjacentBudgets(cat.id, neighbor.id, newThis, newNeighbor);
@@ -198,6 +207,8 @@ export const BudgetPanel: React.FC = () => {
     state.budget.total > 0 ? String(Math.round(state.budget.total)) : ''
   );
   const barRef = useRef<HTMLDivElement>(null);
+  const budgetInputRef = useRef(budgetInput);
+  budgetInputRef.current = budgetInput; // always keep ref in sync, no stale-closure risk
   const [, forceTick] = useState(0);
 
   // Ensure barRef is populated before children read it
@@ -212,20 +223,33 @@ export const BudgetPanel: React.FC = () => {
   const totalAllocated = cats.reduce((s, c) => s + c.allocated, 0);
   const overBudget = hasBudget && totalAllocated > state.budget.total;
 
+  // Render-level debug summary
+  log(`RENDER | totalBudget=${totalBudget}  spent=${Math.round(spent)}  remaining=${Math.round(remaining)}  totalAllocated=${totalAllocated}`);
+  cats.forEach(c => log(`  ${c.id}: ${c.name}  allocated=${c.allocated}  spent=${Math.round(c.spent)}`));
+
   // ---- Total budget handlers ----
   const handleTotalChange = useCallback((val: string) => setBudgetInput(val), []);
 
-  const commitTotal = useCallback((raw: string) => {
+  const commitTotal = useCallback(() => {
+    const raw = budgetInputRef.current;
     const v = Math.round(parseFloat(raw) || 0);
     const stepped = Math.round(v / BUDGET_STEP) * BUDGET_STEP || 0;
+    log(`commitTotal | raw="${raw}" → parsed=${v} → stepped=${stepped}`);
     setTotalBudget(stepped);
     setBudgetInput(String(stepped || ''));
   }, []);
 
-  const handleTotalBlur = useCallback(() => commitTotal(budgetInput), [budgetInput, commitTotal]);
+  const handleTotalBlur = useCallback(() => {
+    log('handleTotalBlur fired');
+    commitTotal();
+  }, [commitTotal]);
+
   const handleTotalKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') commitTotal(budgetInput);
-  }, [budgetInput, commitTotal]);
+    if (e.key === 'Enter') {
+      log('handleTotalKeyDown Enter fired');
+      (e.target as HTMLInputElement).blur(); // trigger blur → commitTotal
+    }
+  }, []);
 
   // Pre-compute segment positions; show the bar once the total budget is set, even if allocations are still zero.
   const segments = cats.map((cat, i) => {
