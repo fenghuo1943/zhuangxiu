@@ -9,7 +9,6 @@ import { IconPiggy } from '../common/Icons';
 
 // ==================== Constants ====================
 
-const BUDGET_STEP = 100;
 const DEBUG = true;
 const log = (...args: any[]) => { if (DEBUG) console.log('[BudgetPanel]', ...args); };
 
@@ -18,8 +17,15 @@ function formatCompact(n: number): string {
   return `¥${n.toLocaleString()}`;
 }
 
-function clampStep(v: number): number {
-  return Math.max(0, Math.round(v / BUDGET_STEP) * BUDGET_STEP);
+/** Dynamic step based on budget magnitude */
+function getBudgetStep(amount: number): number {
+  if (amount < 50) return 1;
+  if (amount < 500) return 10;
+  return 100;
+}
+
+function clampStep(v: number, step: number): number {
+  return Math.max(0, Math.round(v / step) * step);
 }
 
 // ==================== BudgetSliderHandle ====================
@@ -53,9 +59,10 @@ const BudgetSliderHandle: React.FC<SliderHandleProps> = ({
     const barWidth = barEl.clientWidth;
     if (!barWidth) return;
     const deltaPx = clientX - startX;
-    const deltaAmount = Math.round((deltaPx / barWidth) * totalBudget / BUDGET_STEP) * BUDGET_STEP;
     const combined = leftAlloc + rightAlloc;
-    const newLeft = clampStep(Math.min(combined, Math.max(0, leftAlloc + deltaAmount)));
+    const step = getBudgetStep(combined);
+    const deltaAmount = Math.round((deltaPx / barWidth) * totalBudget / step) * step;
+    const newLeft = clampStep(Math.min(combined, Math.max(0, leftAlloc + deltaAmount)), step);
     setTooltip({ left: newLeft, right: combined - newLeft });
     // Update visual handle position
     const pctDelta = totalBudget > 0 ? ((newLeft - leftAlloc) / totalBudget) * 100 : 0;
@@ -71,9 +78,10 @@ const BudgetSliderHandle: React.FC<SliderHandleProps> = ({
     if (!barWidth) { setDragging(false); setTooltip(null); setVisualPct(null); startRef.current = null; return; }
     const { x: startX, leftAlloc, rightAlloc } = startRef.current;
     const deltaPx = clientX - startX;
-    const deltaAmount = Math.round((deltaPx / barWidth) * totalBudget / BUDGET_STEP) * BUDGET_STEP;
     const combined = leftAlloc + rightAlloc;
-    const newLeft = clampStep(Math.min(combined, Math.max(0, leftAlloc + deltaAmount)));
+    const step = getBudgetStep(combined);
+    const deltaAmount = Math.round((deltaPx / barWidth) * totalBudget / step) * step;
+    const newLeft = clampStep(Math.min(combined, Math.max(0, leftAlloc + deltaAmount)), step);
     log(`Slider drag END   | ${leftCat.name}=${newLeft}  ${rightCat.name}=${combined - newLeft}  (combined=${combined}, delta=${deltaAmount})`);
     adjustAdjacentBudgets(leftCat.id, rightCat.id, newLeft, combined - newLeft);
     setDragging(false); setTooltip(null); setVisualPct(null); startRef.current = null;
@@ -111,8 +119,9 @@ const BudgetSliderHandle: React.FC<SliderHandleProps> = ({
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
       const combined = leftCat.allocated + rightCat.allocated;
+      const step = getBudgetStep(combined);
       const dir = e.key === 'ArrowRight' ? 1 : -1;
-      const newLeft = clampStep(Math.min(combined, Math.max(0, leftCat.allocated + dir * BUDGET_STEP)));
+      const newLeft = clampStep(Math.min(combined, Math.max(0, leftCat.allocated + dir * step)), step);
       adjustAdjacentBudgets(leftCat.id, rightCat.id, newLeft, combined - newLeft);
     }
   }, [leftCat, rightCat]);
@@ -229,7 +238,7 @@ export const BudgetPanel: React.FC = () => {
   const commitTotal = useCallback(() => {
     const raw = budgetInputRef.current;
     const v = Math.round(parseFloat(raw) || 0);
-    const stepped = Math.round(v / BUDGET_STEP) * BUDGET_STEP || 0;
+    const stepped = clampStep(v, getBudgetStep(v)) || 0;
     log(`commitTotal | raw="${raw}" → parsed=${v} → stepped=${stepped}`);
     setTotalBudget(stepped); // scaleStages=true (default): proportionally redistribute to stages
     setBudgetInput(String(stepped || ''));
