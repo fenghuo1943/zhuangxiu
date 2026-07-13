@@ -36,18 +36,20 @@ const BudgetSliderHandle: React.FC<SliderHandleProps> = ({
   leftCat, rightCat, pctLeft, totalBudget, barEl,
 }) => {
   const [dragging, setDragging] = useState(false);
+  const [visualPct, setVisualPct] = useState<number | null>(null);
   const [tooltip, setTooltip] = useState<{ left: number; right: number } | null>(null);
-  const startRef = useRef<{ x: number; leftAlloc: number; rightAlloc: number } | null>(null);
+  const startRef = useRef<{ x: number; leftAlloc: number; rightAlloc: number; startPctLeft: number } | null>(null);
 
   const onStart = useCallback((clientX: number) => {
-    startRef.current = { x: clientX, leftAlloc: leftCat.allocated, rightAlloc: rightCat.allocated };
-    log(`Slider drag START | ${leftCat.name}(${leftCat.allocated}) ↔ ${rightCat.name}(${rightCat.allocated})`);
+    startRef.current = { x: clientX, leftAlloc: leftCat.allocated, rightAlloc: rightCat.allocated, startPctLeft: pctLeft };
+    log(`Slider drag START | ${leftCat.name}(${leftCat.allocated}) ↔ ${rightCat.name}(${rightCat.allocated})  pctLeft=${pctLeft}`);
+    setVisualPct(pctLeft);
     setDragging(true);
-  }, [leftCat.allocated, rightCat.allocated]);
+  }, [leftCat.allocated, rightCat.allocated, pctLeft]);
 
   const onMove = useCallback((clientX: number) => {
     if (!startRef.current || !barEl || totalBudget <= 0) return;
-    const { x: startX, leftAlloc, rightAlloc } = startRef.current;
+    const { x: startX, leftAlloc, rightAlloc, startPctLeft } = startRef.current;
     const barWidth = barEl.clientWidth;
     if (!barWidth) return;
     const deltaPx = clientX - startX;
@@ -55,15 +57,18 @@ const BudgetSliderHandle: React.FC<SliderHandleProps> = ({
     const combined = leftAlloc + rightAlloc;
     const newLeft = clampStep(Math.min(combined, Math.max(0, leftAlloc + deltaAmount)));
     setTooltip({ left: newLeft, right: combined - newLeft });
+    // Update visual handle position
+    const pctDelta = totalBudget > 0 ? ((newLeft - leftAlloc) / totalBudget) * 100 : 0;
+    setVisualPct(startPctLeft + pctDelta);
   }, [barEl, totalBudget]);
 
   const onEnd = useCallback((clientX: number) => {
     if (!startRef.current || !barEl || totalBudget <= 0) {
-      setDragging(false); setTooltip(null); startRef.current = null;
+      setDragging(false); setTooltip(null); setVisualPct(null); startRef.current = null;
       return;
     }
     const barWidth = barEl.clientWidth;
-    if (!barWidth) { setDragging(false); setTooltip(null); startRef.current = null; return; }
+    if (!barWidth) { setDragging(false); setTooltip(null); setVisualPct(null); startRef.current = null; return; }
     const { x: startX, leftAlloc, rightAlloc } = startRef.current;
     const deltaPx = clientX - startX;
     const deltaAmount = Math.round((deltaPx / barWidth) * totalBudget / BUDGET_STEP) * BUDGET_STEP;
@@ -71,8 +76,10 @@ const BudgetSliderHandle: React.FC<SliderHandleProps> = ({
     const newLeft = clampStep(Math.min(combined, Math.max(0, leftAlloc + deltaAmount)));
     log(`Slider drag END   | ${leftCat.name}=${newLeft}  ${rightCat.name}=${combined - newLeft}  (combined=${combined}, delta=${deltaAmount})`);
     adjustAdjacentBudgets(leftCat.id, rightCat.id, newLeft, combined - newLeft);
-    setDragging(false); setTooltip(null); startRef.current = null;
+    setDragging(false); setTooltip(null); setVisualPct(null); startRef.current = null;
   }, [barEl, totalBudget, leftCat.id, rightCat.id]);
+
+  const currentPct = visualPct ?? pctLeft;
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation(); onStart(e.clientX);
@@ -114,7 +121,7 @@ const BudgetSliderHandle: React.FC<SliderHandleProps> = ({
     <>
       <button
         className={`budget-slider-handle${dragging ? ' dragging' : ''}`}
-        style={{ left: `${pctLeft}%` }}
+        style={{ left: `${currentPct}%` }}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
         onKeyDown={handleKeyDown}
@@ -125,7 +132,7 @@ const BudgetSliderHandle: React.FC<SliderHandleProps> = ({
         <span className="budget-slider-grip" />
       </button>
       {tooltip && (
-        <div className="budget-slider-tooltip" style={{ left: `${pctLeft}%` }}>
+        <div className="budget-slider-tooltip" style={{ left: `${currentPct}%` }}>
           <span>{leftCat.name} ¥{tooltip.left.toLocaleString()}</span>
           <span className="budget-slider-tooltip-divider">|</span>
           <span>{rightCat.name} ¥{tooltip.right.toLocaleString()}</span>
