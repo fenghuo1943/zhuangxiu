@@ -3,23 +3,36 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database import get_db
 from ..models import User, Project
 from ..schemas import AppStateSync
-from ..auth import get_current_user
+from ..auth import get_current_user_or_guest
 
 router = APIRouter(prefix="/api/projects/{project_id}/sync", tags=["Sync"])
 
 
+async def _ensure_project(project_id: str, user: User, db: AsyncSession) -> Project:
+    """Return the project if it belongs to the user; create it for guest if missing."""
+    from sqlalchemy import select
+    result = await db.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == user.id)
+    )
+    project = result.scalar_one_or_none()
+    if project:
+        return project
+    if user.id == "guest":
+        project = Project(id=project_id, user_id=user.id, name="默认项目", owner_name="游客")
+        db.add(project)
+        await db.commit()
+        await db.refresh(project)
+        return project
+    raise HTTPException(status_code=404, detail="项目不存在")
+
+
 @router.post("/export")
-async def export_state(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def export_state(project_id: str, user: User = Depends(get_current_user_or_guest), db: AsyncSession = Depends(get_db)):
     """Export all project data as JSON (same format as frontend localStorage)."""
     from sqlalchemy import select
     from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceCategory, PriceModel, ChannelQuote, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep
 
-    result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
-
-    # Gather all data
-    proj = result.scalar_one()
+    proj = await _ensure_project(project_id, user, db)
 
     todos = (await db.execute(select(Todo).where(Todo.project_id == project_id))).scalars().all()
     expenses = (await db.execute(select(Expense).where(Expense.project_id == project_id))).scalars().all()
@@ -84,16 +97,14 @@ async def export_state(project_id: str, user: User = Depends(get_current_user), 
 
 
 @router.post("/import")
-async def import_state(project_id: str, data: AppStateSync, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def import_state(project_id: str, data: AppStateSync, user: User = Depends(get_current_user_or_guest), db: AsyncSession = Depends(get_db)):
     """Import full project state from JSON."""
     from sqlalchemy import select, delete
     from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceCategory, PriceModel, ChannelQuote, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep
     import uuid
     from datetime import date as date_type, datetime, timezone
 
-    result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
+    await _ensure_project(project_id, user, db)
 
     # Clear existing data
     for model in [Todo, Expense, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep]:

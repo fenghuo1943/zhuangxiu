@@ -7,7 +7,6 @@ import {
   FLOW_STEPS_OLD,
   PURCHASE_REFERENCES,
 } from './mockData';
-import { isAuthenticated } from '../api/client';
 import {
   fetchFlowProgress, updateFlowProgress, toggleStepDone as apiToggleStepDone,
   fetchStageNotes, createStageNote as apiCreateStageNote,
@@ -555,7 +554,6 @@ export function toggleFlowStepDone(stepId: string) {
 }
 
 async function syncFlowToBackend() {
-  if (!isAuthenticated()) return;
   try {
     await updateFlowProgress(globalState.activeProjectId, {
       flow_type: globalState.flowType,
@@ -569,7 +567,6 @@ async function syncFlowToBackend() {
 
 /** Load flow progress from backend, merging with local state */
 export async function loadFlowFromBackend(): Promise<void> {
-  if (!isAuthenticated()) return;
   try {
     const remote = await fetchFlowProgress(globalState.activeProjectId);
     // Merge: remote is authoritative for flow_type, done_step_ids, custom_order
@@ -582,7 +579,7 @@ export async function loadFlowFromBackend(): Promise<void> {
     notify();
     persist();
   } catch {
-    // Silently fail
+    // Silently fail — backend may be unreachable
   }
 }
 
@@ -595,81 +592,69 @@ export function getStageNotes(stageId: string): StageNote[] {
 export async function addStageNote(stageId: string, content: string): Promise<void> {
   if (!content.trim()) return;
 
-  if (isAuthenticated()) {
-    try {
-      const note = await apiCreateStageNote(globalState.activeProjectId, stageId, content);
-      const existing = globalState.stageNotes[stageId] || [];
-      globalState = {
-        ...globalState,
-        stageNotes: { ...globalState.stageNotes, [stageId]: [note, ...existing] },
-      };
-      notify();
-      persist();
-      return;
-    } catch {
-      // Fall through to local-only
-    }
+  try {
+    const note = await apiCreateStageNote(globalState.activeProjectId, stageId, content);
+    const existing = globalState.stageNotes[stageId] || [];
+    globalState = {
+      ...globalState,
+      stageNotes: { ...globalState.stageNotes, [stageId]: [note, ...existing] },
+    };
+    notify();
+    persist();
+  } catch {
+    // Backend unreachable — fall back to local-only
+    const note: StageNote = {
+      id: `note_${Date.now()}`,
+      project_id: globalState.activeProjectId,
+      stage_id: stageId,
+      content: content.trim(),
+      created_at: new Date().toISOString(),
+    };
+    const existing = globalState.stageNotes[stageId] || [];
+    globalState = {
+      ...globalState,
+      stageNotes: { ...globalState.stageNotes, [stageId]: [note, ...existing] },
+    };
+    notify();
+    persist();
   }
-
-  // Local-only fallback
-  const note: StageNote = {
-    id: `note_${Date.now()}`,
-    project_id: globalState.activeProjectId,
-    stage_id: stageId,
-    content: content.trim(),
-    created_at: new Date().toISOString(),
-  };
-  const existing = globalState.stageNotes[stageId] || [];
-  globalState = {
-    ...globalState,
-    stageNotes: { ...globalState.stageNotes, [stageId]: [note, ...existing] },
-  };
-  notify();
-  persist();
 }
 
 export async function updateStageNote(stageId: string, noteId: string, content: string): Promise<void> {
   if (!content.trim()) return;
 
-  if (isAuthenticated()) {
-    try {
-      const updated = await apiEditStageNote(globalState.activeProjectId, stageId, noteId, content);
-      const existing = globalState.stageNotes[stageId] || [];
-      globalState = {
-        ...globalState,
-        stageNotes: {
-          ...globalState.stageNotes,
-          [stageId]: existing.map(n => n.id === noteId ? updated : n),
-        },
-      };
-      notify();
-      persist();
-      return;
-    } catch {
-      // Fall through to local-only
-    }
+  try {
+    const updated = await apiEditStageNote(globalState.activeProjectId, stageId, noteId, content);
+    const existing = globalState.stageNotes[stageId] || [];
+    globalState = {
+      ...globalState,
+      stageNotes: {
+        ...globalState.stageNotes,
+        [stageId]: existing.map(n => n.id === noteId ? updated : n),
+      },
+    };
+    notify();
+    persist();
+  } catch {
+    // Backend unreachable — fall back to local-only
+    const existing = globalState.stageNotes[stageId] || [];
+    globalState = {
+      ...globalState,
+      stageNotes: {
+        ...globalState.stageNotes,
+        [stageId]: existing.map(n => n.id === noteId ? { ...n, content: content.trim() } : n),
+      },
+    };
+    notify();
+    persist();
   }
-
-  // Local-only fallback
-  const existing = globalState.stageNotes[stageId] || [];
-  globalState = {
-    ...globalState,
-    stageNotes: {
-      ...globalState.stageNotes,
-      [stageId]: existing.map(n => n.id === noteId ? { ...n, content: content.trim() } : n),
-    },
-  };
-  notify();
-  persist();
 }
 
 export async function removeStageNote(stageId: string, noteId: string): Promise<void> {
-  if (isAuthenticated()) {
-    try {
-      await apiDeleteStageNote(globalState.activeProjectId, stageId, noteId);
-    } catch {
-      // Continue with local removal
-    }
+  try {
+    await apiDeleteStageNote(globalState.activeProjectId, stageId, noteId);
+  } catch {
+    // Backend unreachable — continue with local removal
   }
 
   const existing = globalState.stageNotes[stageId] || [];
@@ -685,7 +670,6 @@ export async function removeStageNote(stageId: string, noteId: string): Promise<
 }
 
 export async function loadStageNotes(stageId: string): Promise<void> {
-  if (!isAuthenticated()) return;
   try {
     const notes = await fetchStageNotes(globalState.activeProjectId, stageId);
     globalState = {
@@ -695,7 +679,7 @@ export async function loadStageNotes(stageId: string): Promise<void> {
     notify();
     persist();
   } catch {
-    // Silently fail
+    // Silently fail — backend may be unreachable
   }
 }
 
@@ -740,54 +724,48 @@ export function getOrderedFlowSteps(flowType: 'new' | 'old'): FlowStep[] {
 export async function addCustomFlowStep(
   flowType: string, title: string, days: string, desc: string, sortOrder: number
 ): Promise<CustomFlowStep | null> {
-  if (isAuthenticated()) {
-    try {
-      const step = await apiCreateCustomStep(globalState.activeProjectId, {
-        flow_type: flowType,
-        title,
-        days,
-        desc,
-        sort_order: sortOrder,
-      });
-      globalState = {
-        ...globalState,
-        customFlowSteps: [...globalState.customFlowSteps, step],
-      };
-      notify();
-      persist();
-      return step;
-    } catch {
-      // Fall through to local-only
-    }
+  try {
+    const step = await apiCreateCustomStep(globalState.activeProjectId, {
+      flow_type: flowType,
+      title,
+      days,
+      desc,
+      sort_order: sortOrder,
+    });
+    globalState = {
+      ...globalState,
+      customFlowSteps: [...globalState.customFlowSteps, step],
+    };
+    notify();
+    persist();
+    return step;
+  } catch {
+    // Backend unreachable — fall back to local-only
+    const step: CustomFlowStep = {
+      id: `custom_${Date.now()}`,
+      project_id: globalState.activeProjectId,
+      flow_type: flowType,
+      title,
+      days,
+      desc,
+      sort_order: sortOrder,
+      created_at: new Date().toISOString(),
+    };
+    globalState = {
+      ...globalState,
+      customFlowSteps: [...globalState.customFlowSteps, step],
+    };
+    notify();
+    persist();
+    return step;
   }
-
-  // Local-only fallback
-  const step: CustomFlowStep = {
-    id: `custom_${Date.now()}`,
-    project_id: globalState.activeProjectId,
-    flow_type: flowType,
-    title,
-    days,
-    desc,
-    sort_order: sortOrder,
-    created_at: new Date().toISOString(),
-  };
-  globalState = {
-    ...globalState,
-    customFlowSteps: [...globalState.customFlowSteps, step],
-  };
-  notify();
-  persist();
-  return step;
 }
 
 export async function removeCustomFlowStep(stepId: string): Promise<void> {
-  if (isAuthenticated()) {
-    try {
-      await apiDeleteCustomStep(globalState.activeProjectId, stepId);
-    } catch {
-      // Continue with local removal
-    }
+  try {
+    await apiDeleteCustomStep(globalState.activeProjectId, stepId);
+  } catch {
+    // Backend unreachable — continue with local removal
   }
 
   // Remove from custom steps
@@ -809,7 +787,6 @@ export async function removeCustomFlowStep(stepId: string): Promise<void> {
 }
 
 export async function loadCustomFlowSteps(): Promise<void> {
-  if (!isAuthenticated()) return;
   try {
     const steps = await fetchCustomSteps(globalState.activeProjectId, globalState.flowType);
     globalState = {
@@ -819,7 +796,7 @@ export async function loadCustomFlowSteps(): Promise<void> {
     notify();
     persist();
   } catch {
-    // Silently fail
+    // Silently fail — backend may be unreachable
   }
 }
 

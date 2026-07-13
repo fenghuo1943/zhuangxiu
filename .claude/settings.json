@@ -18,7 +18,18 @@
       "Bash(sqlite3 xiaozhuangjia.db \".schema\")",
       "Bash(/d/python/装修网站/venv/Scripts/python -c \"import sqlite3; conn=sqlite3.connect\\('d:/python/装修网站/xiaozhuangjia.db'\\); [print\\(row[0]\\) for row in conn.execute\\(\\\\\"SELECT sql FROM sqlite_master WHERE type='table' AND sql IS NOT NULL\\\\\"\\).fetchall\\(\\)]\")",
       "Bash(python -c \"from backend.models import StageNote, CustomFlowStep; from backend.schemas import StageNoteCreate, StageNoteOut, CustomFlowStepCreate, CustomFlowStepOut; print\\('Backend models and schemas OK'\\)\")",
-      "Bash(python -c \"from backend.routers.flow import router; print\\('Flow router OK, endpoints:', [r.path for r in router.routes]\\)\")"
+      "Bash(python -c \"from backend.routers.flow import router; print\\('Flow router OK, endpoints:', [r.path for r in router.routes]\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(taskkill //F //IM python.exe)",
+      "Bash(python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload)",
+      "Bash(curl -s http://localhost:8003/api/projects/p1/flow)",
+      "Bash(curl -s http://localhost:8003/api/projects/p1/flow/stages/design/notes)",
+      "Bash(curl -s \"http://localhost:8003/api/projects/p1/flow/custom-steps?flow_type=new\")",
+      "Bash(curl -s -X POST http://localhost:8003/api/projects/p1/flow/stages/design/notes -H 'Content-Type: application/json' -d '{\"stage_id\":\"design\",\"content\":\"测试备注内容\"}')",
+      "Bash(curl -s -X POST http://localhost:8003/api/projects/p1/flow/stages/design/notes -H \"Content-Type: application/json\" -d \"{\\\\\"stage_id\\\\\":\\\\\"design\\\\\",\\\\\"content\\\\\":\\\\\"test note\\\\\"}\")",
+      "Bash(curl -s -X PUT http://localhost:8003/api/projects/p1/flow -H \"Content-Type: application/json\" -d \"{\\\\\"flow_type\\\\\":\\\\\"new\\\\\",\\\\\"done_step_ids\\\\\":[\\\\\"design\\\\\",\\\\\"demolish\\\\\"],\\\\\"custom_order\\\\\":null}\")",
+      "Bash(curl -s -X DELETE http://localhost:8003/api/projects/p1/flow/stages/design/notes/sn_6d7342be1876)",
+      "Bash(curl -s -X PUT http://localhost:8003/api/projects/p1/flow -H \"Content-Type: application/json\" -d \"{\\\\\"flow_type\\\\\":\\\\\"new\\\\\",\\\\\"done_step_ids\\\\\":[],\\\\\"custom_order\\\\\":null}\")"
     ]
   }
 }

@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -8,18 +9,45 @@ from ..schemas import (
     StageNoteCreate, StageNoteUpdate, StageNoteOut,
     CustomFlowStepCreate, CustomFlowStepUpdate, CustomFlowStepOut,
 )
-from ..auth import get_current_user
+from ..auth import get_current_user_or_guest
 
 router = APIRouter(prefix="/api/projects/{project_id}/flow", tags=["Flow"])
+
+
+async def _ensure_project(project_id: str, user: User, db: AsyncSession) -> Project:
+    """Return the project if it belongs to the user; create it for guest if missing."""
+    result = await db.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == user.id)
+    )
+    project = result.scalar_one_or_none()
+    if project:
+        return project
+
+    # Only auto-create for guest users
+    if user.id == "guest":
+        project = Project(
+            id=project_id,
+            user_id=user.id,
+            name="默认项目",
+            owner_name="游客",
+        )
+        db.add(project)
+        await db.commit()
+        await db.refresh(project)
+        return project
+
+    raise HTTPException(status_code=404, detail="项目不存在")
 
 
 # ==================== Flow Progress ====================
 
 @router.get("", response_model=FlowProgressOut)
-async def get_flow(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
+async def get_flow(
+    project_id: str,
+    user: User = Depends(get_current_user_or_guest),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_project(project_id, user, db)
     fp_result = await db.execute(select(FlowProgress).where(FlowProgress.project_id == project_id))
     fp = fp_result.scalar_one_or_none()
     if not fp:
@@ -31,10 +59,13 @@ async def get_flow(project_id: str, user: User = Depends(get_current_user), db: 
 
 
 @router.put("", response_model=FlowProgressOut)
-async def update_flow(project_id: str, data: FlowProgressUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
+async def update_flow(
+    project_id: str,
+    data: FlowProgressUpdate,
+    user: User = Depends(get_current_user_or_guest),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_project(project_id, user, db)
     fp_result = await db.execute(select(FlowProgress).where(FlowProgress.project_id == project_id))
     fp = fp_result.scalar_one_or_none()
     if not fp:
@@ -49,11 +80,14 @@ async def update_flow(project_id: str, data: FlowProgressUpdate, user: User = De
 
 
 @router.put("/steps/{step_id}/done")
-async def mark_step_done(project_id: str, step_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def mark_step_done(
+    project_id: str,
+    step_id: str,
+    user: User = Depends(get_current_user_or_guest),
+    db: AsyncSession = Depends(get_db),
+):
     """Toggle a step's completion status. Returns the updated done_step_ids."""
-    result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
+    await _ensure_project(project_id, user, db)
     fp_result = await db.execute(select(FlowProgress).where(FlowProgress.project_id == project_id))
     fp = fp_result.scalar_one_or_none()
     if not fp:
@@ -73,23 +107,37 @@ async def mark_step_done(project_id: str, step_id: str, user: User = Depends(get
 # ==================== Stage Notes ====================
 
 @router.get("/stages/{stage_id}/notes", response_model=list[StageNoteOut])
-async def list_stage_notes(project_id: str, stage_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
+async def list_stage_notes(
+    project_id: str,
+    stage_id: str,
+    user: User = Depends(get_current_user_or_guest),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_project(project_id, user, db)
     notes_result = await db.execute(
-        select(StageNote).where(StageNote.project_id == project_id, StageNote.stage_id == stage_id)
-        .order_by(StageNote.created_at.desc())
+        select(StageNote).where(
+            StageNote.project_id == project_id,
+            StageNote.stage_id == stage_id,
+        ).order_by(StageNote.created_at.desc())
     )
     return notes_result.scalars().all()
 
 
 @router.post("/stages/{stage_id}/notes", response_model=StageNoteOut, status_code=201)
-async def create_stage_note(project_id: str, stage_id: str, data: StageNoteCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
-    note = StageNote(project_id=project_id, stage_id=stage_id, content=data.content)
+async def create_stage_note(
+    project_id: str,
+    stage_id: str,
+    data: StageNoteCreate,
+    user: User = Depends(get_current_user_or_guest),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_project(project_id, user, db)
+    note = StageNote(
+        id=f"sn_{uuid.uuid4().hex[:12]}",
+        project_id=project_id,
+        stage_id=stage_id,
+        content=data.content,
+    )
     db.add(note)
     await db.commit()
     await db.refresh(note)
@@ -97,9 +145,19 @@ async def create_stage_note(project_id: str, stage_id: str, data: StageNoteCreat
 
 
 @router.put("/stages/{stage_id}/notes/{note_id}", response_model=StageNoteOut)
-async def update_stage_note(project_id: str, stage_id: str, note_id: str, data: StageNoteUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_stage_note(
+    project_id: str,
+    stage_id: str,
+    note_id: str,
+    data: StageNoteUpdate,
+    user: User = Depends(get_current_user_or_guest),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_project(project_id, user, db)
     result = await db.execute(select(StageNote).where(
-        StageNote.id == note_id, StageNote.project_id == project_id, StageNote.stage_id == stage_id
+        StageNote.id == note_id,
+        StageNote.project_id == project_id,
+        StageNote.stage_id == stage_id,
     ))
     note = result.scalar_one_or_none()
     if not note:
@@ -111,9 +169,18 @@ async def update_stage_note(project_id: str, stage_id: str, note_id: str, data: 
 
 
 @router.delete("/stages/{stage_id}/notes/{note_id}")
-async def delete_stage_note(project_id: str, stage_id: str, note_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def delete_stage_note(
+    project_id: str,
+    stage_id: str,
+    note_id: str,
+    user: User = Depends(get_current_user_or_guest),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_project(project_id, user, db)
     result = await db.execute(select(StageNote).where(
-        StageNote.id == note_id, StageNote.project_id == project_id, StageNote.stage_id == stage_id
+        StageNote.id == note_id,
+        StageNote.project_id == project_id,
+        StageNote.stage_id == stage_id,
     ))
     note = result.scalar_one_or_none()
     if not note:
@@ -126,10 +193,13 @@ async def delete_stage_note(project_id: str, stage_id: str, note_id: str, user: 
 # ==================== Custom Flow Steps ====================
 
 @router.get("/custom-steps", response_model=list[CustomFlowStepOut])
-async def list_custom_steps(project_id: str, flow_type: str = "new", user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
+async def list_custom_steps(
+    project_id: str,
+    flow_type: str = "new",
+    user: User = Depends(get_current_user_or_guest),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_project(project_id, user, db)
     steps_result = await db.execute(
         select(CustomFlowStep).where(
             CustomFlowStep.project_id == project_id,
@@ -140,11 +210,15 @@ async def list_custom_steps(project_id: str, flow_type: str = "new", user: User 
 
 
 @router.post("/custom-steps", response_model=CustomFlowStepOut, status_code=201)
-async def create_custom_step(project_id: str, data: CustomFlowStepCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
+async def create_custom_step(
+    project_id: str,
+    data: CustomFlowStepCreate,
+    user: User = Depends(get_current_user_or_guest),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_project(project_id, user, db)
     step = CustomFlowStep(
+        id=f"cs_{uuid.uuid4().hex[:12]}",
         project_id=project_id,
         flow_type=data.flow_type,
         title=data.title,
@@ -159,9 +233,17 @@ async def create_custom_step(project_id: str, data: CustomFlowStepCreate, user: 
 
 
 @router.put("/custom-steps/{step_id}", response_model=CustomFlowStepOut)
-async def update_custom_step(project_id: str, step_id: str, data: CustomFlowStepUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_custom_step(
+    project_id: str,
+    step_id: str,
+    data: CustomFlowStepUpdate,
+    user: User = Depends(get_current_user_or_guest),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_project(project_id, user, db)
     result = await db.execute(select(CustomFlowStep).where(
-        CustomFlowStep.id == step_id, CustomFlowStep.project_id == project_id
+        CustomFlowStep.id == step_id,
+        CustomFlowStep.project_id == project_id,
     ))
     step = result.scalar_one_or_none()
     if not step:
@@ -175,9 +257,16 @@ async def update_custom_step(project_id: str, step_id: str, data: CustomFlowStep
 
 
 @router.delete("/custom-steps/{step_id}")
-async def delete_custom_step(project_id: str, step_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def delete_custom_step(
+    project_id: str,
+    step_id: str,
+    user: User = Depends(get_current_user_or_guest),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_project(project_id, user, db)
     result = await db.execute(select(CustomFlowStep).where(
-        CustomFlowStep.id == step_id, CustomFlowStep.project_id == project_id
+        CustomFlowStep.id == step_id,
+        CustomFlowStep.project_id == project_id,
     ))
     step = result.scalar_one_or_none()
     if not step:
