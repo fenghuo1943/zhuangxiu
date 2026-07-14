@@ -2719,9 +2719,9 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 /* ==================== Purchase Page v2 (matching reference HTML) ==================== */
 .purchase-page-v2 {
-  max-width: 900px;
+  width: min(1320px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 16px;
+  padding: 16px 0 52px;
 }
 
 .purchase-page-title-row {
@@ -3508,7 +3508,6 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
   .purchase-page-v2 {
     width: 100%;
-    max-width: none;
     padding: 14px 12px 86px;
   }
 
