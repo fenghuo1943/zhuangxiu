@@ -421,6 +421,9 @@ const ExpensePage: React.FC = () => {
                   {opt.label}
                 </button>
               ))}
+              <button className="btn btn-primary btn-sm show-mobile" onClick={openAddModal}>
+                <IconPlus size={14} /> 记一笔
+              </button>
             </div>
             <div className="expense-search">
               <IconSearch size={14} />
@@ -446,7 +449,7 @@ const ExpensePage: React.FC = () => {
             >
               全部折叠
             </button>
-            <div className="expense-actions">
+            <div className="expense-actions hide-mobile">
               {/* Export dropdown */}
               <div className="export-dropdown" style={{ position: 'relative' }}>
                 <button className="btn btn-outline btn-sm" onClick={() => setShowExportMenu(!showExportMenu)}>
