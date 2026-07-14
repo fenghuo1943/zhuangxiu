@@ -313,19 +313,28 @@ export function togglePurchaseRef(itemId: string) {
   };
   notify();
   persist();
+
+  // Sync to backend if authenticated
+  if (isAuthenticated()) {
+    import('../api/purchase').then(({ togglePurchaseSelection }) => {
+      togglePurchaseSelection(globalState.activeProjectId, itemId).catch(() => {});
+    });
+  }
 }
 
-export function addCustomPurchaseItem(name: string, stageParent: string, qty: number) {
+export function addCustomPurchaseItem(name: string, stageParent: string, qty: number, spec?: string, subgroupName?: string, unit?: string) {
   const id = `p_custom_${Date.now()}`;
   const purchaseReferences = globalState.purchaseReferences.map(stage => {
     if (stage.parent !== stageParent) return stage;
     return {
       ...stage,
       subs: stage.subs.map((sub, i) => {
-        if (i === 0) {
+        // If subgroupName is provided, find the matching subgroup
+        const isTargetSub = subgroupName ? sub.name === subgroupName : i === 0;
+        if (isTargetSub) {
           return {
             ...sub,
-            items: [...sub.items, { id, name, spec: '', qty, unit: '个', selected: true }],
+            items: [...sub.items, { id, name, spec: spec || '', qty, unit: unit || '个', selected: true }],
           };
         }
         return sub;
@@ -340,21 +349,48 @@ export function addCustomPurchaseItem(name: string, stageParent: string, qty: nu
   };
   notify();
   persist();
+
+  // Sync to backend if authenticated
+  if (isAuthenticated()) {
+    import('../api/purchase').then(({ addCustomPurchaseItem: apiAdd }) => {
+      apiAdd(globalState.activeProjectId, {
+        name,
+        stage_parent: stageParent,
+        subgroup_name: subgroupName,
+        spec: spec || '',
+        qty,
+        unit: unit || '个',
+      }).catch(() => {});
+    });
+  }
 }
 
 export function deletePurchaseRefItem(itemId: string) {
-  const purchaseReferences = globalState.purchaseReferences.map(stage => ({
-    ...stage,
-    subs: stage.subs.map(sub => ({
-      ...sub,
-      items: sub.items.filter(item => item.id !== itemId),
-    })),
-  }));
+  // Find the item to get its stage parent (for possible backend sync)
+  let stageParent = '';
+  const purchaseReferences = globalState.purchaseReferences.map(stage => {
+    const newSubs = stage.subs.map(sub => {
+      const found = sub.items.find(item => item.id === itemId);
+      if (found) stageParent = stage.parent;
+      return {
+        ...sub,
+        items: sub.items.filter(item => item.id !== itemId),
+      };
+    });
+    return { ...stage, subs: newSubs };
+  });
   const selectedPurchaseIds = globalState.selectedPurchaseIds.filter(id => id !== itemId);
 
   globalState = { ...globalState, purchaseReferences, selectedPurchaseIds };
   notify();
   persist();
+
+  // Sync to backend if authenticated
+  if (isAuthenticated()) {
+    import('../api/purchase').then(({ deletePurchaseItem: apiDelete }) => {
+      apiDelete(globalState.activeProjectId, itemId).catch(() => {});
+    });
+  }
 }
 
 export function updatePurchaseRefQty(itemId: string, qty: number) {
@@ -370,6 +406,70 @@ export function updatePurchaseRefQty(itemId: string, qty: number) {
   globalState = { ...globalState, purchaseReferences };
   notify();
   persist();
+}
+
+/** Load selected purchases from backend */
+export async function loadSelectedPurchasesFromBackend(): Promise<void> {
+  if (!isAuthenticated()) return;
+  try {
+    const { fetchSelectedPurchases } = await import('../api/purchase');
+    const selectedIds = await fetchSelectedPurchases(globalState.activeProjectId);
+    if (selectedIds.length > 0) {
+      // Merge with local: backend is authoritative for existing items
+      const localOnlyIds = globalState.selectedPurchaseIds.filter(
+        id => id.startsWith('p_custom_')
+      );
+      const merged = [...new Set([...selectedIds, ...localOnlyIds])];
+      // Also mark items as selected in references
+      const purchaseReferences = globalState.purchaseReferences.map(stage => ({
+        ...stage,
+        subs: stage.subs.map(sub => ({
+          ...sub,
+          items: sub.items.map(item => ({
+            ...item,
+            selected: merged.includes(item.id),
+          })),
+        })),
+      }));
+      globalState = {
+        ...globalState,
+        selectedPurchaseIds: merged,
+        purchaseReferences,
+      };
+      notify();
+      persist();
+    }
+  } catch {
+    // Backend unreachable, keep local data
+  }
+}
+
+/** Load purchase references from backend, falling back to local mockData */
+export async function loadPurchaseReferencesFromBackend(): Promise<void> {
+  if (!isAuthenticated()) return;
+  try {
+    const { fetchPurchaseReferences } = await import('../api/purchase');
+    const remoteRefs = await fetchPurchaseReferences();
+    if (remoteRefs && remoteRefs.length > 0) {
+      // Add selected state from local selectedPurchaseIds
+      const selectedSet = new Set(globalState.selectedPurchaseIds);
+      const enriched = remoteRefs.map(stage => ({
+        ...stage,
+        subs: stage.subs.map(sub => ({
+          ...sub,
+          items: sub.items.map(item => ({
+            ...item,
+            selected: selectedSet.has(item.id),
+          })),
+        })),
+      }));
+      globalState = { ...globalState, purchaseReferences: enriched };
+      notify();
+      persist();
+    }
+  } catch {
+    // Backend unreachable, keep local mockData
+  }
 }
 
 // ==================== Expense Actions ====================
@@ -1112,6 +1212,8 @@ export async function syncFromServerAfterLogin(): Promise<void> {
   try {
     await loadBudgetAndExpensesFromBackend();
     await loadFlowFromBackend();
+    await loadPurchaseReferencesFromBackend();
+    await loadSelectedPurchasesFromBackend();
   } catch {
     // Server unreachable — keep local data
   }

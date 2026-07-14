@@ -126,78 +126,216 @@ export const FLOW_STEPS_OLD: FlowStep[] = [
 
 export const PURCHASE_REFERENCES = [
   {
-    parent: '硬装工程',
+    parent: '开工前准备',
     subs: [
-      { name: '水电材料', items: [
-        { id: 'p1', name: 'PPR水管', spec: '25mm', qty: 1, unit: '套', selected: false },
-        { id: 'p2', name: '电线', spec: '2.5mm²', qty: 3, unit: '卷', selected: false },
-        { id: 'p3', name: '网线', spec: '超六类', qty: 1, unit: '箱', selected: false },
-        { id: 'p4', name: '开关插座', spec: '86型', qty: 30, unit: '个', selected: false },
-        { id: 'p5', name: '断路器', spec: '2P 63A', qty: 1, unit: '套', selected: false },
+      { name: '临时设施', items: [
+        { id: 'item_0_0_0', name: '临时马桶', spec: '', qty: 1, unit: '个' },
+        { id: 'item_0_0_1', name: '临时水龙头', spec: '', qty: 1, unit: '个' },
+        { id: 'item_0_0_2', name: '临时灯泡', spec: 'LED', qty: 2, unit: '个' },
+        { id: 'item_0_0_3', name: '临时插座', spec: '', qty: 2, unit: '个' },
+      ]},
+      { name: '前置准备', items: [
+        { id: 'item_0_1_0', name: '强电箱装饰画', spec: '', qty: 1, unit: '个' },
+        { id: 'item_0_1_1', name: '前置过滤器', spec: '', qty: 1, unit: '个' },
+      ]},
+    ],
+  },
+  {
+    parent: '水电阶段',
+    subs: [
+      { name: '电线', items: [
+        { id: 'item_1_0_0', name: 'BV铜线', spec: '1.5mm² 照明用', qty: 2, unit: '卷' },
+        { id: 'item_1_0_1', name: 'BV铜线', spec: '2.5mm² 插座用', qty: 3, unit: '卷' },
+        { id: 'item_1_0_2', name: 'BV铜线', spec: '4mm² 厨卫空调用', qty: 3, unit: '卷' },
+        { id: 'item_1_0_3', name: 'BV铜线', spec: '6mm² 入户线', qty: 1, unit: '卷' },
+        { id: 'item_1_0_4', name: '网线', spec: '超六类CAT6A', qty: 1, unit: '箱' },
+      ]},
+      { name: '线管配件', items: [
+        { id: 'item_1_1_0', name: 'PVC线管', spec: '20mm 中型壁厚2.0', qty: 30, unit: '根' },
+        { id: 'item_1_1_1', name: '弯头', spec: '20mm', qty: 30, unit: '个' },
+        { id: 'item_1_1_2', name: '接线盒', spec: '86型', qty: 40, unit: '个' },
+        { id: 'item_1_1_3', name: '杯梳（锁扣）', spec: '', qty: 80, unit: '个' },
+        { id: 'item_1_1_4', name: '管卡', spec: '', qty: 100, unit: '个' },
+        { id: 'item_1_1_5', name: '波纹管', spec: '筒灯用', qty: 20, unit: '根' },
+        { id: 'item_1_1_6', name: '黄蜡管', spec: '灯线用', qty: 10, unit: '根' },
+        { id: 'item_1_1_7', name: '锡箔纸', spec: '强弱电交接用', qty: 2, unit: '卷' },
+        { id: 'item_1_1_8', name: '50PVC管', spec: '预埋用', qty: 4, unit: '根' },
+      ]},
+      { name: '配电箱', items: [
+        { id: 'item_1_2_0', name: '配电箱体', spec: '12-13回路', qty: 1, unit: '个' },
+        { id: 'item_1_2_1', name: '空开', spec: 'C63 总开', qty: 1, unit: '个' },
+        { id: 'item_1_2_2', name: '空开', spec: 'C16 照明', qty: 1, unit: '个' },
+        { id: 'item_1_2_3', name: '空开', spec: 'C20 插座', qty: 1, unit: '个' },
+        { id: 'item_1_2_4', name: '空开', spec: 'C25 厨房', qty: 1, unit: '个' },
+        { id: 'item_1_2_5', name: '空开', spec: 'C25 卫生间', qty: 1, unit: '个' },
+        { id: 'item_1_2_6', name: '空开', spec: 'C32 空调', qty: 3, unit: '个' },
+        { id: 'item_1_2_7', name: '漏保', spec: 'C25 30mA 厨卫', qty: 3, unit: '个' },
+        { id: 'item_1_2_8', name: '汇流排', spec: '', qty: 2, unit: '根' },
+        { id: 'item_1_2_9', name: '零线排', spec: '', qty: 1, unit: '根' },
+        { id: 'item_1_2_10', name: '地线排', spec: '', qty: 1, unit: '根' },
+      ]},
+      { name: '水管配件', items: [
+        { id: 'item_1_3_0', name: 'PPR热水管', spec: 'DN25 壁厚3.5+', qty: 5, unit: '根' },
+        { id: 'item_1_3_1', name: 'PPR热水管', spec: 'DN20', qty: 10, unit: '根' },
+        { id: 'item_1_3_2', name: 'PPR弯头', spec: '', qty: 20, unit: '个' },
+        { id: 'item_1_3_3', name: 'PPR三通', spec: '', qty: 10, unit: '个' },
+        { id: 'item_1_3_4', name: 'PPR直接', spec: '', qty: 10, unit: '个' },
+        { id: 'item_1_3_5', name: '过桥弯', spec: '', qty: 4, unit: '个' },
+        { id: 'item_1_3_6', name: '双联内丝弯头', spec: '花洒用间距15cm', qty: 2, unit: '个' },
+        { id: 'item_1_3_7', name: '角阀', spec: '', qty: 10, unit: '个' },
+        { id: 'item_1_3_8', name: '保温棉', spec: '水管用', qty: 10, unit: '根' },
+        { id: 'item_1_3_9', name: '管卡', spec: 'PPR', qty: 40, unit: '个' },
+        { id: 'item_1_3_10', name: '生料带', spec: '', qty: 5, unit: '卷' },
+        { id: 'item_1_3_11', name: '堵漏王', spec: '', qty: 2, unit: '袋' },
+      ]},
+      { name: '开关插座', items: [
+        { id: 'item_1_4_0', name: '86底盒', spec: '', qty: 30, unit: '个' },
+        { id: 'item_1_4_1', name: '五孔插座', spec: '', qty: 20, unit: '个' },
+        { id: 'item_1_4_2', name: '五孔带开关', spec: '厨房台面用', qty: 6, unit: '个' },
+        { id: 'item_1_4_3', name: '五孔带USB', spec: '床头用', qty: 4, unit: '个' },
+        { id: 'item_1_4_4', name: '16A三孔插座', spec: '空调用', qty: 4, unit: '个' },
+        { id: 'item_1_4_5', name: '单开单控', spec: '', qty: 10, unit: '个' },
+        { id: 'item_1_4_6', name: '单开双控', spec: '', qty: 5, unit: '个' },
+        { id: 'item_1_4_7', name: '双开双控', spec: '', qty: 3, unit: '个' },
+        { id: 'item_1_4_8', name: '防水盒', spec: '卫生间用', qty: 6, unit: '个' },
+      ]},
+    ],
+  },
+  {
+    parent: '瓦工阶段',
+    subs: [
+      { name: '水泥沙砖', items: [
+        { id: 'item_2_0_0', name: '水泥', spec: '32.5号', qty: 10, unit: '袋' },
+        { id: 'item_2_0_1', name: '河沙', spec: '', qty: 5, unit: '方' },
+        { id: 'item_2_0_2', name: '红砖', spec: '砌墙用', qty: 200, unit: '块' },
+      ]},
+      { name: '瓷砖辅料', items: [
+        { id: 'item_2_1_0', name: '瓷砖胶', spec: 'JC/T547 C2', qty: 10, unit: '袋' },
+        { id: 'item_2_1_1', name: '背胶', spec: '双组份', qty: 2, unit: '桶' },
+        { id: 'item_2_1_2', name: '十字卡', spec: '2mm', qty: 2, unit: '包' },
+        { id: 'item_2_1_3', name: '美缝剂', spec: '全聚脲', qty: 20, unit: '支' },
       ]},
       { name: '防水材料', items: [
-        { id: 'p6', name: '柔性防水涂料', spec: '18kg', qty: 3, unit: '桶', selected: false },
-        { id: 'p7', name: '堵漏王', spec: '2kg', qty: 2, unit: '袋', selected: false },
+        { id: 'item_2_2_0', name: '防水涂料', spec: '刚性+柔性', qty: 3, unit: '桶' },
+        { id: 'item_2_2_1', name: '堵漏王', spec: '', qty: 3, unit: '袋' },
       ]},
-      { name: '水泥砂浆', items: [
-        { id: 'p8', name: '水泥', spec: '42.5', qty: 20, unit: '袋', selected: false },
-        { id: 'p9', name: '中沙', spec: '', qty: 3, unit: '方', selected: false },
-        { id: 'p10', name: '瓷砖胶', spec: 'C2型', qty: 10, unit: '袋', selected: false },
+      { name: '其他配件', items: [
+        { id: 'item_2_3_0', name: '地漏', spec: '回字形', qty: 3, unit: '个' },
+        { id: 'item_2_3_1', name: '烟道止逆阀', spec: '', qty: 1, unit: '个' },
+        { id: 'item_2_3_2', name: '门槛石', spec: '', qty: 3, unit: '条' },
+        { id: 'item_2_3_3', name: '挡水条', spec: '淋浴房用', qty: 1, unit: '条' },
+        { id: 'item_2_3_4', name: '隔音棉', spec: '下水管用', qty: 5, unit: '根' },
+        { id: 'item_2_3_5', name: '阻尼片', spec: '卫生间下水管', qty: 3, unit: '片' },
       ]},
     ],
   },
   {
-    parent: '主材选购',
+    parent: '木工阶段',
     subs: [
-      { name: '瓷砖', items: [
-        { id: 'p11', name: '客厅地砖', spec: '800x800mm', qty: 50, unit: '片', selected: false },
-        { id: 'p12', name: '厨房墙砖', spec: '300x600mm', qty: 40, unit: '片', selected: false },
-        { id: 'p13', name: '卫生间地砖', spec: '300x300mm', qty: 30, unit: '片', selected: false },
+      { name: '龙骨', items: [
+        { id: 'item_3_0_0', name: '轻钢龙骨', spec: '主龙骨0.8mm', qty: 20, unit: '根' },
+        { id: 'item_3_0_1', name: '轻钢龙骨', spec: '副龙骨0.5mm', qty: 40, unit: '根' },
       ]},
-      { name: '地板', items: [
-        { id: 'p14', name: '强化复合地板', spec: '1215x195mm', qty: 50, unit: '㎡', selected: false },
+      { name: '板材', items: [
+        { id: 'item_3_1_0', name: '石膏板', spec: 'ENF级 9.5mm+', qty: 20, unit: '张' },
+        { id: 'item_3_1_1', name: '防潮石膏板', spec: '厨卫用', qty: 5, unit: '张' },
+        { id: 'item_3_1_2', name: '欧松板', spec: '窗帘盒打底', qty: 3, unit: '张' },
       ]},
+      { name: '辅料', items: [
+        { id: 'item_3_2_0', name: '白乳胶', spec: '', qty: 1, unit: '桶' },
+        { id: 'item_3_2_1', name: '铆钉', spec: '', qty: 2, unit: '包' },
+        { id: 'item_3_2_2', name: '自攻丝', spec: '', qty: 2, unit: '盒' },
+      ]},
+    ],
+  },
+  {
+    parent: '油漆阶段',
+    subs: [
+      { name: '基层处理', items: [
+        { id: 'item_4_0_0', name: '墙固/界面剂', spec: '', qty: 2, unit: '桶' },
+        { id: 'item_4_0_1', name: '粉刷石膏', spec: '底层找平', qty: 5, unit: '袋' },
+        { id: 'item_4_0_2', name: '嵌缝石膏', spec: '修补缝隙', qty: 3, unit: '袋' },
+      ]},
+      { name: '腻子', items: [
+        { id: 'item_4_1_0', name: '腻子粉', spec: '耐水型N', qty: 15, unit: '袋' },
+        { id: 'item_4_1_1', name: '网格布', spec: '挂网用', qty: 5, unit: '卷' },
+        { id: 'item_4_1_2', name: '阴阳角条', spec: '', qty: 20, unit: '根' },
+      ]},
+      { name: '面漆', items: [
+        { id: 'item_4_2_0', name: '防锈漆', spec: '钉眼用', qty: 1, unit: '罐' },
+        { id: 'item_4_2_1', name: '底漆', spec: '', qty: 2, unit: '桶' },
+        { id: 'item_4_2_2', name: '面漆', spec: '优等品', qty: 3, unit: '桶' },
+        { id: 'item_4_2_3', name: '美纹纸', spec: '', qty: 10, unit: '卷' },
+      ]},
+    ],
+  },
+  {
+    parent: '安装阶段',
+    subs: [
       { name: '门窗', items: [
-        { id: 'p15', name: '断桥铝窗', spec: '70系列', qty: 10, unit: '㎡', selected: false },
-        { id: 'p16', name: '室内木门', spec: '实木复合', qty: 4, unit: '樘', selected: false },
+        { id: 'item_5_0_0', name: '室内门', spec: '', qty: 0, unit: '扇' },
+        { id: 'item_5_0_1', name: '门套', spec: '', qty: 0, unit: '套' },
+        { id: 'item_5_0_2', name: '门锁', spec: '静音锁', qty: 0, unit: '把' },
+        { id: 'item_5_0_3', name: '合页', spec: '3mm厚3个/门', qty: 0, unit: '个' },
+        { id: 'item_5_0_4', name: '密封条', spec: '', qty: 0, unit: '套' },
+        { id: 'item_5_0_5', name: '断桥铝窗', spec: '', qty: 0, unit: '平方' },
+        { id: 'item_5_0_6', name: '纱窗', spec: '高透金刚网', qty: 0, unit: '扇' },
+      ]},
+      { name: '卫浴', items: [
+        { id: 'item_5_1_0', name: '马桶', spec: '', qty: 1, unit: '个' },
+        { id: 'item_5_1_1', name: '花洒', spec: '恒温款', qty: 1, unit: '套' },
+        { id: 'item_5_1_2', name: '浴室柜', spec: '', qty: 1, unit: '套' },
+        { id: 'item_5_1_3', name: '水龙头', spec: '抽拉式', qty: 1, unit: '个' },
+        { id: 'item_5_1_4', name: '水槽', spec: 'SUS304大单槽', qty: 1, unit: '个' },
+        { id: 'item_5_1_5', name: '地漏', spec: '', qty: 3, unit: '个' },
+        { id: 'item_5_1_6', name: '毛巾杆', spec: '', qty: 2, unit: '个' },
+        { id: 'item_5_1_7', name: '置物架', spec: '', qty: 2, unit: '个' },
+        { id: 'item_5_1_8', name: '玻璃胶', spec: '0级防霉', qty: 5, unit: '支' },
+      ]},
+      { name: '灯具五金', items: [
+        { id: 'item_5_2_0', name: '客厅主灯', spec: '', qty: 1, unit: '个' },
+        { id: 'item_5_2_1', name: '卧室灯', spec: '', qty: 0, unit: '个' },
+        { id: 'item_5_2_2', name: '射灯', spec: '深杯防眩 CRI≥90', qty: 0, unit: '个' },
+        { id: 'item_5_2_3', name: '灯带', spec: '不频闪', qty: 0, unit: '米' },
+        { id: 'item_5_2_4', name: '筒灯', spec: '', qty: 0, unit: '个' },
+        { id: 'item_5_2_5', name: '阳台灯', spec: '', qty: 1, unit: '个' },
+        { id: 'item_5_2_6', name: '厨卫灯', spec: '', qty: 2, unit: '个' },
+        { id: 'item_5_2_7', name: '电动窗帘', spec: '', qty: 0, unit: '套' },
+        { id: 'item_5_2_8', name: '升降晾衣架', spec: '', qty: 1, unit: '个' },
+      ]},
+      { name: '家电', items: [
+        { id: 'item_5_3_0', name: '空调挂机', spec: '', qty: 0, unit: '台' },
+        { id: 'item_5_3_1', name: '空调柜机', spec: '', qty: 0, unit: '台' },
+        { id: 'item_5_3_2', name: '冰箱', spec: '一级能效', qty: 1, unit: '台' },
+        { id: 'item_5_3_3', name: '洗衣机', spec: '', qty: 1, unit: '台' },
+        { id: 'item_5_3_4', name: '油烟机', spec: '', qty: 1, unit: '台' },
+        { id: 'item_5_3_5', name: '燃气灶', spec: '', qty: 1, unit: '台' },
+        { id: 'item_5_3_6', name: '洗碗机', spec: '', qty: 1, unit: '台' },
+        { id: 'item_5_3_7', name: '热水器', spec: '', qty: 1, unit: '台' },
+        { id: 'item_5_3_8', name: '电视', spec: '', qty: 0, unit: '台' },
+      ]},
+      { name: '全屋定制', items: [
+        { id: 'item_5_4_0', name: '橱柜', spec: '', qty: 0, unit: '延米' },
+        { id: 'item_5_4_1', name: '衣柜', spec: '', qty: 0, unit: '投影平方' },
+        { id: 'item_5_4_2', name: '鞋柜', spec: '', qty: 1, unit: '个' },
+        { id: 'item_5_4_3', name: '餐边柜', spec: '', qty: 1, unit: '个' },
+        { id: 'item_5_4_4', name: '铝扣板吊顶', spec: '厨卫阳台', qty: 0, unit: '平方' },
+        { id: 'item_5_4_5', name: '地板', spec: '', qty: 0, unit: '平方' },
       ]},
     ],
   },
   {
-    parent: '设备系统',
+    parent: '软装阶段',
     subs: [
-      { name: '暖通', items: [
-        { id: 'p17', name: '燃气热水器', spec: '16L', qty: 1, unit: '台', selected: false },
-        { id: 'p18', name: '浴霸', spec: '风暖', qty: 2, unit: '台', selected: false },
+      { name: '家具', items: [
+        { id: 'item_6_0_0', name: '沙发', spec: '', qty: 1, unit: '套' },
+        { id: 'item_6_0_1', name: '床', spec: '', qty: 0, unit: '张' },
+        { id: 'item_6_0_2', name: '床垫', spec: '', qty: 0, unit: '张' },
+        { id: 'item_6_0_3', name: '餐桌椅', spec: '', qty: 1, unit: '套' },
+        { id: 'item_6_0_4', name: '书桌', spec: '', qty: 0, unit: '张' },
       ]},
-      { name: '净水', items: [
-        { id: 'p19', name: '前置过滤器', spec: '40μm', qty: 1, unit: '台', selected: false },
-        { id: 'p20', name: 'RO净水器', spec: '600G', qty: 1, unit: '台', selected: false },
-      ]},
-    ],
-  },
-  {
-    parent: '软装家电',
-    subs: [
-      { name: '大家电', items: [
-        { id: 'p21', name: '冰箱', spec: '500L', qty: 1, unit: '台', selected: false },
-        { id: 'p22', name: '洗衣机', spec: '10kg', qty: 1, unit: '台', selected: false },
-        { id: 'p23', name: '电视', spec: '65寸', qty: 1, unit: '台', selected: false },
-      ]},
-      { name: '灯具', items: [
-        { id: 'p24', name: '客厅主灯', spec: 'LED', qty: 1, unit: '盏', selected: false },
-        { id: 'p25', name: '筒灯', spec: '7W', qty: 12, unit: '个', selected: false },
-      ]},
-    ],
-  },
-  {
-    parent: '服务杂项',
-    subs: [
-      { name: '设计服务', items: [
-        { id: 'p26', name: '设计费', spec: '', qty: 1, unit: '项', selected: false },
-      ]},
-      { name: '保洁搬家', items: [
-        { id: 'p27', name: '开荒保洁', spec: '', qty: 1, unit: '次', selected: false },
+      { name: '窗帘布艺', items: [
+        { id: 'item_6_1_0', name: '窗帘', spec: '褶皱2倍', qty: 0, unit: '套' },
       ]},
     ],
   },

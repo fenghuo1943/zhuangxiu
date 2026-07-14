@@ -56,36 +56,63 @@ async def toggle_selected(project_id: str, item_id: str, user: User = Depends(ge
 
 @router.post("/api/projects/{project_id}/purchase/custom")
 async def add_custom_item(project_id: str, data: CustomPurchaseCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # Verify project ownership
+    proj = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
+    if not proj.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="项目不存在")
+
     # Find the stage by parent name
     stage_result = await db.execute(select(PurchaseRefStage).where(PurchaseRefStage.parent == data.stage_parent))
     stage = stage_result.scalar_one_or_none()
     if not stage:
         raise HTTPException(status_code=404, detail="采购阶段不存在")
 
-    # Get or use first subgroup
-    sub_result = await db.execute(select(PurchaseRefSubgroup).where(PurchaseRefSubgroup.stage_id == stage.id).limit(1))
-    sub = sub_result.scalar_one_or_none()
+    # Find the subgroup — by name if provided, otherwise use first subgroup
+    sub = None
+    if data.subgroup_name:
+        sub_result = await db.execute(
+            select(PurchaseRefSubgroup).where(
+                PurchaseRefSubgroup.stage_id == stage.id,
+                PurchaseRefSubgroup.name == data.subgroup_name,
+            )
+        )
+        sub = sub_result.scalar_one_or_none()
+    if not sub:
+        sub_result = await db.execute(select(PurchaseRefSubgroup).where(PurchaseRefSubgroup.stage_id == stage.id).limit(1))
+        sub = sub_result.scalar_one_or_none()
     if not sub:
         raise HTTPException(status_code=404, detail="子分组不存在")
 
-    item = PurchaseRefItem(id=f"p_custom_{uuid.uuid4().hex[:12]}", subgroup_id=sub.id, name=data.name, qty=data.qty, unit="个")
+    item = PurchaseRefItem(
+        id=f"p_custom_{uuid.uuid4().hex[:12]}",
+        subgroup_id=sub.id,
+        name=data.name,
+        spec=data.spec or "",
+        qty=data.qty,
+        unit=data.unit or "个",
+    )
     db.add(item)
     # Auto-select
     sp = SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=item.id)
     db.add(sp)
     await db.commit()
-    return {"id": item.id, "name": item.name, "selected": True}
+    return {"id": item.id, "name": item.name, "spec": item.spec, "qty": item.qty, "unit": item.unit, "selected": True}
 
 
 @router.delete("/api/projects/{project_id}/purchase/items/{item_id}", status_code=204)
 async def delete_purchase_item(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # Verify project ownership
+    proj = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
+    if not proj.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="项目不存在")
+
     # Remove selection
     sel_result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == project_id, SelectedPurchase.item_id == item_id))
     for sp in sel_result.scalars().all():
         await db.delete(sp)
-    # Remove item
+    # Only remove custom items (not reference items)
     item_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.id == item_id))
     item = item_result.scalar_one_or_none()
-    if item:
+    if item and item.id.startswith("p_custom_"):
         await db.delete(item)
     await db.commit()

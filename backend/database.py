@@ -21,3 +21,11 @@ async def get_db() -> AsyncSession:
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Seed purchase reference data (idempotent — skips if already populated)
+    from .seed_purchase import seed_purchase_references
+    async with async_session() as session:
+        try:
+            await seed_purchase_references(session)
+        finally:
+            await session.close()

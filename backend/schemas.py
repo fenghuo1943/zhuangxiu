@@ -176,6 +176,9 @@ class PurchaseRefStageOut(BaseModel):
 class CustomPurchaseCreate(BaseModel):
     name: str
     stage_parent: str
+    subgroup_name: Optional[str] = None
+    spec: Optional[str] = None
+    unit: str = "个"
     qty: int = 1
 
 
