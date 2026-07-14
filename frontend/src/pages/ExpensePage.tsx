@@ -163,7 +163,7 @@ const ExpensePage: React.FC = () => {
   const [subCategoryFilter, setSubCategoryFilter] = useState('');
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<'stats' | 'bills' | 'group'>('stats');
+  const [activeView, setActiveView] = useState<'stats' | 'bills' | 'group'>('bills');
 
   // Load budget & expenses from backend on mount
   useEffect(() => {
@@ -381,16 +381,16 @@ const ExpensePage: React.FC = () => {
           <div className="toolbar-row">
             <div className="tabs">
               <button
-                className={`tab ${activeView === 'stats' ? 'active' : ''}`}
-                onClick={() => setActiveView('stats')}
-              >
-                分类统计
-              </button>
-              <button
                 className={`tab ${activeView === 'bills' ? 'active' : ''}`}
                 onClick={() => setActiveView('bills')}
               >
                 全部账单
+              </button>
+              <button
+                className={`tab ${activeView === 'stats' ? 'active' : ''}`}
+                onClick={() => setActiveView('stats')}
+              >
+                分类统计
               </button>
             </div>
           </div>
