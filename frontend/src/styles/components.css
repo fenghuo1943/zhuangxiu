@@ -2121,6 +2121,12 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   flex-wrap: wrap;
 }
 
+.expense-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* Big-stat list (stats view) */
 .big-stat-list {
   display: flex;

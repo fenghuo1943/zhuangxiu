@@ -425,30 +425,32 @@ const ExpensePage: React.FC = () => {
                 <IconPlus size={14} /> 记一笔
               </button>
             </div>
-            <div className="expense-search">
-              <IconSearch size={14} />
-              <input
-                className="input"
-                placeholder="搜索记账记录..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                style={{ width: 180, paddingLeft: 32 }}
-              />
+            <div className="expense-toolbar-row">
+              <div className="expense-search">
+                <IconSearch size={14} />
+                <input
+                  className="input"
+                  placeholder="搜索记账记录..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{ width: 180, paddingLeft: 32 }}
+                />
+              </div>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: 11, whiteSpace: 'nowrap' }}
+                onClick={() => setExpandedCats(new Set(['hard', 'material', 'equipment', 'soft', 'service']))}
+              >
+                全部展开
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: 11, whiteSpace: 'nowrap' }}
+                onClick={() => setExpandedCats(new Set())}
+              >
+                全部折叠
+              </button>
             </div>
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ fontSize: 11, whiteSpace: 'nowrap' }}
-              onClick={() => setExpandedCats(new Set(['hard', 'material', 'equipment', 'soft', 'service']))}
-            >
-              全部展开
-            </button>
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ fontSize: 11, whiteSpace: 'nowrap' }}
-              onClick={() => setExpandedCats(new Set())}
-            >
-              全部折叠
-            </button>
             <div className="expense-actions hide-mobile">
               {/* Export dropdown */}
               <div className="export-dropdown" style={{ position: 'relative' }}>
