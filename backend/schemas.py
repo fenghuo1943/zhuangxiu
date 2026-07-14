@@ -101,6 +101,7 @@ class ExpenseCreate(BaseModel):
     title: str = Field(..., max_length=200)
     amount: float = Field(..., gt=0)
     category_id: str = Field("hard", max_length=50)
+    sub_category_id: Optional[str] = None
     stage_id: Optional[str] = None
     date: date
     status: str = Field("paid", pattern="^(paid|prepaid|unpaid|refunded)$")
@@ -111,6 +112,7 @@ class ExpenseUpdate(BaseModel):
     title: Optional[str] = None
     amount: Optional[float] = None
     category_id: Optional[str] = None
+    sub_category_id: Optional[str] = None
     stage_id: Optional[str] = None
     date: Optional[date] = None
     status: Optional[str] = None
@@ -123,11 +125,12 @@ class ExpenseOut(BaseModel):
     title: str
     amount: float
     category_id: str
-    stage_id: Optional[str]
+    sub_category_id: Optional[str] = None
+    stage_id: Optional[str] = None
     date: date
     status: str
-    payer: Optional[str]
-    note: Optional[str]
+    payer: Optional[str] = None
+    note: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

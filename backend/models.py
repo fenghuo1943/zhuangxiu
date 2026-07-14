@@ -84,6 +84,7 @@ class Expense(Base):
     title = Column(String(200), nullable=False)
     amount = Column(Float, nullable=False)
     category_id = Column(String(50), nullable=False, default="hard")
+    sub_category_id = Column(String(50), nullable=True)
     stage_id = Column(String(50), nullable=True)
     date = Column(Date, nullable=False)
     status = Column(String(20), nullable=False, default="paid")

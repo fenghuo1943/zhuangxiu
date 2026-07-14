@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import AppShell from '../components/layout/AppShell';
 import {
   useStore, addExpense, deleteExpense, updateExpenseStatus, updateExpense,
   getSubCategoriesByCategory, renameGroup, deleteSubCategory,
   addSubCategory, renameSubCategory, moveSubCategory,
+  loadBudgetAndExpensesFromBackend,
 } from '../data/store';
 import type { Expense } from '../data/types';
 import {
@@ -163,6 +164,11 @@ const ExpensePage: React.FC = () => {
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'stats' | 'bills' | 'group'>('stats');
+
+  // Load budget & expenses from backend on mount
+  useEffect(() => {
+    loadBudgetAndExpensesFromBackend();
+  }, []);
 
   const openAddModal = () => {
     setEditingId(null);

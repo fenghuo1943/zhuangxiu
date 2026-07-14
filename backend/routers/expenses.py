@@ -72,6 +72,7 @@ async def create_expense(project_id: str, data: ExpenseCreate, user: User = Depe
         title=data.title,
         amount=data.amount,
         category_id=data.category_id,
+        sub_category_id=data.sub_category_id,
         stage_id=data.stage_id,
         date=data.date,
         status=data.status,

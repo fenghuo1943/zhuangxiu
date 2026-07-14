@@ -16,6 +16,14 @@ import {
   fetchCustomSteps, createCustomStep as apiCreateCustomStep,
   updateCustomStep as apiUpdateCustomStep, deleteCustomStep as apiDeleteCustomStep,
 } from '../api/flow';
+import { isAuthenticated } from '../api/client';
+import {
+  fetchExpenses, createExpenseApi, updateExpenseApi, deleteExpenseApi,
+} from '../api/expenses';
+import {
+  fetchBudget, updateBudgetTotal as apiUpdateBudgetTotal,
+  updateCategoryAllocation as apiUpdateCategoryAllocation,
+} from '../api/budget';
 
 const STORAGE_KEY = 'xiaozhuangjia_state_v1';
 
@@ -168,6 +176,11 @@ export function setTotalBudget(total: number, scaleStages = true) {
   recalculateBudget();
   notify();
   persist();
+
+  // Sync to backend
+  if (isAuthenticated()) {
+    apiUpdateBudgetTotal(globalState.activeProjectId, normalizedTotal).catch(() => {});
+  }
 }
 
 export function setCategoryAllocation(categoryId: string, allocated: number) {
@@ -178,6 +191,10 @@ export function setCategoryAllocation(categoryId: string, allocated: number) {
   recalculateBudget();
   notify();
   persist();
+
+  if (isAuthenticated()) {
+    apiUpdateCategoryAllocation(globalState.activeProjectId, _bkCatId(categoryId), allocated).catch(() => {});
+  }
 }
 
 /** Atomically adjust two adjacent category allocations (for slider drag, §4.2.2) */
@@ -191,6 +208,14 @@ export function adjustAdjacentBudgets(leftId: string, rightId: string, newLeft: 
   recalculateBudget();
   notify();
   persist();
+
+  if (isAuthenticated()) {
+    const pid = globalState.activeProjectId;
+    Promise.all([
+      apiUpdateCategoryAllocation(pid, _bkCatId(leftId), newLeft),
+      apiUpdateCategoryAllocation(pid, _bkCatId(rightId), newRight),
+    ]).catch(() => {});
+  }
 }
 
 function recalculateBudget() {
@@ -342,6 +367,10 @@ export function updatePurchaseRefQty(itemId: string, qty: number) {
 
 // ==================== Expense Actions ====================
 
+function _bkCatId(frontendCatId: string): string {
+  return `${globalState.activeProjectId}_${frontendCatId}`;
+}
+
 export function addExpense(expense: Omit<Expense, 'id' | 'createdAt'>) {
   const newExpense: Expense = {
     ...expense,
@@ -365,6 +394,21 @@ export function addExpense(expense: Omit<Expense, 'id' | 'createdAt'>) {
   recalculateBudget();
   notify();
   persist();
+
+  // Sync to backend
+  if (isAuthenticated()) {
+    createExpenseApi(globalState.activeProjectId, {
+      title: newExpense.title,
+      amount: newExpense.amount,
+      category_id: newExpense.categoryId,
+      sub_category_id: newExpense.subCategoryId,
+      stage_id: newExpense.stageId,
+      date: newExpense.date,
+      status: newExpense.status,
+      payer: newExpense.payer,
+      note: newExpense.note,
+    }).catch(() => {});
+  }
 }
 
 export function deleteExpense(expenseId: string) {
@@ -387,6 +431,10 @@ export function deleteExpense(expenseId: string) {
   recalculateBudget();
   notify();
   persist();
+
+  if (isAuthenticated()) {
+    deleteExpenseApi(globalState.activeProjectId, expenseId).catch(() => {});
+  }
 }
 
 export function updateExpenseStatus(expenseId: string, status: Expense['status']) {
@@ -396,6 +444,10 @@ export function updateExpenseStatus(expenseId: string, status: Expense['status']
   globalState = { ...globalState, expenses };
   notify();
   persist();
+
+  if (isAuthenticated()) {
+    updateExpenseApi(globalState.activeProjectId, expenseId, { status }).catch(() => {});
+  }
 }
 
 export function updateExpense(expenseId: string, updates: Partial<Omit<Expense, 'id' | 'createdAt'>>) {
@@ -423,6 +475,20 @@ export function updateExpense(expenseId: string, updates: Partial<Omit<Expense, 
   recalculateBudget();
   notify();
   persist();
+
+  if (isAuthenticated()) {
+    const payload: any = {};
+    if (updates.title !== undefined) payload.title = updates.title;
+    if (updates.amount !== undefined) payload.amount = updates.amount;
+    if (updates.categoryId !== undefined) payload.category_id = updates.categoryId;
+    if (updates.subCategoryId !== undefined) payload.sub_category_id = updates.subCategoryId;
+    if (updates.stageId !== undefined) payload.stage_id = updates.stageId;
+    if (updates.date !== undefined) payload.date = updates.date;
+    if (updates.status !== undefined) payload.status = updates.status;
+    if (updates.payer !== undefined) payload.payer = updates.payer;
+    if (updates.note !== undefined) payload.note = updates.note;
+    updateExpenseApi(globalState.activeProjectId, expenseId, payload).catch(() => {});
+  }
 }
 
 // ==================== Price Category Actions ====================
@@ -588,6 +654,82 @@ export async function loadFlowFromBackend(): Promise<void> {
   } catch {
     // Silently fail — backend may be unreachable
   }
+}
+
+/** Load budget and expenses from backend, merging with local state */
+export async function loadBudgetAndExpensesFromBackend(): Promise<void> {
+  if (!isAuthenticated()) return;
+
+  const pid = globalState.activeProjectId;
+
+  try {
+    // Load budget
+    const budgetData = await fetchBudget(pid);
+    // Map backend category IDs (proj_xxx_hard) to frontend IDs (hard)
+    const prefix = `${pid}_`;
+    const categories = budgetData.categories.map(c => ({
+      ...c,
+      id: c.id.startsWith(prefix) ? c.id.slice(prefix.length) : c.id,
+    }));
+    // Preserve existing category IDs if backend returns different set
+    const existingIds = new Set(globalState.budget.categories.map(c => c.id));
+    const mergedCategories = categories.length > 0
+      ? categories.map(c => ({
+          ...c,
+          // Use existing spent from backend, fall back to local
+          spent: c.spent || (globalState.budget.categories.find(lc => lc.id === c.id)?.spent || 0),
+        }))
+      : globalState.budget.categories;
+
+    globalState = {
+      ...globalState,
+      budget: {
+        total: budgetData.total,
+        categories: mergedCategories,
+      },
+    };
+    notify();
+    persist();
+  } catch {
+    // Backend unreachable, keep local data
+  }
+
+  try {
+    // Load expenses
+    const remoteExpenses = await fetchExpenses(pid);
+    if (remoteExpenses.length > 0) {
+      // Merge: backend data is authoritative, but keep local-only items
+      const remoteIds = new Set(remoteExpenses.map(e => e.id));
+      const localOnly = globalState.expenses.filter(e => !remoteIds.has(e.id) && !e.id.startsWith('exp_'));
+      const merged = [...remoteExpenses, ...localOnly];
+      merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      globalState = {
+        ...globalState,
+        expenses: merged,
+        recentExpenses: merged.slice(0, 5),
+      };
+      // Recalculate budget spent from backend data
+      _recalcSpentFromExpenses();
+      notify();
+      persist();
+    }
+  } catch {
+    // Backend unreachable, keep local data
+  }
+}
+
+function _recalcSpentFromExpenses() {
+  const totals: Record<string, number> = {};
+  globalState.expenses.forEach(e => {
+    if (e.status === 'paid' || e.status === 'prepaid') {
+      totals[e.categoryId] = (totals[e.categoryId] || 0) + e.amount;
+    }
+  });
+  globalState.budget.categories = globalState.budget.categories.map(c => ({
+    ...c,
+    spent: totals[c.id] || 0,
+  }));
+  recalculateBudget();
 }
 
 // ==================== Stage Notes Actions ====================
