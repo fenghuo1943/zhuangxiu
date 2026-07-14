@@ -424,6 +424,20 @@ const ExpensePage: React.FC = () => {
                 style={{ width: 180, paddingLeft: 32 }}
               />
             </div>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: 11, whiteSpace: 'nowrap' }}
+              onClick={() => setExpandedCats(new Set(['hard', 'material', 'equipment', 'soft', 'service']))}
+            >
+              全部展开
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: 11, whiteSpace: 'nowrap' }}
+              onClick={() => setExpandedCats(new Set())}
+            >
+              全部折叠
+            </button>
             <div className="expense-actions">
               {/* Export dropdown */}
               <div className="export-dropdown" style={{ position: 'relative' }}>
