@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStore } from '../../data/store';
-import { IconHome, IconShopping, IconCompare, IconExpense, IconFlow, IconTools, IconBell, IconUser, IconPlus } from '../common/Icons';
+import { IconHome, IconShopping, IconCompare, IconExpense, IconFlow, IconBell, IconUser, IconPlus } from '../common/Icons';
 import { switchProject } from '../../data/store';
 import { useAuth } from '../../api/useAuth';
 
@@ -18,7 +18,6 @@ export const DesktopHeader: React.FC<DesktopHeaderProps> = ({ currentPage }) => 
     { id: 'compare', label: '比价', href: '/compare', icon: <IconCompare size={16} /> },
     { id: 'expense', label: '记账', href: '/expense', icon: <IconExpense size={16} /> },
     { id: 'flow', label: '流程', href: '/flow', icon: <IconFlow size={16} /> },
-    { id: 'tools', label: '工具', href: '/tools', icon: <IconTools size={16} /> },
   ];
 
   return (

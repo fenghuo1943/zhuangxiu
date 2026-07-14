@@ -4,7 +4,7 @@ import AppShell from '../components/layout/AppShell';
 import { useStore, exportAllData, importAllData, resetAllData } from '../data/store';
 import { useAuth } from '../api/useAuth';
 import { isAuthenticated } from '../api/client';
-import { IconDownload, IconUpload, IconTrash } from '../components/common/Icons';
+import { IconDownload, IconUpload, IconTrash, IconTools } from '../components/common/Icons';
 
 const AccountPage: React.FC = () => {
   const state = useStore();
@@ -109,6 +109,20 @@ const AccountPage: React.FC = () => {
               预算总额：¥{state.budget.total.toLocaleString('zh-CN')}
             </p>
           </div>
+        </div>
+
+        {/* Tools Entry Card */}
+        <div className="card" style={{ marginBottom: 16 }}>
+          <Link to="/tools" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 20, textDecoration: 'none', color: 'inherit' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--color-primary-light, #EEF2FF)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+              <IconTools size={20} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ margin: '0 0 2px', fontSize: 15 }}>🛠️ 工具箱</h3>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-muted)' }}>辅助计算与实用工具</p>
+            </div>
+            <span style={{ fontSize: 18, color: 'var(--color-text-muted)' }}>→</span>
+          </Link>
         </div>
 
         {/* Data Management Card */}

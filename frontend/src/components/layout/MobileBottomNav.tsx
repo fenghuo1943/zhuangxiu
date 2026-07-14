@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconHome, IconShopping, IconCompare, IconExpense, IconTools } from '../common/Icons';
+import { IconHome, IconShopping, IconCompare, IconExpense, IconFlow } from '../common/Icons';
 
 interface MobileBottomNavProps {
   currentPage: string;
@@ -10,7 +10,7 @@ const navItems = [
   { id: 'purchase', label: '采购', href: '/purchase', icon: IconShopping },
   { id: 'compare', label: '比价', href: '/compare', icon: IconCompare },
   { id: 'expense', label: '记账', href: '/expense', icon: IconExpense },
-  { id: 'tools', label: '工具', href: '/tools', icon: IconTools },
+  { id: 'flow', label: '流程', href: '/flow', icon: IconFlow },
 ];
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ currentPage }) => (
