@@ -19,12 +19,34 @@ NAME_TO_CAT = {v: k for k, v in CATEGORY_NAMES.items()}
 LABEL_TO_STATUS = {v: k for k, v in STATUS_LABELS.items()}
 
 
-async def _verify_owner(project_id: str, user: User, db: AsyncSession) -> Project:
-    result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
+def _scoped_id(raw_project_id: str, user_id: str) -> str:
+    """Scope a frontend project ID to the current user for data isolation."""
+    scope = user_id.replace("-", "")[:8]
+    return f"{raw_project_id}_{scope}"
+
+
+async def _ensure_project(raw_project_id: str, user: User, db: AsyncSession) -> str:
+    """Ensure a project exists for this user. Returns the scoped project ID.
+    All subsequent DB queries MUST use this scoped ID, not the raw URL param."""
+    sid = _scoped_id(raw_project_id, user.id)
+
+    result = await db.execute(
+        select(Project).where(Project.id == sid, Project.user_id == user.id)
+    )
     project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="项目不存在")
-    return project
+    if project:
+        return sid
+
+    # Auto-create project for this user
+    project = Project(
+        id=sid,
+        user_id=user.id,
+        name="默认项目",
+        owner_name=user.username or "我",
+    )
+    db.add(project)
+    await db.commit()
+    return sid
 
 
 async def _recalc_category_spent(project_id: str, db: AsyncSession):
@@ -48,8 +70,8 @@ async def list_expenses(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _verify_owner(project_id, user, db)
-    query = select(Expense).where(Expense.project_id == project_id)
+    sid = await _ensure_project(project_id, user, db)
+    query = select(Expense).where(Expense.project_id == sid)
     if status:
         query = query.where(Expense.status == status)
     if stage:
@@ -65,10 +87,10 @@ async def list_expenses(
 
 @router.post("", response_model=ExpenseOut, status_code=201)
 async def create_expense(project_id: str, data: ExpenseCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
     expense = Expense(
         id=f"exp_{uuid.uuid4().hex[:12]}",
-        project_id=project_id,
+        project_id=sid,
         title=data.title,
         amount=data.amount,
         category_id=data.category_id,
@@ -81,7 +103,7 @@ async def create_expense(project_id: str, data: ExpenseCreate, user: User = Depe
     )
     db.add(expense)
     if data.status in ("paid", "prepaid"):
-        result = await db.execute(select(BudgetCategory).where(BudgetCategory.id == f"{project_id}_{data.category_id}"))
+        result = await db.execute(select(BudgetCategory).where(BudgetCategory.id == f"{sid}_{data.category_id}"))
         cat = result.scalar_one_or_none()
         if cat:
             cat.spent += data.amount
@@ -92,8 +114,8 @@ async def create_expense(project_id: str, data: ExpenseCreate, user: User = Depe
 
 @router.put("/{expense_id}", response_model=ExpenseOut)
 async def update_expense(project_id: str, expense_id: str, data: ExpenseUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
-    result = await db.execute(select(Expense).where(Expense.id == expense_id, Expense.project_id == project_id))
+    sid = await _ensure_project(project_id, user, db)
+    result = await db.execute(select(Expense).where(Expense.id == expense_id, Expense.project_id == sid))
     expense = result.scalar_one_or_none()
     if not expense:
         raise HTTPException(status_code=404, detail="记录不存在")
@@ -106,7 +128,7 @@ async def update_expense(project_id: str, expense_id: str, data: ExpenseUpdate, 
     if "amount" in update or "category_id" in update or "status" in update:
         # Need full recalc for safety
         await db.flush()
-        await _recalc_category_spent(project_id, db)
+        await _recalc_category_spent(sid, db)
 
     await db.commit()
     await db.refresh(expense)
@@ -115,13 +137,13 @@ async def update_expense(project_id: str, expense_id: str, data: ExpenseUpdate, 
 
 @router.delete("/{expense_id}", status_code=204)
 async def delete_expense(project_id: str, expense_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
-    result = await db.execute(select(Expense).where(Expense.id == expense_id, Expense.project_id == project_id))
+    sid = await _ensure_project(project_id, user, db)
+    result = await db.execute(select(Expense).where(Expense.id == expense_id, Expense.project_id == sid))
     expense = result.scalar_one_or_none()
     if not expense:
         raise HTTPException(status_code=404, detail="记录不存在")
     if expense.status in ("paid", "prepaid"):
-        cat_result = await db.execute(select(BudgetCategory).where(BudgetCategory.id == f"{project_id}_{expense.category_id}"))
+        cat_result = await db.execute(select(BudgetCategory).where(BudgetCategory.id == f"{sid}_{expense.category_id}"))
         cat = cat_result.scalar_one_or_none()
         if cat:
             cat.spent = max(0, cat.spent - expense.amount)
@@ -131,8 +153,8 @@ async def delete_expense(project_id: str, expense_id: str, user: User = Depends(
 
 @router.get("/export-csv")
 async def export_csv(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
-    result = await db.execute(select(Expense).where(Expense.project_id == project_id).order_by(Expense.created_at.desc()))
+    sid = await _ensure_project(project_id, user, db)
+    result = await db.execute(select(Expense).where(Expense.project_id == sid).order_by(Expense.created_at.desc()))
     expenses = result.scalars().all()
     output = io.StringIO()
     output.write("﻿标题,金额,分类,日期,状态,备注\n")  # BOM
@@ -144,12 +166,12 @@ async def export_csv(project_id: str, user: User = Depends(get_current_user), db
         output.write(f'"{title}",{e.amount},"{cat_name}","{e.date}","{status_label}","{note}"\n')
     output.seek(0)
     return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f"attachment; filename=expenses_{project_id}.csv"})
+        headers={"Content-Disposition": f"attachment; filename=expenses_{sid}.csv"})
 
 
 @router.post("/import-csv")
 async def import_csv(project_id: str, file: UploadFile = File(...), user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
     content = await file.read()
     text = content.decode("utf-8-sig")
     reader = csv.reader(io.StringIO(text))
@@ -189,11 +211,11 @@ async def import_csv(project_id: str, file: UploadFile = File(...), user: User =
             dt = date.today()
         status_val = LABEL_TO_STATUS.get(status_str, "paid")
 
-        expense = Expense(id=f"exp_{uuid.uuid4().hex[:12]}", project_id=project_id, title=title, amount=amount,
+        expense = Expense(id=f"exp_{uuid.uuid4().hex[:12]}", project_id=sid, title=title, amount=amount,
             category_id=cat_id, date=dt, status=status_val)
         db.add(expense)
         imported += 1
 
-    await _recalc_category_spent(project_id, db)
+    await _recalc_category_spent(sid, db)
     await db.commit()
     return {"imported": imported, "errors": errors}

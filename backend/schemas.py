@@ -9,9 +9,6 @@ class UserRegister(BaseModel):
     email: str = Field(..., max_length=100)
     password: str = Field(..., min_length=6, max_length=100)
 
-class GuestRegister(BaseModel):
-    device_id: str = Field(..., min_length=8, max_length=64)
-
 class UserLogin(BaseModel):
     username: str
     password: str

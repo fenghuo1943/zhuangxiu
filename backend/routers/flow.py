@@ -35,12 +35,11 @@ async def _ensure_project(raw_project_id: str, user: User, db: AsyncSession) -> 
         return sid
 
     # Auto-create
-    is_guest = user.id.startswith("g_")
     project = Project(
         id=sid,
         user_id=user.id,
         name="默认项目",
-        owner_name=user.username if is_guest else (user.username or "我"),
+        owner_name=user.username or "我",
     )
     db.add(project)
     await db.commit()

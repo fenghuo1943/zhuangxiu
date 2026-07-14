@@ -24,10 +24,9 @@ async def _ensure_project(project_id: str, user: User, db: AsyncSession) -> Proj
     project = result.scalar_one_or_none()
     if project:
         return project
-    is_guest = user.id.startswith("g_")
     project = Project(
         id=scoped_id, user_id=user.id, name="默认项目",
-        owner_name=user.username if is_guest else (user.username or "我"),
+        owner_name=user.username or "我",
     )
     db.add(project)
     await db.commit()

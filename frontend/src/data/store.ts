@@ -24,6 +24,7 @@ import {
   fetchBudget, updateBudgetTotal as apiUpdateBudgetTotal,
   updateCategoryAllocation as apiUpdateCategoryAllocation,
 } from '../api/budget';
+import { pushState } from '../api/sync';
 
 const STORAGE_KEY = 'xiaozhuangjia_state_v1';
 
@@ -627,6 +628,7 @@ export function toggleFlowStepDone(stepId: string) {
 }
 
 async function syncFlowToBackend() {
+  if (!isAuthenticated()) return;
   try {
     await updateFlowProgress(globalState.activeProjectId, {
       flow_type: globalState.flowType,
@@ -640,6 +642,7 @@ async function syncFlowToBackend() {
 
 /** Load flow progress from backend, merging with local state */
 export async function loadFlowFromBackend(): Promise<void> {
+  if (!isAuthenticated()) return;
   try {
     const remote = await fetchFlowProgress(globalState.activeProjectId);
     // Merge: remote is authoritative for flow_type, done_step_ids, custom_order
@@ -741,69 +744,81 @@ export function getStageNotes(stageId: string): StageNote[] {
 export async function addStageNote(stageId: string, content: string): Promise<void> {
   if (!content.trim()) return;
 
-  try {
-    const note = await apiCreateStageNote(globalState.activeProjectId, stageId, content);
-    const existing = globalState.stageNotes[stageId] || [];
-    globalState = {
-      ...globalState,
-      stageNotes: { ...globalState.stageNotes, [stageId]: [note, ...existing] },
-    };
-    notify();
-    persist();
-  } catch {
-    // Backend unreachable — fall back to local-only
-    const note: StageNote = {
-      id: `note_${Date.now()}`,
-      project_id: globalState.activeProjectId,
-      stage_id: stageId,
-      content: content.trim(),
-      created_at: new Date().toISOString(),
-    };
-    const existing = globalState.stageNotes[stageId] || [];
-    globalState = {
-      ...globalState,
-      stageNotes: { ...globalState.stageNotes, [stageId]: [note, ...existing] },
-    };
-    notify();
-    persist();
+  if (isAuthenticated()) {
+    try {
+      const note = await apiCreateStageNote(globalState.activeProjectId, stageId, content);
+      const existing = globalState.stageNotes[stageId] || [];
+      globalState = {
+        ...globalState,
+        stageNotes: { ...globalState.stageNotes, [stageId]: [note, ...existing] },
+      };
+      notify();
+      persist();
+      return;
+    } catch {
+      // Backend unreachable — fall back to local-only
+    }
   }
+
+  // Local-only (offline or backend unreachable)
+  const note: StageNote = {
+    id: `note_${Date.now()}`,
+    project_id: globalState.activeProjectId,
+    stage_id: stageId,
+    content: content.trim(),
+    created_at: new Date().toISOString(),
+  };
+  const existing = globalState.stageNotes[stageId] || [];
+  globalState = {
+    ...globalState,
+    stageNotes: { ...globalState.stageNotes, [stageId]: [note, ...existing] },
+  };
+  notify();
+  persist();
 }
 
 export async function updateStageNote(stageId: string, noteId: string, content: string): Promise<void> {
   if (!content.trim()) return;
 
-  try {
-    const updated = await apiEditStageNote(globalState.activeProjectId, stageId, noteId, content);
-    const existing = globalState.stageNotes[stageId] || [];
-    globalState = {
-      ...globalState,
-      stageNotes: {
-        ...globalState.stageNotes,
-        [stageId]: existing.map(n => n.id === noteId ? updated : n),
-      },
-    };
-    notify();
-    persist();
-  } catch {
-    // Backend unreachable — fall back to local-only
-    const existing = globalState.stageNotes[stageId] || [];
-    globalState = {
-      ...globalState,
-      stageNotes: {
-        ...globalState.stageNotes,
-        [stageId]: existing.map(n => n.id === noteId ? { ...n, content: content.trim() } : n),
-      },
-    };
-    notify();
-    persist();
+  if (isAuthenticated()) {
+    try {
+      const updated = await apiEditStageNote(globalState.activeProjectId, stageId, noteId, content);
+      const existing = globalState.stageNotes[stageId] || [];
+      globalState = {
+        ...globalState,
+        stageNotes: {
+          ...globalState.stageNotes,
+          [stageId]: existing.map(n => n.id === noteId ? updated : n),
+        },
+      };
+      notify();
+      persist();
+      return;
+    } catch {
+      // Backend unreachable — fall back to local-only
+    }
   }
+
+  // Local-only (offline or backend unreachable)
+  const existing = globalState.stageNotes[stageId] || [];
+  globalState = {
+    ...globalState,
+    stageNotes: {
+      ...globalState.stageNotes,
+      [stageId]: existing.map(n => n.id === noteId ? { ...n, content: content.trim() } : n),
+    },
+  };
+  notify();
+  persist();
 }
 
 export async function removeStageNote(stageId: string, noteId: string): Promise<void> {
-  try {
-    await apiDeleteStageNote(globalState.activeProjectId, stageId, noteId);
-  } catch {
-    // Backend unreachable — continue with local removal
+  if (isAuthenticated()) {
+    try {
+      await apiDeleteStageNote(globalState.activeProjectId, stageId, noteId);
+    } catch {
+      // Backend unreachable — continue with local removal
+    }
   }
 
   const existing = globalState.stageNotes[stageId] || [];
@@ -819,6 +834,7 @@ export async function removeStageNote(stageId: string, noteId: string): Promise<
 }
 
 export async function loadStageNotes(stageId: string): Promise<void> {
+  if (!isAuthenticated()) return;
   try {
     const notes = await fetchStageNotes(globalState.activeProjectId, stageId);
     globalState = {
@@ -873,48 +889,54 @@ export function getOrderedFlowSteps(flowType: 'new' | 'old'): FlowStep[] {
 export async function addCustomFlowStep(
   flowType: string, title: string, days: string, desc: string, sortOrder: number
 ): Promise<CustomFlowStep | null> {
-  try {
-    const step = await apiCreateCustomStep(globalState.activeProjectId, {
-      flow_type: flowType,
-      title,
-      days,
-      desc,
-      sort_order: sortOrder,
-    });
-    globalState = {
-      ...globalState,
-      customFlowSteps: [...globalState.customFlowSteps, step],
-    };
-    notify();
-    persist();
-    return step;
-  } catch {
-    // Backend unreachable — fall back to local-only
-    const step: CustomFlowStep = {
-      id: `custom_${Date.now()}`,
-      project_id: globalState.activeProjectId,
-      flow_type: flowType,
-      title,
-      days,
-      desc,
-      sort_order: sortOrder,
-      created_at: new Date().toISOString(),
-    };
-    globalState = {
-      ...globalState,
-      customFlowSteps: [...globalState.customFlowSteps, step],
-    };
-    notify();
-    persist();
-    return step;
+  if (isAuthenticated()) {
+    try {
+      const step = await apiCreateCustomStep(globalState.activeProjectId, {
+        flow_type: flowType,
+        title,
+        days,
+        desc,
+        sort_order: sortOrder,
+      });
+      globalState = {
+        ...globalState,
+        customFlowSteps: [...globalState.customFlowSteps, step],
+      };
+      notify();
+      persist();
+      return step;
+    } catch {
+      // Backend unreachable — fall back to local-only
+    }
   }
+
+  // Local-only (offline or backend unreachable)
+  const step: CustomFlowStep = {
+    id: `custom_${Date.now()}`,
+    project_id: globalState.activeProjectId,
+    flow_type: flowType,
+    title,
+    days,
+    desc,
+    sort_order: sortOrder,
+    created_at: new Date().toISOString(),
+  };
+  globalState = {
+    ...globalState,
+    customFlowSteps: [...globalState.customFlowSteps, step],
+  };
+  notify();
+  persist();
+  return step;
 }
 
 export async function removeCustomFlowStep(stepId: string): Promise<void> {
-  try {
-    await apiDeleteCustomStep(globalState.activeProjectId, stepId);
-  } catch {
-    // Backend unreachable — continue with local removal
+  if (isAuthenticated()) {
+    try {
+      await apiDeleteCustomStep(globalState.activeProjectId, stepId);
+    } catch {
+      // Backend unreachable — continue with local removal
+    }
   }
 
   // Remove from custom steps
@@ -936,6 +958,7 @@ export async function removeCustomFlowStep(stepId: string): Promise<void> {
 }
 
 export async function loadCustomFlowSteps(): Promise<void> {
+  if (!isAuthenticated()) return;
   try {
     const steps = await fetchCustomSteps(globalState.activeProjectId, globalState.flowType);
     globalState = {
@@ -1020,6 +1043,71 @@ export function resetAllData() {
   globalState = getInitialState();
   notify();
   persist();
+}
+
+// ==================== Server Sync / Migration ====================
+
+const MIGRATED_USERS_KEY = 'xiaozhuangjia_migrated_users';
+
+function getMigratedUsers(): string[] {
+  try {
+    const raw = localStorage.getItem(MIGRATED_USERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function markUserMigrated(userId: string) {
+  const users = getMigratedUsers();
+  if (!users.includes(userId)) {
+    users.push(userId);
+    localStorage.setItem(MIGRATED_USERS_KEY, JSON.stringify(users));
+  }
+}
+
+/** Push local data to server for a newly logged-in user.
+ *  Only migrates once per user to avoid overwriting server data
+ *  (pushState replaces all server data, so we only do it on first login). */
+export async function migrateLocalDataToServer(userId?: string): Promise<void> {
+  if (!isAuthenticated()) return;
+
+  // Only migrate if there's local data to push
+  const hasLocalData = globalState.expenses.length > 0;
+  if (!hasLocalData) return;
+
+  // Only migrate once per user (per device)
+  if (userId) {
+    const migratedUsers = getMigratedUsers();
+    if (migratedUsers.includes(userId)) {
+      // Already migrated — just sync from server instead
+      await syncFromServerAfterLogin();
+      return;
+    }
+  }
+
+  try {
+    // Push full local state to server (replaces any existing server data)
+    await pushState(globalState.activeProjectId, globalState);
+    if (userId) markUserMigrated(userId);
+    // Reload from server to get the authoritative merged state
+    await loadBudgetAndExpensesFromBackend();
+    await loadFlowFromBackend();
+  } catch {
+    // Server unreachable — data stays local, will sync on next mutation
+  }
+}
+
+/** Call after login to pull server data and merge with local */
+export async function syncFromServerAfterLogin(): Promise<void> {
+  if (!isAuthenticated()) return;
+
+  try {
+    await loadBudgetAndExpensesFromBackend();
+    await loadFlowFromBackend();
+  } catch {
+    // Server unreachable — keep local data
+  }
 }
 
 // ==================== Computed Helpers ====================
