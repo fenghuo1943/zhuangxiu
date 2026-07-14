@@ -70,6 +70,29 @@ async def update_budget(project_id: str, data: BudgetUpdate, user: User = Depend
         db.add(budget)
     else:
         budget.total = data.total
+    await db.flush()
+
+    # Sync category allocations if provided
+    if data.categories:
+        for cat_data in data.categories:
+            # Build scoped category ID: sid_frontendKey
+            db_cat_id = f"{sid}_{cat_data.id}"
+            cat_result = await db.execute(
+                select(BudgetCategory).where(BudgetCategory.id == db_cat_id, BudgetCategory.project_id == sid)
+            )
+            cat = cat_result.scalar_one_or_none()
+            if not cat:
+                cat = BudgetCategory(
+                    id=db_cat_id,
+                    project_id=sid,
+                    name=cat_data.name or cat_data.id,
+                    color=cat_data.color or "#999",
+                    allocated=0.0,
+                    spent=0.0,
+                )
+                db.add(cat)
+            cat.allocated = cat_data.allocated
+
     await db.commit()
     cat_result = await db.execute(select(BudgetCategory).where(BudgetCategory.project_id == sid))
     return BudgetOut(total=data.total, categories=[_frontend_cat_id(c, sid) for c in cat_result.scalars().all()])

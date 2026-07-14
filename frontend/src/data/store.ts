@@ -21,7 +21,7 @@ import {
   fetchExpenses, createExpenseApi, updateExpenseApi, deleteExpenseApi,
 } from '../api/expenses';
 import {
-  fetchBudget, updateBudgetTotal as apiUpdateBudgetTotal,
+  fetchBudget, updateBudgetWithCategories as apiUpdateBudgetWithCategories,
   updateCategoryAllocation as apiUpdateCategoryAllocation,
 } from '../api/budget';
 import { pushState } from '../api/sync';
@@ -178,9 +178,15 @@ export function setTotalBudget(total: number, scaleStages = true) {
   notify();
   persist();
 
-  // Sync to backend
+  // Sync total + all category allocations to backend
   if (isAuthenticated()) {
-    apiUpdateBudgetTotal(globalState.activeProjectId, normalizedTotal).catch(() => {});
+    const catPayload = newCategories.map(c => ({
+      id: c.id,
+      allocated: c.allocated,
+      name: c.name,
+      color: c.color,
+    }));
+    apiUpdateBudgetWithCategories(globalState.activeProjectId, normalizedTotal, catPayload).catch(() => {});
   }
 }
 
@@ -691,6 +697,7 @@ export async function loadBudgetAndExpensesFromBackend(): Promise<void> {
         categories: mergedCategories,
       },
     };
+    recalculateBudget();
     notify();
     persist();
   } catch {

@@ -62,8 +62,15 @@ class BudgetOut(BaseModel):
     total: float
     categories: List[BudgetCategoryOut]
 
+class CategoryAllocationItem(BaseModel):
+    id: str
+    allocated: float
+    name: Optional[str] = None
+    color: Optional[str] = None
+
 class BudgetUpdate(BaseModel):
     total: float
+    categories: Optional[List[CategoryAllocationItem]] = None
 
 class CategoryAllocationUpdate(BaseModel):
     allocated: float

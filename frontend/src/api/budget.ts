@@ -53,6 +53,21 @@ export async function updateBudgetTotal(projectId: string, total: number): Promi
   };
 }
 
+export async function updateBudgetWithCategories(
+  projectId: string,
+  total: number,
+  categories: Array<{ id: string; allocated: number; name: string; color: string }>,
+): Promise<BudgetData> {
+  const data: BudgetApiResponse = await apiPut(`/api/projects/${projectId}/budget`, {
+    total,
+    categories,
+  });
+  return {
+    total: data.total,
+    categories: data.categories.map(fromApiCategory),
+  };
+}
+
 export async function updateCategoryAllocation(
   projectId: string,
   categoryId: string,
