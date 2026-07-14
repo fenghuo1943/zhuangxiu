@@ -364,12 +364,14 @@ const ExpensePage: React.FC = () => {
             return (
               <div key={cid} className="card expense-cat-card">
                 <div className="card-bd">
-                  <span className="expense-cat-label" style={{ color: CATEGORY_COLORS[cid] }}>
-                    <span className="expense-cat-dot" style={{ background: CATEGORY_COLORS[cid] }} />
-                    {CATEGORY_NAMES[cid]}
-                  </span>
+                  <div className="expense-cat-label-row">
+                    <span className="expense-cat-label" style={{ color: CATEGORY_COLORS[cid] }}>
+                      <span className="expense-cat-dot" style={{ background: CATEGORY_COLORS[cid] }} />
+                      {CATEGORY_NAMES[cid]}
+                    </span>
+                    <span className="expense-cat-count">{catExpenses.length} 笔</span>
+                  </div>
                   <b className="expense-cat-value">¥{formatAmount(catTotal)}</b>
-                  <span className="expense-cat-count">{catExpenses.length} 笔</span>
                 </div>
               </div>
             );
