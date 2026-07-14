@@ -3360,9 +3360,9 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 /* Placeholder page */
 .placeholder-page {
-  width: min(800px, calc(100% - 32px));
+  width: min(1320px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 40px 0 52px;
+  padding: 16px 0 52px;
 }
 
 /* Toast */
