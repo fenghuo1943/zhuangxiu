@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import AppShell from '../components/layout/AppShell';
 import {
-  useStore, addExpense, deleteExpense, updateExpenseStatus, updateExpense,
+  useStore, addExpense, deleteExpense, updateExpense,
   getSubCategoriesByCategory, renameGroup, deleteSubCategory,
   addSubCategory, renameSubCategory, moveSubCategory,
   loadBudgetAndExpensesFromBackend,
@@ -751,16 +751,6 @@ const ExpensePage: React.FC = () => {
                                 </div>
                               </div>
                               <div className="expense-item-actions">
-                                <select
-                                  className="input"
-                                  value={exp.status}
-                                  onChange={e => updateExpenseStatus(exp.id, e.target.value as Expense['status'])}
-                                  style={{ fontSize: 11, padding: '2px 6px' }}
-                                >
-                                  <option value="paid">已支付</option>
-                                  <option value="prepaid">预付款</option>
-                                  <option value="unpaid">未支付</option>
-                                </select>
                                 <button className="fresh-icon-btn" title="编辑" onClick={() => openEditModal(exp)}>
                                   <IconEdit size={14} />
                                 </button>
