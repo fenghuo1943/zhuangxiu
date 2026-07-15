@@ -59,31 +59,37 @@ export const TodayFocus: React.FC = () => {
       {/* Mobile: 3 Summary Cards */}
       <div className="mobile-summary-cards">
         <div className="metric-card">
-          <span className="iconbox iconbox-green">
-            <IconPiggy size={18} />
-          </span>
           <div className="metric-card-body">
-            <span>预算余额</span>
+            <div className="metric-card-header">
+              <span className="iconbox iconbox-green">
+                <IconPiggy size={14} />
+              </span>
+              <span>预算余额</span>
+            </div>
             <b>{hasBudget ? formatBudget(remaining) : '--'}</b>
             <em>{hasBudget ? `${usageRate}% 已用` : '未设置预算'}</em>
           </div>
         </div>
         <div className="metric-card">
-          <span className="iconbox iconbox-blue">
-            <IconShopping size={18} />
-          </span>
           <div className="metric-card-body">
-            <span>待办 / 待购</span>
+            <div className="metric-card-header">
+              <span className="iconbox iconbox-blue">
+                <IconShopping size={14} />
+              </span>
+              <span>待办 / 待购</span>
+            </div>
             <b>{pendingTodos}项 / {pendingPurchase}件</b>
             <em>待办 / 待购</em>
           </div>
         </div>
         <div className="metric-card">
-          <span className="iconbox iconbox-coral">
-            <IconDollar size={18} />
-          </span>
           <div className="metric-card-body">
-            <span>最近支出</span>
+            <div className="metric-card-header">
+              <span className="iconbox iconbox-coral">
+                <IconDollar size={14} />
+              </span>
+              <span>最近支出</span>
+            </div>
             <b>{recentExpense ? `¥${recentExpense.amount.toLocaleString()}` : '--'}</b>
             <em>{recentExpense ? (recentExpense.date || recentExpense.title) : '暂无记录'}</em>
           </div>

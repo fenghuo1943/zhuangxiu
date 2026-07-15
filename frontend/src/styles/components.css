@@ -1552,28 +1552,50 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   }
 
   .mobile-summary-cards .metric-card {
-    gap: 8px;
-    padding: 10px;
+    gap: 6px;
+    padding: 12px 10px;
     position: relative;
     z-index: 1;
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .mobile-summary-cards .metric-card .iconbox {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
+  .mobile-summary-cards .metric-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
 
-  .mobile-summary-cards .metric-card-body > span {
+  .metric-card-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .metric-card-header > span {
     font-size: 10px;
+    color: var(--fresh-subtle);
+    font-weight: 720;
+  }
+
+  .metric-card-header .iconbox {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    flex-shrink: 0;
+  }
+
+  .metric-card-header .iconbox svg {
+    width: 12px;
+    height: 12px;
   }
 
   .mobile-summary-cards .metric-card-body > b {
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .mobile-summary-cards .metric-card-body > em {
-    font-size: 9px;
+    font-size: 10px;
   }
 }
 
