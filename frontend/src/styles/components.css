@@ -1087,6 +1087,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 }
 
 .todo-add-row .input { flex: 1; min-width: 120px; }
+.todo-add-row .btn { justify-content: center; }
 .todo-stage-select { max-width: 160px; }
 .todo-date-input { max-width: 150px; }
 
@@ -1387,6 +1388,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
     font-size: 12px;
     box-shadow: none;
     white-space: nowrap;
+    justify-content: center;
   }
 
   .side-state { display: none; }
