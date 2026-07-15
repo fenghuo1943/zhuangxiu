@@ -33,7 +33,7 @@ export const StageRoute: React.FC = () => {
             <span className="card-subtitle">{completedCount} / {totalCount} 已完成</span>
           </div>
         </div>
-        <a href="/flow" className="more-link">全部流程 →</a>
+        <a href="/flow" className="more-link">全部流程</a>
       </CardHeader>
       <CardBody>
         <div className="home-progress-line">

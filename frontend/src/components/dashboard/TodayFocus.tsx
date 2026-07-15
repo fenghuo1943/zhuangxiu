@@ -13,6 +13,9 @@ export const TodayFocus: React.FC = () => {
   const recentExpense = state.recentExpenses[0];
   const priorityItem = hasBudget ? null : '设置总预算';
 
+  const formatBudget = (n: number) =>
+    n >= 1e4 ? `¥${(n / 1e4).toFixed(1)}万` : `¥${n.toLocaleString()}`;
+
   return (
     <>
       {/* Desktop: Full TodayFocus */}
@@ -43,7 +46,7 @@ export const TodayFocus: React.FC = () => {
             </div>
             <div className="focus-stat">
               <span>预算余额</span>
-              <b>¥{hasBudget ? remaining.toLocaleString() : '--'}</b>
+              <b>{hasBudget ? formatBudget(remaining) : '--'}</b>
             </div>
             <div className="focus-stat">
               <span>使用率</span>
@@ -61,7 +64,7 @@ export const TodayFocus: React.FC = () => {
           </span>
           <div className="metric-card-body">
             <span>预算余额</span>
-            <b>¥{hasBudget ? remaining.toLocaleString() : '--'}</b>
+            <b>{hasBudget ? formatBudget(remaining) : '--'}</b>
             <em>{hasBudget ? `${usageRate}% 已用` : '未设置预算'}</em>
           </div>
         </div>
