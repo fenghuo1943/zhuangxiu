@@ -2207,10 +2207,69 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 }
 
 /* TipTap prose content styles */
-.tiptap.ProseMirror h1 { font-size: 22px; margin: 16px 0 10px; font-weight: 800; }
+/* Counter for h1 auto-numbering (一、二、三...) */
+.tiptap-editor-wrapper .tiptap.ProseMirror,
+.knowledge-doc {
+  counter-reset: h1-counter;
+}
+
+.tiptap.ProseMirror h1 {
+  counter-increment: h1-counter;
+  position: relative;
+  margin: 14px 0 10px;
+  padding: 8px 12px;
+  border-left: 3px solid #69a786;
+  background: #f6fbf7;
+  border-radius: 0 10px 10px 0;
+  color: #366b52;
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.tiptap.ProseMirror h1::before {
+  content: counter(h1-counter, cjk-decimal) "、";
+}
+
 .tiptap.ProseMirror h2 { font-size: 18px; margin: 14px 0 8px; font-weight: 750; }
 .tiptap.ProseMirror h3 { font-size: 15px; margin: 12px 0 6px; font-weight: 700; }
-.tiptap.ProseMirror p { margin: 0 0 10px; }
+
+.tiptap.ProseMirror p {
+  position: relative;
+  margin: 0 0 8px;
+  padding: 8px 10px 8px 24px;
+  border-radius: 10px;
+  background: #f8faf7;
+  color: #4f554c;
+  line-height: 1.75;
+}
+
+.tiptap.ProseMirror p::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 16px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #69a786;
+}
+
+/* View mode (read-only): don't show green background for p paragraphs */
+.tiptap-editor-wrapper.view-mode .tiptap.ProseMirror p {
+  background: transparent;
+  padding: 0 0 0 20px;
+  border-radius: 0;
+  margin: 0 0 12px;
+  line-height: 1.9;
+}
+.tiptap-editor-wrapper.view-mode .tiptap.ProseMirror p::before {
+  left: 6px;
+  top: 0.9em;
+}
+.tiptap-editor-wrapper.view-mode .tiptap.ProseMirror h1 {
+  font-size: 15px;
+}
 .tiptap.ProseMirror ul, .tiptap.ProseMirror ol { margin: 0 0 10px; padding-left: 20px; }
 .tiptap.ProseMirror li { margin-bottom: 4px; }
 .tiptap.ProseMirror blockquote {
