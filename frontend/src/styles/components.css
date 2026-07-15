@@ -1347,7 +1347,13 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
   .home-pro > .hero {
     display: block;
+    width: 100%;
     margin: 0 0 12px;
+  }
+
+  .hero-card {
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .hero-main {
@@ -1607,8 +1613,9 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   }
 
   .home-pro > .hero,
-  .home-pro > .live-widgets { margin-bottom: 8px; }
+  .home-pro > .live-widgets { margin-bottom: 8px; width: 100%; }
   .home-pro > .layout { gap: 8px; }
+  .hero-card { width: 100%; box-sizing: border-box; }
 
   .hero-main { padding: 16px; border-radius: 18px; }
   .hero-content h1 { font-size: 24px; line-height: 1.22; margin: 9px 0 6px; }
