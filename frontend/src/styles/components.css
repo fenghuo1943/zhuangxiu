@@ -1471,6 +1471,11 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .todo-add-row { flex-direction: column; }
   .todo-add-row .input, .todo-stage-select, .todo-date-input { max-width: none; width: 100%; }
 
+  #homeTodoCard .card-bd { display: flex; flex-direction: column; }
+  #homeTodoCard .todo-add-row { order: 2; }
+  #homeTodoCard .todo-list,
+  #homeTodoCard .empty-state { order: 1; }
+
   .tool-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;

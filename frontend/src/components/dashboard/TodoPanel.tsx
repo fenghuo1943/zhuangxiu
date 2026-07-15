@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useStore, addTodo, toggleTodo, deleteTodo } from '../../data/store';
 import { Card, CardHeader, CardBody } from '../common/Card';
 import { EmptyState } from '../common/EmptyState';
-import { IconCheck, IconTrash, IconPlus, IconCalendar } from '../common/Icons';
+import { IconCheck, IconTrash, IconCalendar } from '../common/Icons';
 
 type TodoMode = 'detailed' | 'simple';
 
@@ -91,8 +91,7 @@ export const TodoPanel: React.FC = () => {
               />
             </>
           )}
-          <button className="btn btn-primary btn-sm" onClick={handleAdd}>
-            <IconPlus size={14} />
+          <button className="btn btn-primary btn-sm" onClick={handleAdd} style={{ textAlign: 'center' }}>
             添加
           </button>
         </div>

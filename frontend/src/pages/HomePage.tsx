@@ -26,9 +26,13 @@ const HomePage: React.FC = () => {
 
         {/* Progress + Timeline + Guide */}
         <section className="live-widgets">
-          <ProgressCard />
+          <div className="hide-mobile">
+            <ProgressCard />
+          </div>
           <StageRoute />
-          <GuideCard />
+          <div className="hide-mobile">
+            <GuideCard />
+          </div>
         </section>
 
         {/* Main Layout: Left (Budget + Todo) | Right (Sidebar) */}
