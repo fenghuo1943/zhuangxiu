@@ -1248,16 +1248,27 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 /* ==================== Metric Card (Mobile) ==================== */
 .metric-card {
-  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
   border: 1px solid var(--fresh-line);
   border-radius: 16px;
   background: rgba(255, 255, 255, .94);
   box-shadow: 0 10px 26px rgba(55, 42, 31, .045);
 }
 
-.metric-card > span:first-of-type { display: block; font-size: 11px; color: var(--fresh-subtle); font-weight: 720; }
-.metric-card > b { display: block; margin-top: 5px; font-size: 20px; color: var(--fresh-text); font-weight: 840; }
-.metric-card > em { display: block; margin-top: 4px; font-size: 11px; color: var(--fresh-subtle); font-style: normal; }
+.metric-card .iconbox {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 12px;
+}
+
+.metric-card-body { min-width: 0; }
+.metric-card-body > span { display: block; font-size: 11px; color: var(--fresh-subtle); font-weight: 720; }
+.metric-card-body > b { display: block; margin-top: 3px; font-size: 17px; color: var(--fresh-text); font-weight: 840; }
+.metric-card-body > em { display: block; margin-top: 3px; font-size: 10px; color: var(--fresh-subtle); font-style: normal; }
 
 /* ==================== Mobile Bottom Nav ==================== */
 .fresh-mobile-nav { display: none; }
@@ -1527,9 +1538,28 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
     gap: 8px;
   }
 
-  .mobile-metric-budget { border-left: 3px solid var(--fresh-coral); }
-  .mobile-metric-todo { border-left: 3px solid var(--fresh-green); }
-  .mobile-metric-expense { border-left: 3px solid var(--fresh-blue); }
+  .mobile-summary-cards .metric-card {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .mobile-summary-cards .metric-card .iconbox {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .mobile-summary-cards .metric-card-body > span {
+    font-size: 10px;
+  }
+
+  .mobile-summary-cards .metric-card-body > b {
+    font-size: 14px;
+  }
+
+  .mobile-summary-cards .metric-card-body > em {
+    font-size: 9px;
+  }
 }
 
 /* Small phones */

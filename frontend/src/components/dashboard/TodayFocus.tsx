@@ -1,7 +1,7 @@
 import React from 'react';
 import { useStore, getBudgetRemaining, getBudgetUsageRate } from '../../data/store';
 import { Card, CardHeader, CardBody } from '../common/Card';
-import { IconStar, IconDollar, IconShopping, IconCheck } from '../common/Icons';
+import { IconStar, IconDollar, IconShopping, IconCheck, IconPiggy } from '../common/Icons';
 
 export const TodayFocus: React.FC = () => {
   const state = useStore();
@@ -55,20 +55,35 @@ export const TodayFocus: React.FC = () => {
 
       {/* Mobile: 3 Summary Cards */}
       <div className="mobile-summary-cards">
-        <div className="metric-card mobile-metric-budget">
-          <span><IconDollar size={14} /> 预算余额</span>
-          <b>¥{hasBudget ? remaining.toLocaleString() : '--'}</b>
-          <em>{hasBudget ? `使用率 ${usageRate}%` : '未设置预算'}</em>
+        <div className="metric-card">
+          <span className="iconbox iconbox-green">
+            <IconPiggy size={18} />
+          </span>
+          <div className="metric-card-body">
+            <span>预算余额</span>
+            <b>¥{hasBudget ? remaining.toLocaleString() : '--'}</b>
+            <em>{hasBudget ? `${usageRate}% 已用` : '未设置预算'}</em>
+          </div>
         </div>
-        <div className="metric-card mobile-metric-todo">
-          <span><IconCheck size={14} /> 待办 / 待购</span>
-          <b>{pendingTodos} / {pendingPurchase}</b>
-          <em>项待处理 / 项待采购</em>
+        <div className="metric-card">
+          <span className="iconbox iconbox-blue">
+            <IconShopping size={18} />
+          </span>
+          <div className="metric-card-body">
+            <span>待办 / 待购</span>
+            <b>{pendingTodos}项 / {pendingPurchase}件</b>
+            <em>待办 / 待购</em>
+          </div>
         </div>
-        <div className="metric-card mobile-metric-expense">
-          <span><IconDollar size={14} /> 最近支出</span>
-          <b>{recentExpense ? `¥${recentExpense.amount.toLocaleString()}` : '--'}</b>
-          <em>{recentExpense ? recentExpense.title : '暂无记录'}</em>
+        <div className="metric-card">
+          <span className="iconbox iconbox-coral">
+            <IconDollar size={18} />
+          </span>
+          <div className="metric-card-body">
+            <span>最近支出</span>
+            <b>{recentExpense ? `¥${recentExpense.amount.toLocaleString()}` : '--'}</b>
+            <em>{recentExpense ? (recentExpense.date || recentExpense.title) : '暂无记录'}</em>
+          </div>
         </div>
       </div>
     </>
