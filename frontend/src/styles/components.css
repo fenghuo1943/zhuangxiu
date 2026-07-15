@@ -2159,6 +2159,121 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   border-color: var(--fresh-coral);
 }
 
+/* ===== Clickable flow resource items ===== */
+.flow-resource-clickable {
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.flow-resource-clickable:hover {
+  background: #f5f0eb;
+  color: var(--fresh-coral);
+}
+.flow-resource-clickable:focus-visible {
+  outline: 2px solid var(--fresh-coral);
+  outline-offset: -2px;
+}
+
+/* ===== Knowledge Editor Modal ===== */
+.knowledge-editor-modal {
+  width: min(800px, 100%) !important;
+}
+
+.tiptap-editor-wrapper {
+  border: 1px solid var(--fresh-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.tiptap-editor-wrapper.view-mode {
+  border: none;
+}
+
+.tiptap-editor-wrapper .tiptap.ProseMirror {
+  padding: 14px 16px;
+  min-height: 280px;
+  max-height: 50vh;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--fresh-text);
+  outline: none;
+}
+
+.tiptap-editor-wrapper.view-mode .tiptap.ProseMirror {
+  padding: 0;
+  max-height: none;
+  overflow-y: visible;
+  min-height: 0;
+}
+
+/* TipTap prose content styles */
+.tiptap.ProseMirror h1 { font-size: 22px; margin: 16px 0 10px; font-weight: 800; }
+.tiptap.ProseMirror h2 { font-size: 18px; margin: 14px 0 8px; font-weight: 750; }
+.tiptap.ProseMirror h3 { font-size: 15px; margin: 12px 0 6px; font-weight: 700; }
+.tiptap.ProseMirror p { margin: 0 0 10px; }
+.tiptap.ProseMirror ul, .tiptap.ProseMirror ol { margin: 0 0 10px; padding-left: 20px; }
+.tiptap.ProseMirror li { margin-bottom: 4px; }
+.tiptap.ProseMirror blockquote {
+  margin: 0 0 12px;
+  padding: 8px 14px;
+  border-left: 3px solid var(--fresh-coral);
+  background: #fdf5f2;
+  border-radius: 0 6px 6px 0;
+  font-style: italic;
+}
+.tiptap.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 8px 0;
+}
+
+/* TipTap Toolbar */
+.tiptap-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--fresh-line);
+  background: #fdfcf9;
+  border-radius: 10px 10px 0 0;
+}
+
+.tiptap-toolbar-group {
+  display: flex;
+  gap: 2px;
+}
+
+.tiptap-toolbar-group + .tiptap-toolbar-group {
+  margin-left: 6px;
+  padding-left: 6px;
+  border-left: 1px solid var(--fresh-line);
+}
+
+.tiptap-btn {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--fresh-muted);
+  transition: background .15s, color .15s;
+}
+
+.tiptap-btn:hover {
+  background: #f0ebe0;
+  color: var(--fresh-text);
+}
+
+.tiptap-btn:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
 /* ==================== Expense Page ==================== */
 .expense-page {
   width: min(1320px, calc(100% - 32px));

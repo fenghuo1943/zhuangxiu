@@ -211,3 +211,14 @@ export interface ProjectState {
   budget: { total: number; categories: { id: string; name: string; color: string; allocated: number; spent: number }[] };
   flowDoneStepIds: string[];
 }
+
+// ==================== Knowledge Article ====================
+
+export interface KnowledgeArticle {
+  id: number;
+  resource_id: number;
+  title: string;
+  content: string;  // TipTap HTML
+  created_at: string;
+  updated_at?: string;
+}

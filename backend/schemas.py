@@ -283,3 +283,24 @@ class AppStateSync(BaseModel):
     synced_model_ids: List[str] = []
     stage_notes: Optional[dict] = None
     custom_flow_steps: List[dict] = []
+
+
+# ---- Knowledge Article ----
+class KnowledgeArticleCreate(BaseModel):
+    resource_id: int
+    title: str = Field("", max_length=200)
+    content: str = Field("", max_length=100000)
+
+class KnowledgeArticleUpdate(BaseModel):
+    title: Optional[str] = Field(None, max_length=200)
+    content: Optional[str] = Field(None, max_length=100000)
+
+class KnowledgeArticleOut(BaseModel):
+    id: int
+    resource_id: int
+    title: str
+    content: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}

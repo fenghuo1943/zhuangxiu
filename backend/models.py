@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, String, Float, Boolean, Date, DateTime, ForeignKey, JSON, Integer
+from sqlalchemy import Column, String, Float, Boolean, Date, DateTime, ForeignKey, JSON, Integer, Text
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -218,3 +218,14 @@ class CustomFlowStep(Base):
     created_at = Column(DateTime, default=_now)
 
     project = relationship("Project")
+
+
+class KnowledgeArticle(Base):
+    """Rich-text knowledge articles for flow stage resources (standards, acceptance, articles, pitfalls)."""
+    __tablename__ = "knowledge_articles"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    resource_id = Column(Integer, unique=True, nullable=False, index=True)
+    title = Column(String(200), nullable=False, default="")
+    content = Column(Text, nullable=False, default="")
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)

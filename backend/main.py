@@ -1,8 +1,10 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from .database import init_db
-from .routers import auth, projects, budget, todos, expenses, flow, purchase, compare, sync
+from .routers import auth, projects, budget, todos, expenses, flow, purchase, compare, sync, knowledge, upload
 
 
 @asynccontextmanager
@@ -43,6 +45,13 @@ app.include_router(flow.router)
 app.include_router(purchase.router)
 app.include_router(compare.router)
 app.include_router(sync.router)
+app.include_router(knowledge.router)
+app.include_router(upload.router)
+
+# Mount static files for uploaded images
+_public_dir = Path(__file__).resolve().parent.parent / "frontend" / "public"
+if _public_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(_public_dir / "assets"), html=False), name="assets")
 
 
 @app.get("/api/health")

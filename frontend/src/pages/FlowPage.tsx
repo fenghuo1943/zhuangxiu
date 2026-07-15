@@ -2,6 +2,8 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import AppShell from '../components/layout/AppShell';
 import FlowHero from '../components/flow/FlowHero';
 import FlowStepCard from '../components/flow/FlowStepCard';
+import KnowledgeModal from '../components/flow/KnowledgeModal';
+import type { FlowResource } from '../data/types';
 import { useStore, setFlowCustomOrder, getOrderedFlowSteps, addCustomFlowStep, removeCustomFlowStep, loadCustomFlowSteps, loadFlowFromBackend } from '../data/store';
 import { IconEdit, IconCheck, IconChevronUp, IconChevronDown, IconPlus } from '../components/common/Icons';
 
@@ -12,6 +14,7 @@ const FlowPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newStage, setNewStage] = useState({ title: '', days: '', desc: '' });
+  const [selectedResource, setSelectedResource] = useState<FlowResource | null>(null);
 
   // Load flow data from backend on mount
   useEffect(() => {
@@ -239,6 +242,7 @@ const FlowPage: React.FC = () => {
                       step={step}
                       isExpanded={expandedIds.has(step.id)}
                       onToggle={() => toggleExpand(step.id)}
+                      onResourceClick={(resource) => setSelectedResource(resource)}
                     />
                     {/* Show delete button for custom steps outside edit mode */}
                     {step.isCustom && !isEditing && (
@@ -257,6 +261,13 @@ const FlowPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {selectedResource && (
+          <KnowledgeModal
+            resource={selectedResource}
+            onClose={() => setSelectedResource(null)}
+          />
+        )}
       </div>
     </AppShell>
   );

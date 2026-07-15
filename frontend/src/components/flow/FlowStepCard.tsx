@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import type { FlowStep } from '../../data/types';
+import type { FlowStep, FlowResource } from '../../data/types';
 import { useStore, toggleFlowStepDone, getStageNotes, addStageNote, updateStageNote, removeStageNote, loadStageNotes } from '../../data/store';
 import { IconCheck, IconChevronDown, IconBook, IconShield, IconStar, IconAlert, IconEdit } from '../common/Icons';
 
@@ -7,6 +7,7 @@ interface FlowStepCardProps {
   step: FlowStep;
   isExpanded: boolean;
   onToggle: () => void;
+  onResourceClick: (resource: FlowResource) => void;
 }
 
 const resourceLabel: Record<string, string> = {
@@ -30,7 +31,7 @@ const resourceBadgeClass: Record<string, string> = {
   pitfall: 'badge-danger',
 };
 
-export const FlowStepCard: React.FC<FlowStepCardProps> = ({ step, isExpanded, onToggle }) => {
+export const FlowStepCard: React.FC<FlowStepCardProps> = ({ step, isExpanded, onToggle, onResourceClick }) => {
   const state = useStore();
   const isDone = state.flowDoneStepIds.includes(step.id);
   const [noteInput, setNoteInput] = useState('');
@@ -144,7 +145,19 @@ export const FlowStepCard: React.FC<FlowStepCardProps> = ({ step, isExpanded, on
                   </h4>
                   <ul className="flow-resource-list">
                     {items.map(item => (
-                      <li key={item.id} className="flow-resource-item">
+                      <li
+                        key={item.id}
+                        className="flow-resource-item flow-resource-clickable"
+                        onClick={(e) => { e.stopPropagation(); onResourceClick(item); }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onResourceClick(item);
+                          }
+                        }}
+                      >
                         <span className="flow-resource-item-icon">
                           {group === 'standard' && <IconBook size={14} />}
                           {group === 'acceptance' && <IconShield size={14} />}
