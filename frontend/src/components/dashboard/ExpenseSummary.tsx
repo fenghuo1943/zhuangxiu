@@ -10,7 +10,7 @@ export const ExpenseSummary: React.FC = () => {
   const hasExpenses = state.expenses.length > 0;
 
   return (
-    <Card>
+    <Card id="homeExpenseCard">
       <CardHeader>
         <div className="card-title-row">
           <span className="iconbox iconbox-blue">

@@ -1495,6 +1495,15 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   #homeTodoCard .todo-list,
   #homeTodoCard .empty-state { order: 1; }
 
+  #homeTodoCard .card-title-row > div,
+  .stage-route-card .card-title-row > div,
+  #homeExpenseCard .card-title-row > div {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
   .tool-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
