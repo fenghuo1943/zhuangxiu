@@ -2199,6 +2199,27 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   outline: none;
 }
 
+/* TipTap placeholder — overrides green dot on empty paragraph */
+.tiptap.ProseMirror p.is-editor-empty:first-child {
+  background: transparent;
+  padding-left: 0;
+}
+.tiptap.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #adb5bd;
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+  /* override green dot */
+  position: static;
+  left: auto;
+  top: auto;
+  width: auto;
+  border-radius: 0;
+  background: transparent;
+}
+
 .tiptap-editor-wrapper.view-mode .tiptap.ProseMirror {
   padding: 0;
   max-height: none;

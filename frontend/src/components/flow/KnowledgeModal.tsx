@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import ImageExtension from '@tiptap/extension-image';
+import Placeholder from '@tiptap/extension-placeholder';
 import type { FlowResource, KnowledgeArticle } from '../../data/types';
 import { fetchArticle, createArticle, updateArticle, deleteArticle, uploadImage } from '../../api/knowledge';
 import { isAuthenticated } from '../../api/client';
@@ -48,6 +49,9 @@ const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) =>
         heading: { levels: [1, 2, 3] },
       }),
       ImageExtension,
+      Placeholder.configure({
+        placeholder: '点击此处开始编写内容…',
+      }),
     ],
     content: '',
     editable: false,
@@ -75,7 +79,7 @@ const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) =>
         if (cancelled) return;
         if (err.message?.includes('404') || err.message?.includes('文章不存在')) {
           setMode('edit');
-          editor?.commands.setContent('<p>点击此处开始编写内容…</p>');
+          editor?.commands.clearContent();
           editor?.setEditable(true);
         } else {
           setError(err.message || '加载失败');
