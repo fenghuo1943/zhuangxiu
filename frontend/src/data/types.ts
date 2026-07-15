@@ -202,6 +202,7 @@ export interface AppState {
   flowCustomOrder: string[] | null;
   stageNotes: Record<string, StageNote[]>;  // stageId -> notes
   customFlowSteps: CustomFlowStep[];
+  flowStepsFromBackend: Record<string, FlowStep[]>;  // flowType -> FlowStep[] from DB
   syncedModelIds: string[];
   priceCategories: PriceCategory[];
   projectStates: Record<string, ProjectState>;

@@ -15,6 +15,7 @@ import {
   editStageNote as apiEditStageNote, deleteStageNote as apiDeleteStageNote,
   fetchCustomSteps, createCustomStep as apiCreateCustomStep,
   updateCustomStep as apiUpdateCustomStep, deleteCustomStep as apiDeleteCustomStep,
+  fetchFlowStages, type FlowStageRaw,
 } from '../api/flow';
 import { isAuthenticated } from '../api/client';
 import {
@@ -50,6 +51,7 @@ function getInitialState(): AppState {
         flowCustomOrder: parsed.flowCustomOrder || null,
         stageNotes: parsed.stageNotes || {},
         customFlowSteps: parsed.customFlowSteps || [],
+        flowStepsFromBackend: parsed.flowStepsFromBackend || {},
         syncedModelIds: parsed.syncedModelIds || [],
         priceCategories: parsed.priceCategories || [],
         projectStates: parsed.projectStates || {},
@@ -77,6 +79,7 @@ function getInitialState(): AppState {
     flowCustomOrder: null,
     stageNotes: {},
     customFlowSteps: [],
+    flowStepsFromBackend: {},
     syncedModelIds: [],
     priceCategories: [],
     projectStates: {},
@@ -957,9 +960,47 @@ export async function loadStageNotes(stageId: string): Promise<void> {
 
 // ==================== Custom Flow Steps Actions ====================
 
+/** Convert backend FlowStageRaw[] to frontend FlowStep[] */
+function _convertBackendStages(rawStages: FlowStageRaw[]): FlowStep[] {
+  return rawStages.map(raw => ({
+    id: raw.stage_key,
+    type: raw.flow_type as 'new' | 'old',
+    order: raw.sort_order,
+    title: raw.title,
+    days: raw.days,
+    desc: raw.desc,
+    standards: raw.resources.filter(r => r.resource_type === 'standard').map(r => ({ id: r.id, title: r.title, type: 'standard' as const })),
+    acceptance: raw.resources.filter(r => r.resource_type === 'acceptance').map(r => ({ id: r.id, title: r.title, type: 'acceptance' as const })),
+    articles: raw.resources.filter(r => r.resource_type === 'article').map(r => ({ id: r.id, title: r.title, type: 'article' as const })),
+    pitfalls: raw.resources.filter(r => r.resource_type === 'pitfall').map(r => ({ id: r.id, title: r.title, type: 'pitfall' as const })),
+    isCustom: false,
+  }));
+}
+
+/** Load flow stages from backend and store them */
+export async function loadFlowStagesFromBackend(flowType: 'new' | 'old'): Promise<void> {
+  if (!isAuthenticated()) return;
+  try {
+    const raw = await fetchFlowStages(flowType);
+    const steps = _convertBackendStages(raw);
+    globalState = {
+      ...globalState,
+      flowStepsFromBackend: { ...globalState.flowStepsFromBackend, [flowType]: steps },
+    };
+    notify();
+    persist();
+  } catch {
+    // Backend unreachable — fall back to mockData
+  }
+}
+
 /** Merge custom steps into the built-in flow step list */
 export function getOrderedFlowSteps(flowType: 'new' | 'old'): FlowStep[] {
-  const baseSteps: FlowStep[] = flowType === 'new' ? FLOW_STEPS_NEW : FLOW_STEPS_OLD;
+  // Use backend data if available, otherwise fall back to hardcoded mockData
+  const backendSteps = globalState.flowStepsFromBackend[flowType];
+  const baseSteps: FlowStep[] = (backendSteps && backendSteps.length > 0)
+    ? backendSteps
+    : (flowType === 'new' ? FLOW_STEPS_NEW : FLOW_STEPS_OLD);
   const customOrder = globalState.flowCustomOrder;
 
   // Build list: base steps + custom steps converted to FlowStep format

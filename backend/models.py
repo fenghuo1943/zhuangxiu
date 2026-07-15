@@ -229,3 +229,29 @@ class KnowledgeArticle(Base):
     content = Column(Text, nullable=False, default="")
     created_at = Column(DateTime, default=_now)
     updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
+class FlowStage(Base):
+    """Renovation flow stages (e.g., 墙体拆改, 水电改造)."""
+    __tablename__ = "flow_stages"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    stage_key = Column(String(50), nullable=False, index=True)  # e.g. 'design', 'demolish'
+    flow_type = Column(String(10), nullable=False, default="new")  # 'new' or 'old'
+    sort_order = Column(Integer, nullable=False)
+    title = Column(String(100), nullable=False)
+    days = Column(String(20), default="")
+    desc = Column(String(2000), default="")
+
+    resources = relationship("FlowStageResource", back_populates="stage", cascade="all, delete-orphan")
+
+
+class FlowStageResource(Base):
+    """Individual resources (standards, acceptance, articles, pitfalls) within a flow stage."""
+    __tablename__ = "flow_stage_resources"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    stage_id = Column(Integer, ForeignKey("flow_stages.id"), nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    resource_type = Column(String(20), nullable=False)  # 'standard', 'acceptance', 'article', 'pitfall'
+    sort_order = Column(Integer, default=0)
+
+    stage = relationship("FlowStage", back_populates="resources")

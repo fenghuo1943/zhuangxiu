@@ -1,9 +1,14 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-from .database import init_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+from .database import init_db, get_db
+from .models import FlowStage as FlowStageModel
+from .schemas import FlowStageOut
 from .routers import auth, projects, budget, todos, expenses, flow, purchase, compare, sync, knowledge, upload
 
 
@@ -52,6 +57,24 @@ app.include_router(upload.router)
 _public_dir = Path(__file__).resolve().parent.parent / "frontend" / "public"
 if _public_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(_public_dir / "assets"), html=False), name="assets")
+
+
+@app.get("/api/flow-stages", response_model=list[FlowStageOut])
+async def get_flow_stages(
+    flow_type: str = Query("new", pattern="^(new|old)$"),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(FlowStageModel)
+        .where(FlowStageModel.flow_type == flow_type)
+        .options(selectinload(FlowStageModel.resources))
+        .order_by(FlowStageModel.sort_order)
+    )
+    stages = result.scalars().unique().all()
+    # Sort resources within each stage
+    for stage in stages:
+        stage.resources.sort(key=lambda r: (r.resource_type, r.sort_order))
+    return stages
 
 
 @app.get("/api/health")

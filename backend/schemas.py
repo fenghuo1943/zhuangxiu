@@ -304,3 +304,25 @@ class KnowledgeArticleOut(BaseModel):
     updated_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+
+# ---- Flow Stages (from DB) ----
+class FlowStageResourceOut(BaseModel):
+    id: int
+    title: str
+    resource_type: str
+    sort_order: int
+
+    model_config = {"from_attributes": True}
+
+class FlowStageOut(BaseModel):
+    id: int
+    stage_key: str
+    flow_type: str
+    sort_order: int
+    title: str
+    days: str
+    desc: str
+    resources: list[FlowStageResourceOut] = []
+
+    model_config = {"from_attributes": True}

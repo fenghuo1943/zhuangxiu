@@ -24,8 +24,10 @@ async def init_db():
 
     # Seed purchase reference data (idempotent — skips if already populated)
     from .seed_purchase import seed_purchase_references
+    from .seed_flow import seed_flow_stages
     async with async_session() as session:
         try:
             await seed_purchase_references(session)
+            await seed_flow_stages(session)
         finally:
             await session.close()

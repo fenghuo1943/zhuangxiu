@@ -1,6 +1,30 @@
 import { apiGet, apiPost, apiPut, apiDelete } from './client';
 import type { StageNote, CustomFlowStep } from '../data/types';
 
+// ==================== Flow Stages from DB ====================
+
+export interface FlowStageResourceRaw {
+  id: number;
+  title: string;
+  resource_type: string;
+  sort_order: number;
+}
+
+export interface FlowStageRaw {
+  id: number;
+  stage_key: string;
+  flow_type: string;
+  sort_order: number;
+  title: string;
+  days: string;
+  desc: string;
+  resources: FlowStageResourceRaw[];
+}
+
+export async function fetchFlowStages(flowType: string): Promise<FlowStageRaw[]> {
+  return apiGet<FlowStageRaw[]>(`/api/flow-stages?flow_type=${flowType}`);
+}
+
 // ==================== Flow Progress ====================
 
 export interface FlowProgressResponse {

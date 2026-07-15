@@ -4,7 +4,7 @@ import FlowHero from '../components/flow/FlowHero';
 import FlowStepCard from '../components/flow/FlowStepCard';
 import KnowledgeModal from '../components/flow/KnowledgeModal';
 import type { FlowResource } from '../data/types';
-import { useStore, setFlowCustomOrder, getOrderedFlowSteps, addCustomFlowStep, removeCustomFlowStep, loadCustomFlowSteps, loadFlowFromBackend } from '../data/store';
+import { useStore, setFlowCustomOrder, getOrderedFlowSteps, addCustomFlowStep, removeCustomFlowStep, loadCustomFlowSteps, loadFlowFromBackend, loadFlowStagesFromBackend } from '../data/store';
 import { IconEdit, IconCheck, IconChevronUp, IconChevronDown, IconPlus } from '../components/common/Icons';
 
 const FlowPage: React.FC = () => {
@@ -20,6 +20,8 @@ const FlowPage: React.FC = () => {
   useEffect(() => {
     loadFlowFromBackend();
     loadCustomFlowSteps();
+    loadFlowStagesFromBackend('new');
+    loadFlowStagesFromBackend('old');
   }, []);
 
   const firstUndoneId = useMemo(() => {
@@ -264,6 +266,7 @@ const FlowPage: React.FC = () => {
 
         {selectedResource && (
           <KnowledgeModal
+            key={`${selectedResource.type}-${selectedResource.id}`}
             resource={selectedResource}
             onClose={() => setSelectedResource(null)}
           />
