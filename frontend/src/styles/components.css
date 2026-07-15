@@ -1536,11 +1536,26 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
+    position: relative;
+  }
+
+  .mobile-summary-cards::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 10px;
+    right: 10px;
+    background: #fff;
+    border-radius: 14px;
+    z-index: 0;
   }
 
   .mobile-summary-cards .metric-card {
     gap: 8px;
     padding: 10px;
+    position: relative;
+    z-index: 1;
   }
 
   .mobile-summary-cards .metric-card .iconbox {
