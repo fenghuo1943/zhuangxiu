@@ -748,26 +748,26 @@ const ExpensePage: React.FC = () => {
                                   <span className={`badge ${exp.status === 'paid' ? 'badge-success' : exp.status === 'unpaid' ? 'badge-danger' : 'badge-warning'}`}>
                                     {STATUS_LABELS[exp.status] || exp.status}
                                   </span>
+                                  <div className="expense-item-actions">
+                                    <button className="fresh-icon-btn" title="编辑" onClick={() => openEditModal(exp)}>
+                                      <IconEdit size={14} />
+                                    </button>
+                                    {deleteConfirm === exp.id ? (
+                                      <>
+                                        <button className="btn btn-sm" style={{ color: '#EF4444', fontSize: 11 }} onClick={() => handleDeleteWithUndo(exp)}>
+                                          确认
+                                        </button>
+                                        <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => setDeleteConfirm(null)}>
+                                          取消
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button className="fresh-icon-btn" title="删除" onClick={() => setDeleteConfirm(exp.id)}>
+                                        <IconTrash size={14} />
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="expense-item-actions">
-                                <button className="fresh-icon-btn" title="编辑" onClick={() => openEditModal(exp)}>
-                                  <IconEdit size={14} />
-                                </button>
-                                {deleteConfirm === exp.id ? (
-                                  <>
-                                    <button className="btn btn-sm" style={{ color: '#EF4444', fontSize: 11 }} onClick={() => handleDeleteWithUndo(exp)}>
-                                      确认
-                                    </button>
-                                    <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => setDeleteConfirm(null)}>
-                                      取消
-                                    </button>
-                                  </>
-                                ) : (
-                                  <button className="fresh-icon-btn" title="删除" onClick={() => setDeleteConfirm(exp.id)}>
-                                    <IconTrash size={14} />
-                                  </button>
-                                )}
                               </div>
                             </div>
                           ))}

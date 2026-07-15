@@ -3523,11 +3523,11 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .expense-item {
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: 6px;
   }
 
-  .expense-item-main { flex-direction: column; align-items: stretch; }
-  .expense-item-right { justify-content: space-between; }
+  .expense-item-main { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .expense-item-right { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-shrink: 0; }
 
   .fab { right: 16px; bottom: 80px; width: 48px; height: 48px; }
 
