@@ -3,9 +3,9 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import ImageExtension from '@tiptap/extension-image';
 import type { FlowResource, KnowledgeArticle } from '../../data/types';
-import { fetchArticle, createArticle, updateArticle, uploadImage } from '../../api/knowledge';
+import { fetchArticle, createArticle, updateArticle, deleteArticle, uploadImage } from '../../api/knowledge';
 import { isAuthenticated } from '../../api/client';
-import { IconX, IconEdit, IconCheck, IconImage, IconShield, IconStar, IconBook, IconAlert } from '../common/Icons';
+import { IconX, IconEdit, IconCheck, IconImage, IconShield, IconStar, IconBook, IconAlert, IconTrash } from '../common/Icons';
 
 interface KnowledgeModalProps {
   resource: FlowResource;
@@ -165,6 +165,17 @@ const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) =>
     }
   }, [article, editor, onClose, resource.title]);
 
+  const handleDelete = useCallback(async () => {
+    if (!confirm('确定要删除这篇文章吗？文章中的图片也会一并删除。')) return;
+    try {
+      await deleteArticle(resource.id);
+      setArticle(null);
+      onClose();
+    } catch (err: any) {
+      alert('删除失败: ' + (err.message || '未知错误'));
+    }
+  }, [resource.id, onClose]);
+
   // Lock body scroll
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -189,9 +200,14 @@ const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) =>
           </h3>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {mode === 'view' && isAuthenticated() && (
-              <button className="btn btn-outline btn-sm" onClick={switchToEdit}>
-                <IconEdit size={14} /> 编辑
-              </button>
+              <>
+                <button className="btn btn-outline btn-sm" onClick={switchToEdit}>
+                  <IconEdit size={14} /> 编辑
+                </button>
+                <button className="btn btn-outline btn-sm" onClick={handleDelete} style={{ color: 'var(--fresh-coral)', borderColor: 'var(--fresh-coral)' }}>
+                  <IconTrash size={14} /> 删除
+                </button>
+              </>
             )}
             <button className="icon-btn" onClick={onClose} aria-label="关闭">
               <IconX size={18} />

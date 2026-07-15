@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut, getAuthHeaders } from './client';
+import { apiGet, apiPost, apiPut, apiDelete, getAuthHeaders } from './client';
 import type { KnowledgeArticle } from '../data/types';
 
 const API_BASE = 'http://localhost:8003';
@@ -19,6 +19,10 @@ export async function updateArticle(
   data: { title?: string; content?: string },
 ): Promise<KnowledgeArticle> {
   return apiPut<KnowledgeArticle>(`/api/knowledge/${resourceId}`, data);
+}
+
+export async function deleteArticle(resourceId: number): Promise<void> {
+  return apiDelete(`/api/knowledge/${resourceId}`);
 }
 
 export async function uploadImage(file: File): Promise<{ url: string; filename: string }> {
