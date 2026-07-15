@@ -1415,15 +1415,15 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
   /* Budget mobile */
   .budget-summary-bar {
-    flex-direction: column;
-    gap: 10px;
+    flex-direction: row;
+    gap: 12px;
   }
   .budget-summary-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    display: block;
+    text-align: center;
   }
   .budget-summary-right b { font-size: 20px; }
+  .budget-remaining-label { display: none; }
 
   .budget-total-input-row { font-size: 11px; }
   .budget-total-input { width: 80px; font-size: 12px; }
