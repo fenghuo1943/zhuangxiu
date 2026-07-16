@@ -3,6 +3,7 @@ import AppShell from '../components/layout/AppShell';
 import {
   useStore, togglePurchaseRef, addCustomPurchaseItem,
   deletePurchaseRefItem, updatePurchaseRefQty, isItemPurchased,
+  togglePurchased, toggleModelSync, getBestQuotePrice,
 } from '../data/store';
 import type { PurchaseReferenceStage, PurchaseReferenceSubgroup, PurchaseReferenceItem } from '../data/types';
 
@@ -90,6 +91,9 @@ const PurchasePage: React.FC = () => {
   const [quickStage, setQuickStage] = useState('0_0');
   const [quickQty, setQuickQty] = useState('1');
 
+  // Shopping card
+  const [showPurchasedInCard, setShowPurchasedInCard] = useState(false);
+
   // Toast
   const [toastMsg, setToastMsg] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
@@ -138,6 +142,94 @@ const PurchasePage: React.FC = () => {
       sum + s.subs.reduce((ss, sub) => ss + sub.items.length, 0), 0
     );
   }, [filteredRefs, searchQuery]);
+
+  // ── Shopping list data ──
+  const shoppingItems = useMemo(() => {
+    const items: { itemId: string; name: string; spec?: string; qty: number; unit?: string; stageParent: string }[] = [];
+    state.purchaseReferences.forEach(stage => {
+      stage.subs.forEach(sub => {
+        sub.items.forEach(item => {
+          if (state.selectedPurchaseIds.includes(item.id)) {
+            items.push({
+              itemId: item.id,
+              name: item.name,
+              spec: item.spec,
+              qty: item.qty,
+              unit: item.unit,
+              stageParent: stage.parent,
+            });
+          }
+        });
+      });
+    });
+    return items;
+  }, [state.purchaseReferences, state.selectedPurchaseIds]);
+
+  const syncedPriceModels = useMemo(() => {
+    const models: { modelId: string; modelName: string; spec?: string; catName: string; price?: number; channel?: string; note?: string }[] = [];
+    state.priceCategories.forEach(cat => {
+      cat.models.forEach(model => {
+        if (state.syncedModelIds.includes(model.id)) {
+          const bestPrice = getBestQuotePrice(model.id);
+          const bestQuoteId = state.bestQuoteIds[model.id];
+          const bestQuote = bestQuoteId ? model.channelQuotes.find(q => q.id === bestQuoteId) : null;
+          models.push({
+            modelId: model.id,
+            modelName: model.name,
+            spec: model.spec,
+            catName: cat.name,
+            price: bestPrice ?? undefined,
+            channel: bestQuote?.channel,
+            note: model.note,
+          });
+        }
+      });
+    });
+    return models;
+  }, [state.priceCategories, state.syncedModelIds, state.bestQuoteIds]);
+
+  // Match synced models to shopping items by name (for price display)
+  const shoppingItemsWithPrice = useMemo(() => {
+    return shoppingItems.map(item => {
+      // Try to find a matching synced model by name
+      const match = syncedPriceModels.find(m =>
+        m.modelName === item.name ||
+        m.catName === item.name ||
+        m.modelName.includes(item.name) ||
+        item.name.includes(m.modelName)
+      );
+      return { ...item, matchedPrice: match?.price, matchedChannel: match?.channel, matchedModelId: match?.modelId };
+    });
+  }, [shoppingItems, syncedPriceModels]);
+
+  // Unmatched synced models (no corresponding shopping item)
+  const unmatchedSyncedModels = useMemo(() => {
+    return syncedPriceModels.filter(m =>
+      !shoppingItems.some(item =>
+        m.modelName === item.name ||
+        m.catName === item.name ||
+        m.modelName.includes(item.name) ||
+        item.name.includes(m.modelName)
+      )
+    );
+  }, [syncedPriceModels, shoppingItems]);
+
+  const totalEstimatedCost = useMemo(() => {
+    let total = 0;
+    shoppingItemsWithPrice.forEach(item => {
+      if (item.matchedPrice) {
+        total += item.matchedPrice * item.qty;
+      }
+    });
+    unmatchedSyncedModels.forEach(m => {
+      if (m.price) total += m.price;
+    });
+    return total;
+  }, [shoppingItemsWithPrice, unmatchedSyncedModels]);
+
+  const totalShoppingCount = shoppingItems.length + unmatchedSyncedModels.length;
+  const pendingShoppingCount = shoppingItems.filter(it => !isItemPurchased(it.itemId)).length;
+  const purchasedShoppingCount = shoppingItems.filter(it => isItemPurchased(it.itemId)).length;
 
   // ── Toggle functions ──
   const toggleParent = (pi: number) => {
@@ -282,7 +374,169 @@ const PurchasePage: React.FC = () => {
               <div className="purchase-summary-label">已选待购</div>
             </div>
           </div>
-          <a className="purchase-go-link" href="/">去首页查看待购清单 →</a>
+        </div>
+
+        {/* ── 待购清单卡片 ── */}
+        <div className="purchase-shopping-card">
+          <div className="purchase-shopping-hd">
+            <div className="purchase-shopping-hd-left">
+              <span className="purchase-shopping-icon">🛒</span>
+              <div>
+                <h2 className="purchase-shopping-title">我的待购清单</h2>
+                <span className="purchase-shopping-sub">
+                  {totalShoppingCount > 0
+                    ? `${pendingShoppingCount} 待购 / ${purchasedShoppingCount} 已购`
+                    : '暂无待购物品'}
+                </span>
+              </div>
+            </div>
+            <div className="purchase-shopping-hd-right">
+              {totalEstimatedCost > 0 && (
+                <span className="purchase-shopping-total">
+                  预估总计 <strong>¥{totalEstimatedCost.toLocaleString()}</strong>
+                </span>
+              )}
+              <a href="/compare" className="purchase-shopping-link">去比价 →</a>
+            </div>
+          </div>
+
+          <div className="purchase-shopping-bd">
+            {totalShoppingCount === 0 ? (
+              <div style={{ textAlign: 'center', color: '#999', padding: '20px 0' }}>
+                <div style={{ fontSize: 32, marginBottom: 6 }}>📋</div>
+                <div style={{ fontSize: 13 }}>在下方采购参考库中勾选物品，即可加入待购清单</div>
+              </div>
+            ) : (
+              <>
+                {/* Selected items from purchase references */}
+                {shoppingItems.length > 0 && (
+                  <div className="purchase-shopping-section">
+                    {(() => {
+                      // Group by stage
+                      const grouped = new Map<string, typeof shoppingItemsWithPrice>();
+                      const displayItems = showPurchasedInCard
+                        ? shoppingItemsWithPrice
+                        : shoppingItemsWithPrice.filter(it => !isItemPurchased(it.itemId));
+                      displayItems.forEach(item => {
+                        const list = grouped.get(item.stageParent) || [];
+                        list.push(item);
+                        grouped.set(item.stageParent, list);
+                      });
+                      if (displayItems.length === 0 && !showPurchasedInCard) {
+                        return (
+                          <div style={{ textAlign: 'center', padding: '8px 0', fontSize: 12, color: '#999' }}>
+                            🎉 全部已购！
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              style={{ marginLeft: 8 }}
+                              onClick={() => setShowPurchasedInCard(true)}
+                            >查看已购</button>
+                          </div>
+                        );
+                      }
+                      return Array.from(grouped.entries()).map(([stageName, items]) => (
+                        <div key={stageName} className="purchase-shopping-group">
+                          <div className="purchase-shopping-group-label">{stageName}</div>
+                          {items.map(item => {
+                            const purchased = isItemPurchased(item.itemId);
+                            return (
+                              <div key={item.itemId} className={`purchase-shopping-row${purchased ? ' purchased' : ''}`}>
+                                <div className="purchase-shopping-row-info">
+                                  <span className="purchase-shopping-row-name">
+                                    {purchased && <span style={{ color: '#48bb78', marginRight: 4 }}>✓</span>}
+                                    {item.name}
+                                  </span>
+                                  {item.spec && <span className="purchase-shopping-row-spec">{item.spec}</span>}
+                                  <span className="purchase-shopping-row-qty">×{item.qty}{item.unit || '个'}</span>
+                                  {item.matchedPrice && (
+                                    <span className="purchase-shopping-row-price">
+                                      ¥{item.matchedPrice.toLocaleString()}
+                                      {item.matchedChannel && <span className="purchase-shopping-row-channel"> ({item.matchedChannel})</span>}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="purchase-shopping-row-actions">
+                                  {!purchased && (
+                                    <button
+                                      className="fresh-icon-btn"
+                                      title="标记已购买"
+                                      onClick={() => {
+                                        togglePurchased(item.itemId);
+                                        showToast('已标记为购买');
+                                      }}
+                                    >
+                                      <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                                    </button>
+                                  )}
+                                  <button
+                                    className="fresh-icon-btn"
+                                    title="移出清单"
+                                    onClick={() => handleToggle(item.itemId)}
+                                  >
+                                    <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ));
+                    })()}
+                    {/* Toggle purchased visibility */}
+                    {shoppingItemsWithPrice.some(it => isItemPurchased(it.itemId)) && shoppingItemsWithPrice.some(it => !isItemPurchased(it.itemId)) && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{ marginTop: 6, fontSize: 11 }}
+                        onClick={() => setShowPurchasedInCard(!showPurchasedInCard)}
+                      >
+                        {showPurchasedInCard ? '隐藏' : '查看'}已购物品
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Unmatched synced models from compare page */}
+                {unmatchedSyncedModels.length > 0 && (
+                  <div className="purchase-shopping-section">
+                    <div className="purchase-shopping-group-label" style={{ color: '#5c7fa8' }}>
+                      📊 来自比价同步
+                    </div>
+                    {unmatchedSyncedModels.map(m => (
+                      <div key={m.modelId} className="purchase-shopping-row">
+                        <div className="purchase-shopping-row-info">
+                          <span className="purchase-shopping-row-name">
+                            <span style={{ color: '#5c7fa8', marginRight: 4 }}>⚡</span>
+                            {m.modelName}
+                          </span>
+                          {m.spec && <span className="purchase-shopping-row-spec">{m.spec}</span>}
+                          <span className="purchase-shopping-row-cat" style={{ fontSize: 11, color: '#999', background: '#f0f0f0', padding: '1px 6px', borderRadius: 3 }}>
+                            {m.catName}
+                          </span>
+                          {m.price && (
+                            <span className="purchase-shopping-row-price">
+                              ¥{m.price.toLocaleString()}
+                              {m.channel && <span className="purchase-shopping-row-channel"> ({m.channel})</span>}
+                            </span>
+                          )}
+                        </div>
+                        <div className="purchase-shopping-row-actions">
+                          <button
+                            className="fresh-icon-btn"
+                            title="取消同步"
+                            onClick={() => toggleModelSync(m.modelId)}
+                          >
+                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* ── Search ── */}
