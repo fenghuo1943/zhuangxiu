@@ -47,6 +47,19 @@ const FlowPage: React.FC = () => {
     setExpandedIds(new Set([firstUndoneId]));
   }, [state.flowType, firstUndoneId]);
 
+  // Auto-scroll to current (first undone) stage on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollToStep(firstUndoneId);
+      // Also scroll sidebar active chip into view
+      const activeChip = document.querySelector('.stage-chip.active');
+      if (activeChip) {
+        activeChip.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [firstUndoneId]);
+
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds(prev => {
       const next = new Set(prev);

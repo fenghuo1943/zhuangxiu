@@ -7,33 +7,12 @@ import type { FlowResource, KnowledgeArticle } from '../../data/types';
 import { fetchArticle, createArticle, updateArticle, deleteArticle, uploadImage } from '../../api/knowledge';
 import { isAuthenticated } from '../../api/client';
 import { useAuth } from '../../api/useAuth';
-import { IconX, IconEdit, IconCheck, IconImage, IconShield, IconStar, IconBook, IconAlert, IconTrash } from '../common/Icons';
+import { IconX, IconEdit, IconCheck, IconImage, IconTrash } from '../common/Icons';
 
 interface KnowledgeModalProps {
   resource: FlowResource;
   onClose: () => void;
 }
-
-const resourceLabel: Record<string, string> = {
-  standard: '施工标准',
-  acceptance: '验收标准',
-  article: '攻略文章',
-  pitfall: '避坑指南',
-};
-
-const resourceBadgeClass: Record<string, string> = {
-  standard: 'badge-success',
-  acceptance: 'badge-info',
-  article: 'badge-warning',
-  pitfall: 'badge-danger',
-};
-
-const resourceIcon: Record<string, React.ReactNode> = {
-  standard: <IconBook size={14} />,
-  acceptance: <IconShield size={14} />,
-  article: <IconStar size={14} />,
-  pitfall: <IconAlert size={14} />,
-};
 
 const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) => {
   const { user } = useAuth();
@@ -215,19 +194,12 @@ const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) =>
 
   if (!editor) return null;
 
-  const badgeClass = resourceBadgeClass[resource.type] || 'badge-default';
-
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal knowledge-editor-modal" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="modal-header">
-          <h3>
-            <span className={`badge ${badgeClass}`} style={{ marginRight: 8 }}>
-              {resourceIcon[resource.type]} {resourceLabel[resource.type] || resource.type}
-            </span>
-            {article?.title || title || resource.title}
-          </h3>
+          <h3>{article?.title || title || resource.title}</h3>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {mode === 'view' && isAdmin && (
               <>
