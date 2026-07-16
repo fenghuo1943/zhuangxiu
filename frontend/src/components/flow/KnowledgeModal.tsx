@@ -23,7 +23,21 @@ const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) =>
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
 
   const editor = useEditor({
     extensions: [
@@ -203,12 +217,29 @@ const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) =>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {mode === 'view' && isAdmin && (
               <>
-                <button className="btn btn-outline btn-sm" onClick={switchToEdit}>
+                {/* Desktop: inline buttons */}
+                <button className="btn btn-outline btn-sm knowledge-action-inline" onClick={switchToEdit}>
                   <IconEdit size={14} /> 编辑
                 </button>
-                <button className="btn btn-outline btn-sm" onClick={handleDelete} style={{ color: 'var(--fresh-coral)', borderColor: 'var(--fresh-coral)' }}>
+                <button className="btn btn-outline btn-sm knowledge-action-inline" onClick={handleDelete} style={{ color: 'var(--fresh-coral)', borderColor: 'var(--fresh-coral)' }}>
                   <IconTrash size={14} /> 删除
                 </button>
+                {/* Mobile: three-dots menu */}
+                <div className="knowledge-action-menu" ref={menuRef}>
+                  <button className="icon-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="更多操作">
+                    ⋯
+                  </button>
+                  {menuOpen && (
+                    <div className="knowledge-action-dropdown">
+                      <button onClick={() => { setMenuOpen(false); switchToEdit(); }}>
+                        <IconEdit size={14} /> 编辑
+                      </button>
+                      <button onClick={() => { setMenuOpen(false); handleDelete(); }} className="danger">
+                        <IconTrash size={14} /> 删除
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             )}
             {mode === 'view' && isAuthenticated() && !isAdmin && (

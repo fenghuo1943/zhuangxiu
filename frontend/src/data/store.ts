@@ -36,7 +36,7 @@ function getInitialState(): AppState {
       const parsed = JSON.parse(saved);
       // Ensure backward compatibility
       return {
-        projects: parsed.projects || [{ id: 'p1', name: '新家装修', ownerName: '我', createdAt: new Date().toISOString(), currentStageId: 'design' }],
+        projects: parsed.projects || [{ id: 'p1', name: '新家装修', ownerName: '我', createdAt: new Date().toISOString(), currentStageId: 'stage_prepare' }],
         activeProjectId: parsed.activeProjectId || 'p1',
         stages: parsed.stages || DEFAULT_STAGES,
         budget: parsed.budget || { total: 0, spent: 0, categories: DEFAULT_BUDGET_CATEGORIES.map(c => ({ ...c, allocated: 0, spent: 0 })) },
@@ -64,7 +64,7 @@ function getInitialState(): AppState {
   }
 
   return {
-    projects: [{ id: 'p1', name: '新家装修', ownerName: '我', createdAt: new Date().toISOString(), currentStageId: 'design' }],
+    projects: [{ id: 'p1', name: '新家装修', ownerName: '我', createdAt: new Date().toISOString(), currentStageId: 'stage_prepare' }],
     activeProjectId: 'p1',
     stages: DEFAULT_STAGES,
     budget: { total: 0, spent: 0, categories: DEFAULT_BUDGET_CATEGORIES.map(c => ({ ...c, allocated: 0, spent: 0 })) },
@@ -1155,7 +1155,7 @@ export function addProject(name: string) {
     name,
     ownerName: '我',
     createdAt: new Date().toISOString(),
-    currentStageId: 'design',
+    currentStageId: 'stage_prepare',
   };
   globalState = {
     ...globalState,

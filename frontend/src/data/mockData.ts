@@ -1,28 +1,15 @@
 import type { Stage, BudgetCategory, FlowStep, ExpenseSubCategory, ExpenseGroup } from './types';
 
 export const DEFAULT_STAGES: Stage[] = [
-  { id: 'design', name: '设计与开工准备', order: 1, description: '收房验房、量房设计、物业报备', totalTasks: 3, completedTasks: 0 },
-  { id: 'demolish', name: '墙体拆改', order: 2, description: '非承重墙拆除、门洞调整', totalTasks: 2, completedTasks: 0 },
-  { id: 'wall-new', name: '新建墙体', order: 3, description: '定位放线、植筋拉结、顶部斜砌', totalTasks: 2, completedTasks: 0 },
-  { id: 'window', name: '门窗封装施工', order: 4, description: '断桥铝门窗安装、打胶密封', totalTasks: 2, completedTasks: 0 },
-  { id: 'electric', name: '水电改造', order: 5, description: '水电定位、开槽布管、打压测试', totalTasks: 4, completedTasks: 0 },
-  { id: 'pipe-sound', name: '管道隔音施工', order: 6, description: '隔音棉包裹、扎带固定', totalTasks: 2, completedTasks: 0 },
-  { id: 'waterproof', name: '防水施工', order: 7, description: '卫生间防水、闭水试验', totalTasks: 3, completedTasks: 0 },
-  { id: 'tile', name: '墙地砖铺贴', order: 8, description: '地面找平、瓷砖铺贴、空鼓检查', totalTasks: 3, completedTasks: 0 },
-  { id: 'grout', name: '瓷砖美缝', order: 9, description: '清缝打胶、环氧彩砂', totalTasks: 1, completedTasks: 0 },
-  { id: 'protect', name: '成品保护', order: 10, description: '地膜铺贴、接缝胶带固定', totalTasks: 1, completedTasks: 0 },
-  { id: 'ceiling', name: '木工吊顶', order: 11, description: '轻钢龙骨、石膏板安装', totalTasks: 2, completedTasks: 0 },
-  { id: 'wall-base', name: '墙面基层处理', order: 12, description: '界面剂、刮腻子、砂纸打磨', totalTasks: 2, completedTasks: 0 },
-  { id: 'paint', name: '墙面涂饰', order: 13, description: '底漆封闭、面漆涂刷', totalTasks: 2, completedTasks: 0 },
-  { id: 'door', name: '室内门安装', order: 14, description: '门套安装、发泡胶填充', totalTasks: 2, completedTasks: 0 },
-  { id: 'kitchen', name: '厨房电器安装', order: 15, description: '烟灶安装、止逆阀检查', totalTasks: 1, completedTasks: 0 },
-  { id: 'custom', name: '全屋定制安装', order: 16, description: '柜体安装、门板调试', totalTasks: 1, completedTasks: 0 },
-  { id: 'baseboard', name: '踢脚线安装', order: 17, description: '踢脚线粘贴、拐角拼接', totalTasks: 1, completedTasks: 0 },
-  { id: 'light', name: '灯具及开关安装', order: 18, description: '灯具安装、开关面板', totalTasks: 1, completedTasks: 0 },
-  { id: 'bath', name: '卫浴洁具安装', order: 19, description: '马桶、浴室柜、花洒安装', totalTasks: 1, completedTasks: 0 },
-  { id: 'clean', name: '开荒保洁', order: 20, description: '铲刀清理、玻璃清洁', totalTasks: 1, completedTasks: 0 },
-  { id: 'curtain', name: '窗帘安装', order: 21, description: '轨道安装、窗帘挂装', totalTasks: 1, completedTasks: 0 },
-  { id: 'furniture', name: '家具软装进场', order: 22, description: '大件家具、软装布置', totalTasks: 1, completedTasks: 0 },
+  { id: 'stage_prepare', name: '准备', order: 1, description: '收房验房、量房设计、物业报备等开工前准备工作', totalTasks: 3, completedTasks: 0 },
+  { id: 'stage_demolition', name: '拆改', order: 2, description: '墙体拆除、新建、门窗封装等结构改造', totalTasks: 3, completedTasks: 0 },
+  { id: 'stage_water', name: '水电', order: 3, description: '水电定位、开槽布管、打压测试、防水施工', totalTasks: 4, completedTasks: 0 },
+  { id: 'stage_masonry', name: '瓦工', order: 4, description: '墙地砖铺贴、美缝、地面找平', totalTasks: 3, completedTasks: 0 },
+  { id: 'stage_wood', name: '木工', order: 5, description: '吊顶、全屋定制、室内门安装', totalTasks: 3, completedTasks: 0 },
+  { id: 'stage_paint', name: '油漆', order: 6, description: '墙面基层处理、底漆面漆涂刷', totalTasks: 2, completedTasks: 0 },
+  { id: 'stage_install', name: '安装', order: 7, description: '灯具、开关、卫浴洁具、厨电、踢脚线安装', totalTasks: 3, completedTasks: 0 },
+  { id: 'unit_vendor', name: '采购', order: 8, description: '建材、家电、家具等采购事项', totalTasks: 2, completedTasks: 0 },
+  { id: 'custom', name: '其他', order: 9, description: '开荒保洁、软装进场等其他事项', totalTasks: 2, completedTasks: 0 },
 ];
 
 export const DEFAULT_BUDGET_CATEGORIES: BudgetCategory[] = [

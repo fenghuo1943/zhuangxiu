@@ -1,11 +1,13 @@
 /* ==================== Navbar ==================== */
 .fresh-navbar {
-  position: sticky;
-  top: 12px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 1000;
   width: min(1320px, calc(100% - 32px));
   min-height: 58px;
-  margin: 12px auto 4px;
+  margin: 0 auto;
   padding: 8px 12px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -2255,6 +2257,58 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 /* ===== Knowledge Editor Modal ===== */
 .knowledge-editor-modal {
   width: min(800px, 100%) !important;
+}
+
+/* Desktop: inline action buttons, hide three-dots */
+.knowledge-action-menu { display: none; }
+.knowledge-action-inline { display: inline-flex; }
+
+@media (max-width: 767px) {
+  /* Mobile: hide inline buttons, show three-dots menu */
+  .knowledge-action-inline { display: none !important; }
+  .knowledge-action-menu { display: block; position: relative; }
+
+  .knowledge-action-dropdown {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 4px;
+    background: #fff;
+    border: 1px solid var(--fresh-line);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(55, 42, 31, .12);
+    padding: 4px;
+    z-index: 10;
+    min-width: 100px;
+  }
+
+  .knowledge-action-dropdown button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    color: var(--fresh-text);
+    white-space: nowrap;
+  }
+
+  .knowledge-action-dropdown button:hover {
+    background: #f5f0eb;
+  }
+
+  .knowledge-action-dropdown button.danger {
+    color: var(--fresh-coral);
+  }
+
+  .knowledge-action-dropdown button.danger:hover {
+    background: #fef2f2;
+  }
 }
 
 .tiptap-editor-wrapper {

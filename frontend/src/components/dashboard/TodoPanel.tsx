@@ -10,7 +10,7 @@ export const TodoPanel: React.FC = () => {
   const state = useStore();
   const [mode, setMode] = useState<TodoMode>('detailed');
   const [newTitle, setNewTitle] = useState('');
-  const [newStageId, setNewStageId] = useState('design');
+  const [newStageId, setNewStageId] = useState('stage_prepare');
   const [newDueDate, setNewDueDate] = useState('');
 
   const projectTodos = state.todos.filter(t => t.projectId === state.activeProjectId);
