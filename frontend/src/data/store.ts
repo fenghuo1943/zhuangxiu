@@ -519,13 +519,11 @@ export function addPurchaseToCompare(item: {
   stageParent: string;
   qty: number;
 }) {
-  // Optimistic local: find or create category, create model
-  let cat = globalState.priceCategories.find(c => c.name === item.stageParent);
+  // The purchase item becomes a PriceCategory — user adds models manually
+  let cat = globalState.priceCategories.find(c => c.name === item.name);
   if (!cat) {
-    cat = addPriceCategory(item.stageParent, '📦');
-    cat = globalState.priceCategories.find(c => c.name === item.stageParent)!;
+    cat = addPriceCategory(item.name, '📦');
   }
-  addPriceModel(cat.id, item.name, item.spec || '', '', item.qty);
 
   // Sync to backend
   if (isAuthenticated()) {

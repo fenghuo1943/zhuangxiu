@@ -45,10 +45,10 @@ export async function togglePurchasedItem(
   return apiPut(`/api/projects/${projectId}/purchase/purchased/${itemId}`);
 }
 
-/** Create a PriceModel from a purchase item (add to compare system) */
+/** Create a PriceCategory from a purchase item (item becomes 品类, user adds 型号 manually) */
 export async function addPurchaseToCompareApi(
   projectId: string,
   data: { item_id: string; item_name: string; spec?: string; category_name: string; quantity: number },
-): Promise<{ category_id: string; model_id: string; name: string }> {
+): Promise<{ category_id: string; name: string }> {
   return apiPost(`/api/projects/${projectId}/purchase/add-to-compare`, data);
 }

@@ -153,23 +153,13 @@ async def add_purchase_to_compare(project_id: str, data: AddToCompareRequest, us
     if not proj.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="项目不存在")
 
-    # Find or create PriceCategory matching the stage parent name
-    cat_result = await db.execute(select(PriceCategory).where(PriceCategory.project_id == project_id, PriceCategory.name == data.category_name))
+    # Use the item name as the PriceCategory name
+    cat_result = await db.execute(select(PriceCategory).where(PriceCategory.project_id == project_id, PriceCategory.name == data.item_name))
     cat = cat_result.scalar_one_or_none()
     if not cat:
-        cat = PriceCategory(id=f"pc_{uuid.uuid4().hex[:12]}", project_id=project_id, name=data.category_name, icon="📦")
+        cat = PriceCategory(id=f"pc_{uuid.uuid4().hex[:12]}", project_id=project_id, name=data.item_name, icon="📦")
         db.add(cat)
-        await db.flush()
+        await db.commit()
+        await db.refresh(cat)
 
-    # Create PriceModel
-    model = PriceModel(
-        id=f"pm_{uuid.uuid4().hex[:12]}",
-        category_id=cat.id,
-        name=data.item_name,
-        spec=data.spec or "",
-        quantity=data.quantity,
-    )
-    db.add(model)
-    await db.commit()
-    await db.refresh(model)
-    return {"category_id": cat.id, "model_id": model.id, "name": model.name}
+    return {"category_id": cat.id, "name": cat.name}
