@@ -15,6 +15,7 @@ const FlowPage: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newStage, setNewStage] = useState({ title: '', days: '', desc: '' });
   const [selectedResource, setSelectedResource] = useState<FlowResource | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Load flow data from backend on mount
   useEffect(() => {
@@ -103,8 +104,18 @@ const FlowPage: React.FC = () => {
 
         <div className="flow-layout">
           {/* Left: Stage Navigation */}
-          <aside className="flow-aside">
-            <div className="aside-title">流程阶段</div>
+          <aside className={`flow-aside ${sidebarOpen ? 'open' : 'collapsed'}`}>
+            <div className="aside-title">
+              <span>流程阶段</span>
+              <button
+                type="button"
+                className="aside-toggle"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                aria-label={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}
+              >
+                {sidebarOpen ? '收起' : '展开'}
+              </button>
+            </div>
             <div className="flow-bulk-actions">
               <button type="button" onClick={expandAll}>全部展开</button>
               <button type="button" onClick={collapseAll}>全部折叠</button>

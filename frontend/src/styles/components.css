@@ -1811,11 +1811,48 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   top: 90px;
 }
 
+/* Mobile: collapse support */
+@media (max-width: 767px) {
+  .flow-aside.collapsed .flow-bulk-actions,
+  .flow-aside.collapsed .stage-list {
+    display: none;
+  }
+}
+
+/* Desktop: always show, hide toggle button */
+@media (min-width: 768px) {
+  .flow-aside .flow-bulk-actions,
+  .flow-aside .stage-list {
+    display: flex !important;
+  }
+  .aside-toggle { display: none !important; }
+}
+
 .aside-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 13px;
   font-weight: 700;
   color: var(--fresh-muted);
   margin-bottom: 8px;
+}
+
+.aside-toggle {
+  display: none;
+  padding: 3px 10px;
+  border: 1px solid var(--fresh-line);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--fresh-subtle);
+  transition: all .15s;
+}
+.aside-toggle:hover {
+  border-color: var(--fresh-coral);
+  color: var(--fresh-coral);
 }
 
 .flow-bulk-actions {
@@ -3801,9 +3838,9 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 @media (max-width: 1120px) {
   .flow-layout { grid-template-columns: 1fr; }
-  .flow-aside { position: static; }
-  .stage-list { flex-direction: row; flex-wrap: wrap; max-height: none; }
-  .stage-chip { width: auto; }
+  .flow-aside { position: static; min-width: 0; overflow: hidden; }
+  .stage-list { flex-direction: column; max-height: none; }
+  .stage-chip { width: 100%; }
 
   .expense-summary-row {
     grid-template-columns: 1fr 1fr 1fr;
@@ -3835,8 +3872,10 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .flow-stat-value.current { font-size: 12px; }
   .flow-stat-bar { display: none; }
 
-  .stage-list { display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding-bottom: 4px; max-height: none; }
-  .stage-chip { flex-shrink: 0; font-size: 11px; padding: 7px 10px; width: auto; white-space: nowrap; }
+  .aside-toggle { display: inline-block; }
+  .flow-aside { min-width: 0; overflow: hidden; }
+  .stage-list { display: flex; flex-direction: column; gap: 4px; max-height: none; }
+  .stage-chip { flex-shrink: 0; font-size: 12px; padding: 9px 10px; width: 100%; white-space: nowrap; }
 
   .flow-resource-grid { grid-template-columns: 1fr; }
   .flow-step-header { padding: 12px 14px; }
