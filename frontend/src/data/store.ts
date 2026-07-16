@@ -716,6 +716,18 @@ export function deletePriceModel(categoryId: string, modelId: string) {
   persist();
 }
 
+export function updatePriceModel(modelId: string, updates: { name?: string; spec?: string; note?: string }) {
+  const priceCategories = globalState.priceCategories.map(c => ({
+    ...c,
+    models: c.models.map(m =>
+      m.id === modelId ? { ...m, ...updates } : m
+    ),
+  }));
+  globalState = { ...globalState, priceCategories };
+  notify();
+  persist();
+}
+
 export function addChannelQuote(modelId: string, channel: string, price?: number, url?: string) {
   const quote: ChannelQuote = {
     id: `ch_${Date.now()}`,

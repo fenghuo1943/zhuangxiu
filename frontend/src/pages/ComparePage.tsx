@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import AppShell from '../components/layout/AppShell';
 import {
   useStore, addPriceCategory, deletePriceCategory,
-  addPriceModel, deletePriceModel,
+  addPriceModel, deletePriceModel, updatePriceModel,
   deleteChannelQuote, getTotalChannelCount,
   toggleModelSync, isModelSynced,
 } from '../data/store';
 import {
   IconCompare, IconPlus, IconTrash, IconChevronDown,
-  IconSearch, IconX, IconDownload, IconUpload,
+  IconSearch, IconX, IconEdit, IconDownload, IconUpload,
 } from '../components/common/Icons';
 
 const ComparePage: React.FC = () => {
@@ -16,13 +16,18 @@ const ComparePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [newCatName, setNewCatName] = useState('');
-  const [newCatIcon, setNewCatIcon] = useState('📦');
 
   // Add model state per category
   const [addingModelFor, setAddingModelFor] = useState<string | null>(null);
   const [newModelName, setNewModelName] = useState('');
   const [newModelSpec, setNewModelSpec] = useState('');
   const [newModelNote, setNewModelNote] = useState('');
+
+  // Edit model state
+  const [editingModelId, setEditingModelId] = useState<string | null>(null);
+  const [editModelName, setEditModelName] = useState('');
+  const [editModelSpec, setEditModelSpec] = useState('');
+  const [editModelNote, setEditModelNote] = useState('');
 
   const pc = state.priceCategories;
   const filteredCategories = searchQuery.trim()
@@ -44,8 +49,8 @@ const ComparePage: React.FC = () => {
 
   const handleAddCategory = () => {
     if (!newCatName.trim()) return;
-    addPriceCategory(newCatName.trim(), newCatIcon);
-    setNewCatName(''); setNewCatIcon('📦');
+    addPriceCategory(newCatName.trim());
+    setNewCatName('');
   };
 
   const handleAddModel = (catId: string) => {
@@ -53,6 +58,23 @@ const ComparePage: React.FC = () => {
     addPriceModel(catId, newModelName.trim(), newModelSpec.trim(), newModelNote.trim(), 1);
     setNewModelName(''); setNewModelSpec(''); setNewModelNote('');
     setAddingModelFor(null);
+  };
+
+  const startEditModel = (model: { id: string; name: string; spec?: string; note?: string }) => {
+    setEditingModelId(model.id);
+    setEditModelName(model.name);
+    setEditModelSpec(model.spec || '');
+    setEditModelNote(model.note || '');
+  };
+
+  const handleEditModel = () => {
+    if (!editModelName.trim() || !editingModelId) return;
+    updatePriceModel(editingModelId, {
+      name: editModelName.trim(),
+      spec: editModelSpec.trim(),
+      note: editModelNote.trim(),
+    });
+    setEditingModelId(null);
   };
 
   // CSV export
@@ -181,13 +203,8 @@ const ComparePage: React.FC = () => {
             value={newCatName}
             onChange={e => setNewCatName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
-            style={{ width: 200 }}
+            style={{ width: 260 }}
           />
-          <select className="input" value={newCatIcon} onChange={e => setNewCatIcon(e.target.value)} style={{ width: 60 }}>
-            {['📦', '🔧', '🪑', '💡', '🚿', '🪟', '🛋️', '🏠'].map(icon => (
-              <option key={icon} value={icon}>{icon}</option>
-            ))}
-          </select>
           <button className="btn btn-primary btn-sm" onClick={handleAddCategory} disabled={!newCatName.trim()}>
             <IconPlus size={14} /> 添加品类
           </button>
@@ -233,7 +250,6 @@ const ComparePage: React.FC = () => {
                     aria-expanded={isOpen}
                   >
                     <div className="compare-cat-header-left">
-                      <span className="compare-cat-icon">{cat.icon || '📦'}</span>
                       <strong>{cat.name}</strong>
                       <span className="badge badge-default">{cat.models.length} 个型号</span>
                     </div>
@@ -256,11 +272,28 @@ const ComparePage: React.FC = () => {
                       {/* Models */}
                       {cat.models.map(model => (
                         <div key={model.id} className="compare-model-row">
-                          <div className="compare-model-info">
-                            <span className="compare-model-name">{model.name}</span>
-                            {model.spec && <span className="compare-model-spec">{model.spec}</span>}
-                            {model.note && <span className="compare-model-note">{model.note}</span>}
-                          </div>
+                          {editingModelId === model.id ? (
+                            <div className="compare-model-info">
+                              <input className="input" value={editModelName}
+                                onChange={e => setEditModelName(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleEditModel()}
+                                style={{ width: 100, fontSize: 12, padding: '2px 6px' }} />
+                              <input className="input" placeholder="规格" value={editModelSpec}
+                                onChange={e => setEditModelSpec(e.target.value)}
+                                style={{ width: 80, fontSize: 12, padding: '2px 6px' }} />
+                              <input className="input" placeholder="备注" value={editModelNote}
+                                onChange={e => setEditModelNote(e.target.value)}
+                                style={{ width: 80, fontSize: 12, padding: '2px 6px' }} />
+                              <button className="btn btn-primary btn-sm" onClick={handleEditModel} style={{ fontSize: 10 }}>确定</button>
+                              <button className="btn btn-ghost btn-sm" onClick={() => setEditingModelId(null)} style={{ fontSize: 10 }}>取消</button>
+                            </div>
+                          ) : (
+                            <div className="compare-model-info">
+                              <span className="compare-model-name">{model.name}</span>
+                              {model.spec && <span className="compare-model-spec">{model.spec}</span>}
+                              {model.note && <span className="compare-model-note">{model.note}</span>}
+                            </div>
+                          )}
                           <div className="compare-model-quotes">
                             {model.channelQuotes.map(quote => (
                               <div key={quote.id} className="compare-quote-chip">
@@ -285,6 +318,9 @@ const ComparePage: React.FC = () => {
                             style={{ flexShrink: 0, fontSize: 11 }}
                           >
                             {isModelSynced(model.id) ? '✓ 已同步' : '同步到待购'}
+                          </button>
+                          <button className="fresh-icon-btn" onClick={() => startEditModel(model)} title="编辑型号" style={{ flexShrink: 0 }}>
+                            <IconEdit size={13} />
                           </button>
                           <button className="fresh-icon-btn" onClick={() => deletePriceModel(cat.id, model.id)} title="删除型号" style={{ flexShrink: 0 }}>
                             <IconTrash size={13} />

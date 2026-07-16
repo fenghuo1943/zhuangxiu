@@ -3718,10 +3718,10 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 .compare-model-row:last-child { border-bottom: none; }
 
-.compare-model-info { flex: 0 0 180px; min-width: 0; }
-.compare-model-name { display: block; font-size: 13px; font-weight: 650; color: var(--fresh-text); }
-.compare-model-spec { display: block; font-size: 11px; color: var(--fresh-subtle); }
-.compare-model-note { display: block; font-size: 11px; color: var(--fresh-muted); font-style: italic; }
+.compare-model-info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.compare-model-name { font-size: 13px; font-weight: 650; color: var(--fresh-text); white-space: nowrap; }
+.compare-model-spec { font-size: 11px; color: var(--fresh-subtle); white-space: nowrap; }
+.compare-model-note { font-size: 11px; color: var(--fresh-muted); font-style: italic; white-space: nowrap; }
 .compare-model-qty { display: inline-block; font-size: 11px; color: var(--fresh-subtle); margin-top: 3px; background: #f5f5f5; padding: 1px 6px; border-radius: 4px; }
 
 .compare-model-quotes { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
