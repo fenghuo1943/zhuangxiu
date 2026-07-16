@@ -3,7 +3,8 @@ import AppShell from '../components/layout/AppShell';
 import {
   useStore, addPriceCategory, deletePriceCategory,
   addPriceModel, deletePriceModel, updatePriceModel,
-  addChannelQuote, deleteChannelQuote, getTotalChannelCount,
+  addChannelQuote, deleteChannelQuote, updateChannelQuote,
+  selectBestQuote, getBestQuotePrice, getTotalChannelCount,
   toggleModelSync, isModelSynced,
 } from '../data/store';
 import {
@@ -36,6 +37,12 @@ const ComparePage: React.FC = () => {
   const [newQuoteChannel, setNewQuoteChannel] = useState('');
   const [newQuotePrice, setNewQuotePrice] = useState('');
   const [newQuoteNote, setNewQuoteNote] = useState('');
+
+  // Edit quote state
+  const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
+  const [editQuoteChannel, setEditQuoteChannel] = useState('');
+  const [editQuotePrice, setEditQuotePrice] = useState('');
+  const [editQuoteNote, setEditQuoteNote] = useState('');
 
   const pc = state.priceCategories;
   const filteredCategories = searchQuery.trim()
@@ -93,14 +100,26 @@ const ComparePage: React.FC = () => {
     });
   };
 
-  const getLowestPrice = (model: { channelQuotes: { price?: number }[] }): number | null => {
-    const prices = model.channelQuotes.map(q => q.price).filter((p): p is number => p !== undefined && p !== null);
-    return prices.length > 0 ? Math.min(...prices) : null;
+  const startEditQuote = (quote: { id: string; channel: string; price?: number; note?: string }) => {
+    setEditingQuoteId(quote.id);
+    setEditQuoteChannel(quote.channel);
+    setEditQuotePrice(quote.price?.toString() || '');
+    setEditQuoteNote(quote.note || '');
+  };
+
+  const handleEditQuote = () => {
+    if (!editingQuoteId || !editQuoteChannel.trim()) return;
+    updateChannelQuote(editingQuoteId, {
+      channel: editQuoteChannel.trim(),
+      price: editQuotePrice ? parseFloat(editQuotePrice) : undefined,
+      note: editQuoteNote.trim() || undefined,
+    });
+    setEditingQuoteId(null);
   };
 
   const handleAddQuote = (modelId: string) => {
     if (!newQuoteChannel.trim()) return;
-    addChannelQuote(modelId, newQuoteChannel.trim(), newQuotePrice ? parseFloat(newQuotePrice) : undefined);
+    addChannelQuote(modelId, newQuoteChannel.trim(), newQuotePrice ? parseFloat(newQuotePrice) : undefined, newQuoteNote.trim() || undefined);
     setNewQuoteChannel(''); setNewQuotePrice(''); setNewQuoteNote('');
     setAddingQuoteFor(null);
   };
@@ -300,7 +319,7 @@ const ComparePage: React.FC = () => {
                       {/* Models */}
                       {cat.models.map(model => {
                         const quotesOpen = expandedQuotes.has(model.id);
-                        const lowest = getLowestPrice(model);
+                        const bestPrice = getBestQuotePrice(model.id);
                         return (
                         <div key={model.id} className="compare-prod-card">
                           {/* Model header – click to expand quotes */}
@@ -331,8 +350,8 @@ const ComparePage: React.FC = () => {
                               </div>
                             )}
                             <div className="compare-prod-actions" onClick={e => e.stopPropagation()}>
-                              {lowest !== null && (
-                                <span className="compare-prod-lowest">¥{lowest.toLocaleString()}</span>
+                              {bestPrice !== null && (
+                                <span className="compare-prod-lowest">¥{bestPrice.toLocaleString()}</span>
                               )}
                               <span className="badge badge-default" style={{ fontSize: 10 }}>{model.channelQuotes.length} 报价</span>
                               <button
@@ -358,22 +377,57 @@ const ComparePage: React.FC = () => {
                           {/* Model body – quotes, collapsed by default */}
                           {quotesOpen && (
                             <div className="compare-prod-bd">
-                              {model.channelQuotes.map(quote => (
-                                <div key={quote.id} className="compare-quote-row">
-                                  <span className="compare-quote-channel">{quote.channel}</span>
-                                  {quote.price !== undefined && (
-                                    <span className="compare-quote-price">¥{quote.price.toLocaleString()}</span>
+                              {model.channelQuotes.map(quote => {
+                                const isBest = state.bestQuoteIds[model.id] === quote.id;
+                                return (
+                                <div key={quote.id} className={`compare-quote-row${isBest ? ' best' : ''}`}>
+                                  <input
+                                    type="checkbox"
+                                    className="compare-quote-check"
+                                    checked={state.bestQuoteIds[model.id] === quote.id}
+                                    onChange={(e) => selectBestQuote(model.id, e.target.checked ? quote.id : null)}
+                                    title="选为最优报价"
+                                  />
+                                  {editingQuoteId === quote.id ? (
+                                    <div className="compare-quote-edit-row" onClick={e => e.stopPropagation()}>
+                                      <input className="input" value={editQuoteChannel}
+                                        onChange={e => setEditQuoteChannel(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleEditQuote()}
+                                        style={{ width: 72, fontSize: 11, padding: '2px 4px' }} />
+                                      <input className="input" type="number" value={editQuotePrice}
+                                        onChange={e => setEditQuotePrice(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleEditQuote()}
+                                        style={{ width: 80, fontSize: 11, padding: '2px 4px' }} />
+                                      <input className="input" placeholder="备注" value={editQuoteNote}
+                                        onChange={e => setEditQuoteNote(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleEditQuote()}
+                                        style={{ flex: 1, minWidth: 60, fontSize: 11, padding: '2px 4px' }} />
+                                      <button className="btn btn-primary btn-xs" onClick={handleEditQuote} style={{ fontSize: 10 }}>确定</button>
+                                      <button className="btn btn-ghost btn-xs" onClick={() => setEditingQuoteId(null)} style={{ fontSize: 10 }}>取消</button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <span className="compare-quote-channel">{quote.channel}</span>
+                                      {quote.price !== undefined && (
+                                        <span className="compare-quote-price">¥{quote.price.toLocaleString()}</span>
+                                      )}
+                                      {quote.note && (
+                                        <span className="compare-quote-note">{quote.note}</span>
+                                      )}
+                                    </>
                                   )}
-                                  <button
-                                    className="fresh-icon-btn"
-                                    onClick={() => deleteChannelQuote(model.id, quote.id)}
-                                    title="删除报价"
-                                    style={{ width: 20, height: 20, flexShrink: 0 }}
-                                  >
-                                    <IconX size={10} />
-                                  </button>
+                                  <div className="compare-quote-actions">
+                                    {editingQuoteId !== quote.id && (
+                                      <button className="fresh-icon-btn" onClick={() => startEditQuote(quote)} title="编辑报价" style={{ width: 22, height: 22 }}>
+                                        <IconEdit size={11} />
+                                      </button>
+                                    )}
+                                    <button className="fresh-icon-btn" onClick={() => deleteChannelQuote(model.id, quote.id)} title="删除报价" style={{ width: 22, height: 22 }}>
+                                      <IconTrash size={12} />
+                                    </button>
+                                  </div>
                                 </div>
-                              ))}
+                              );})}
                               {model.channelQuotes.length === 0 && (
                                 <div style={{ fontSize: 11, color: 'var(--fresh-muted)', padding: '4px 0' }}>暂无报价，点击下方添加</div>
                               )}

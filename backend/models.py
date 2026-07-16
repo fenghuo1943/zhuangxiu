@@ -190,6 +190,7 @@ class ChannelQuote(Base):
     channel = Column(String(100), nullable=False)
     price = Column(Float, nullable=True)
     url = Column(String(500), nullable=True)
+    note = Column(String(200), nullable=True)
     updated_at = Column(DateTime, nullable=True)
 
     model = relationship("PriceModel", back_populates="quotes")

@@ -3758,14 +3758,19 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 .compare-quote-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 5px 0;
   font-size: 12px;
   border-bottom: 1px solid #f5f5f5;
 }
 .compare-quote-row:last-child { border-bottom: none; }
-.compare-quote-channel { font-weight: 600; color: var(--fresh-text); min-width: 50px; }
-.compare-quote-price { color: var(--fresh-coral); font-weight: 700; min-width: 70px; }
+.compare-quote-row.best { background: #f0fdf4; margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px; }
+.compare-quote-check { flex-shrink: 0; width: 14px; height: 14px; accent-color: #22C55E; cursor: pointer; }
+.compare-quote-channel { font-weight: 600; color: var(--fresh-text); min-width: 44px; }
+.compare-quote-price { color: var(--fresh-coral); font-weight: 700; min-width: 64px; white-space: nowrap; }
+.compare-quote-note { font-size: 11px; color: var(--fresh-muted); font-style: italic; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compare-quote-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; margin-left: auto; }
+.compare-quote-edit-row { display: flex; align-items: center; gap: 4px; flex: 1; }
 
 .compare-add-quote-row {
   display: flex;

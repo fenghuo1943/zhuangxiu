@@ -54,6 +54,7 @@ function getInitialState(): AppState {
         customFlowSteps: parsed.customFlowSteps || [],
         flowStepsFromBackend: parsed.flowStepsFromBackend || {},
         syncedModelIds: parsed.syncedModelIds || [],
+        bestQuoteIds: parsed.bestQuoteIds || {},
         priceCategories: parsed.priceCategories || [],
         projectStates: parsed.projectStates || {},
         expenseSubCategories: parsed.expenseSubCategories || DEFAULT_SUB_CATEGORIES,
@@ -83,6 +84,7 @@ function getInitialState(): AppState {
     customFlowSteps: [],
     flowStepsFromBackend: {},
     syncedModelIds: [],
+    bestQuoteIds: {},
     priceCategories: [],
     projectStates: {},
     expenseSubCategories: DEFAULT_SUB_CATEGORIES,
@@ -728,11 +730,12 @@ export function updatePriceModel(modelId: string, updates: { name?: string; spec
   persist();
 }
 
-export function addChannelQuote(modelId: string, channel: string, price?: number, url?: string) {
+export function addChannelQuote(modelId: string, channel: string, price?: number, note?: string, url?: string) {
   const quote: ChannelQuote = {
     id: `ch_${Date.now()}`,
     channel,
     price,
+    note,
     url,
     updatedAt: new Date().toISOString(),
   };
@@ -755,9 +758,53 @@ export function deleteChannelQuote(modelId: string, quoteId: string) {
       m.id === modelId ? { ...m, channelQuotes: m.channelQuotes.filter(q => q.id !== quoteId) } : m
     ),
   }));
+  // Also remove from bestQuoteIds if this quote was selected
+  const bestQuoteIds = { ...globalState.bestQuoteIds };
+  if (bestQuoteIds[modelId] === quoteId) delete bestQuoteIds[modelId];
+  globalState = { ...globalState, priceCategories, bestQuoteIds };
+  notify();
+  persist();
+}
+
+export function updateChannelQuote(quoteId: string, updates: { channel?: string; price?: number; note?: string }) {
+  const priceCategories = globalState.priceCategories.map(c => ({
+    ...c,
+    models: c.models.map(m => ({
+      ...m,
+      channelQuotes: m.channelQuotes.map(q =>
+        q.id === quoteId ? { ...q, ...updates } : q
+      ),
+    })),
+  }));
   globalState = { ...globalState, priceCategories };
   notify();
   persist();
+}
+
+export function selectBestQuote(modelId: string, quoteId: string | null) {
+  const bestQuoteIds = { ...globalState.bestQuoteIds };
+  if (quoteId === null) {
+    delete bestQuoteIds[modelId];
+  } else {
+    bestQuoteIds[modelId] = quoteId;
+  }
+  globalState = { ...globalState, bestQuoteIds };
+  notify();
+  persist();
+}
+
+export function getBestQuotePrice(modelId: string): number | null {
+  const quoteId = globalState.bestQuoteIds[modelId];
+  if (!quoteId) return null;
+  for (const cat of globalState.priceCategories) {
+    for (const m of cat.models) {
+      if (m.id === modelId) {
+        const quote = m.channelQuotes.find(q => q.id === quoteId);
+        return quote?.price ?? null;
+      }
+    }
+  }
+  return null;
 }
 
 export function toggleModelSync(modelId: string) {

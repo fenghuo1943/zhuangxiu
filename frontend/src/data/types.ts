@@ -163,6 +163,7 @@ export interface ChannelQuote {
   channel: string;
   price?: number;
   url?: string;
+  note?: string;
   updatedAt?: string;
 }
 
@@ -205,6 +206,7 @@ export interface AppState {
   customFlowSteps: CustomFlowStep[];
   flowStepsFromBackend: Record<string, FlowStep[]>;  // flowType -> FlowStep[] from DB
   syncedModelIds: string[];
+  bestQuoteIds: Record<string, string>;  // modelId -> quoteId (mutually exclusive per model)
   priceCategories: PriceCategory[];
   projectStates: Record<string, ProjectState>;
 }
