@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pathlib import Path
 import uuid
 
-from ..auth import get_current_user
+from ..auth import require_admin
 
 router = APIRouter(prefix="/api/upload", tags=["Upload"])
 
@@ -14,7 +14,7 @@ ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"}
 @router.post("/image")
 async def upload_image(
     file: UploadFile = File(...),
-    user=Depends(get_current_user),
+    user=Depends(require_admin),
 ):
     ext = Path(file.filename).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:

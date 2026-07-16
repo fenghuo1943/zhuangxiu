@@ -104,36 +104,26 @@ const FlowPage: React.FC = () => {
         <div className="flow-layout">
           {/* Left: Stage Navigation */}
           <aside className="flow-aside">
-            <div className="card">
-              <div className="card-hd">
-                <h3>流程阶段</h3>
-                <div className="card-header-actions">
-                  <button className="btn btn-ghost btn-sm" onClick={expandAll}>全部展开</button>
-                  <button className="btn btn-ghost btn-sm" onClick={collapseAll}>全部折叠</button>
-                </div>
-              </div>
-              <div className="card-bd">
-                <div className="flow-stage-chips">
-                  {orderedSteps.map((step, i) => {
-                    const isDone = doneSet.has(step.id);
-                    const isCurrent = step.id === firstUndoneId;
-                    return (
-                      <button
-                        key={step.id}
-                        className={`flow-stage-chip ${isDone ? 'done' : ''} ${isCurrent ? 'current' : ''}`}
-                        onClick={() => scrollToStep(step.id)}
-                      >
-                        <span className="flow-chip-num">{i + 1}</span>
-                        <span className="flow-chip-name">
-                          {step.title}
-                          {step.isCustom && ' *'}
-                        </span>
-                        {isDone && <IconCheckSmall />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            <div className="aside-title">流程阶段</div>
+            <div className="flow-bulk-actions">
+              <button type="button" onClick={expandAll}>全部展开</button>
+              <button type="button" onClick={collapseAll}>全部折叠</button>
+            </div>
+            <div className="stage-list">
+              {orderedSteps.map((step, i) => {
+                const isDone = doneSet.has(step.id);
+                const isCurrent = step.id === firstUndoneId;
+                return (
+                  <button
+                    key={step.id}
+                    className={`stage-chip ${isDone ? 'done' : ''} ${isCurrent ? 'active' : ''}`}
+                    onClick={() => scrollToStep(step.id)}
+                  >
+                    <span className="stage-dot"></span>
+                    <span>{String(i + 1).padStart(2, '0')} {step.title}{step.isCustom && ' *'}</span>
+                  </button>
+                );
+              })}
             </div>
           </aside>
 

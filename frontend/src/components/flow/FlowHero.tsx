@@ -8,6 +8,7 @@ const FlowHero: React.FC = () => {
   const steps = getOrderedFlowSteps(state.flowType);
   const doneCount = steps.filter(s => state.flowDoneStepIds.includes(s.id)).length;
   const total = steps.length;
+  const resourceCount = steps.reduce((sum, s) => sum + s.standards.length + s.acceptance.length + s.articles.length + s.pitfalls.length, 0);
   const firstUndone = steps.find(s => !state.flowDoneStepIds.includes(s.id));
 
   return (
@@ -49,8 +50,8 @@ const FlowHero: React.FC = () => {
             <b className="flow-stat-value current">{firstUndone?.title || '已完成'}</b>
           </div>
           <div className="flow-stat">
-            <span className="flow-stat-label">阶段数量</span>
-            <b className="flow-stat-value">{total} 个阶段</b>
+            <span className="flow-stat-label">资料数量</span>
+            <b className="flow-stat-value">{resourceCount} 条</b>
           </div>
         </div>
       </div>

@@ -8,7 +8,7 @@ from sqlalchemy import select
 from ..database import get_db
 from ..models import KnowledgeArticle
 from ..schemas import KnowledgeArticleCreate, KnowledgeArticleUpdate, KnowledgeArticleOut
-from ..auth import get_current_user
+from ..auth import get_current_user, require_admin
 
 router = APIRouter(prefix="/api/knowledge", tags=["Knowledge"])
 
@@ -64,7 +64,7 @@ async def get_article(resource_id: int, db: AsyncSession = Depends(get_db)):
 async def create_article(
     resource_id: int,
     data: KnowledgeArticleCreate,
-    user=Depends(get_current_user),
+    user=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     existing = await db.execute(
@@ -88,7 +88,7 @@ async def create_article(
 async def update_article(
     resource_id: int,
     data: KnowledgeArticleUpdate,
-    user=Depends(get_current_user),
+    user=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -125,7 +125,7 @@ async def update_article(
 @router.delete("/{resource_id}", status_code=204)
 async def delete_article(
     resource_id: int,
-    user=Depends(get_current_user),
+    user=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(

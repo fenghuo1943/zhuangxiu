@@ -6,6 +6,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import type { FlowResource, KnowledgeArticle } from '../../data/types';
 import { fetchArticle, createArticle, updateArticle, deleteArticle, uploadImage } from '../../api/knowledge';
 import { isAuthenticated } from '../../api/client';
+import { useAuth } from '../../api/useAuth';
 import { IconX, IconEdit, IconCheck, IconImage, IconShield, IconStar, IconBook, IconAlert, IconTrash } from '../common/Icons';
 
 interface KnowledgeModalProps {
@@ -35,6 +36,8 @@ const resourceIcon: Record<string, React.ReactNode> = {
 };
 
 const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) => {
+  const { user } = useAuth();
+  const isAdmin = user?.is_admin === true;
   const [mode, setMode] = useState<'loading' | 'view' | 'edit'>('loading');
   const [article, setArticle] = useState<KnowledgeArticle | null>(null);
   const [title, setTitle] = useState(resource.title);
@@ -65,6 +68,29 @@ const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) =>
       return;
     }
 
+    // Non-admin: always view-only, do not enter edit mode for new articles
+    if (!isAdmin) {
+      let cancelled = false;
+      (async () => {
+        try {
+          const art = await fetchArticle(resource.id);
+          if (cancelled) return;
+          setArticle(art);
+          setTitle(art.title || resource.title);
+          editor?.commands.setContent(art.content || '');
+        } catch {
+          if (cancelled) return;
+          editor?.commands.setContent('<p>该文章暂未编写，请等待管理员更新。</p>');
+        } finally {
+          if (!cancelled) {
+            editor?.setEditable(false);
+            setMode('view');
+          }
+        }
+      })();
+      return () => { cancelled = true; };
+    }
+
     let cancelled = false;
     (async () => {
       try {
@@ -88,7 +114,7 @@ const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) =>
       }
     })();
     return () => { cancelled = true; };
-  }, [resource.id]);
+  }, [resource.id, isAdmin]);
 
   // Escape key to close
   useEffect(() => {
@@ -203,7 +229,7 @@ const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) =>
             {article?.title || title || resource.title}
           </h3>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {mode === 'view' && isAuthenticated() && (
+            {mode === 'view' && isAdmin && (
               <>
                 <button className="btn btn-outline btn-sm" onClick={switchToEdit}>
                   <IconEdit size={14} /> 编辑
@@ -212,6 +238,9 @@ const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) =>
                   <IconTrash size={14} /> 删除
                 </button>
               </>
+            )}
+            {mode === 'view' && isAuthenticated() && !isAdmin && (
+              <span style={{ fontSize: 11, color: 'var(--fresh-subtle)' }}>只读</span>
             )}
             <button className="icon-btn" onClick={onClose} aria-label="关闭">
               <IconX size={18} />

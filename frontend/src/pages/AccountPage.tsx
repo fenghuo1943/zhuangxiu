@@ -70,9 +70,15 @@ const AccountPage: React.FC = () => {
             {isLoggedIn && user ? (
               <div style={{ textAlign: 'center' }}>
                 <div className="empty-state-icon" style={{ fontSize: 48 }}>👤</div>
-                <p className="empty-state-title" style={{ marginBottom: 4 }}>{user.username}</p>
+                <p className="empty-state-title" style={{ marginBottom: 4 }}>
+                  {user.username}
+                  {user.is_admin && (
+                    <span className="badge badge-warning" style={{ marginLeft: 8, fontSize: 11 }}>👑 管理员</span>
+                  )}
+                </p>
                 <p className="empty-state-desc" style={{ marginBottom: 16 }}>
                   {user.email}<br />
+                  {user.is_admin ? '✅ 管理员账号 — 可编辑所有知识文章' : '👤 普通账号 — 仅可查看文章'}<br />
                   注册时间：{new Date(user.created_at).toLocaleDateString('zh-CN')}
                 </p>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>

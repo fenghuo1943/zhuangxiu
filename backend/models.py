@@ -17,6 +17,7 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(100), nullable=False)
     password_hash = Column(String(200), nullable=False)
+    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=_now)
 
     projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")

@@ -1811,7 +1811,38 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   top: 90px;
 }
 
-.flow-stage-chips {
+.aside-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fresh-muted);
+  margin-bottom: 8px;
+}
+
+.flow-bulk-actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.flow-bulk-actions button {
+  flex: 1;
+  padding: 6px 0;
+  border: 1px solid var(--fresh-line);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--fresh-muted);
+  transition: all .15s;
+}
+
+.flow-bulk-actions button:hover {
+  border-color: var(--fresh-coral);
+  color: var(--fresh-coral);
+}
+
+.stage-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1819,26 +1850,39 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   overflow-y: auto;
 }
 
-.flow-stage-chip {
+.stage-chip {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 9px 10px;
-  border: 1px solid var(--fresh-line);
+  border: 1px solid transparent;
   border-radius: 10px;
-  background: #fff;
+  background: transparent;
   cursor: pointer;
   font-family: inherit;
   font-size: 12px;
+  color: var(--fresh-muted);
   transition: all .18s;
   text-align: left;
   width: 100%;
 }
 
-.flow-stage-chip:hover { border-color: #e7d7cc; background: #fffaf8; }
-.flow-stage-chip.done { border-color: #bbf0d0; background: #f5fdf8; }
-.flow-stage-chip.current { border-color: var(--fresh-coral); background: var(--fresh-coral-soft); }
+.stage-chip:hover { background: #f9f6f2; color: var(--fresh-text); }
+.stage-chip.done { color: var(--fresh-subtle); }
+.stage-chip.active { border-color: var(--fresh-coral); background: var(--fresh-coral-soft); color: var(--fresh-text); font-weight: 650; }
 
+.stage-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #d0d0d0;
+  flex-shrink: 0;
+  transition: background .18s;
+}
+
+.stage-chip.active .stage-dot { background: var(--fresh-coral); }
+.stage-chip.done .stage-dot { background: var(--fresh-green); }
+
+/* Flow Timeline related — keep existing */
 .flow-chip-num {
   width: 22px; height: 22px;
   display: grid; place-items: center;
@@ -1850,8 +1894,6 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 .flow-stage-chip.done .flow-chip-num { background: var(--fresh-green); color: #fff; }
 .flow-stage-chip.current .flow-chip-num { background: var(--fresh-coral); color: #fff; }
-
-.flow-chip-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 550; }
 
 /* Flow Edit Order */
 .flow-timeline-wrapper { min-width: 0; }
@@ -3760,8 +3802,8 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 @media (max-width: 1120px) {
   .flow-layout { grid-template-columns: 1fr; }
   .flow-aside { position: static; }
-  .flow-stage-chips { flex-direction: row; flex-wrap: wrap; max-height: none; }
-  .flow-stage-chip { width: auto; }
+  .stage-list { flex-direction: row; flex-wrap: wrap; max-height: none; }
+  .stage-chip { width: auto; }
 
   .expense-summary-row {
     grid-template-columns: 1fr 1fr 1fr;
@@ -3793,9 +3835,8 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .flow-stat-value.current { font-size: 12px; }
   .flow-stat-bar { display: none; }
 
-  .flow-stage-chips { display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding-bottom: 4px; }
-  .flow-stage-chip { flex-shrink: 0; font-size: 11px; padding: 7px 10px; }
-  .flow-chip-num { width: 18px; height: 18px; font-size: 10px; }
+  .stage-list { display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding-bottom: 4px; max-height: none; }
+  .stage-chip { flex-shrink: 0; font-size: 11px; padding: 7px 10px; width: auto; white-space: nowrap; }
 
   .flow-resource-grid { grid-template-columns: 1fr; }
   .flow-step-header { padding: 12px 14px; }
