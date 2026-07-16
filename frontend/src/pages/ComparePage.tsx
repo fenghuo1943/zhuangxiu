@@ -18,7 +18,6 @@ const ComparePage: React.FC = () => {
   const [newCatName, setNewCatName] = useState('');
 
   // Add model state per category
-  const [addingModelFor, setAddingModelFor] = useState<string | null>(null);
   const [newModelName, setNewModelName] = useState('');
   const [newModelSpec, setNewModelSpec] = useState('');
   const [newModelNote, setNewModelNote] = useState('');
@@ -66,7 +65,6 @@ const ComparePage: React.FC = () => {
     if (!newModelName.trim()) return;
     addPriceModel(catId, newModelName.trim(), newModelSpec.trim(), newModelNote.trim(), 1);
     setNewModelName(''); setNewModelSpec(''); setNewModelNote('');
-    setAddingModelFor(null);
   };
 
   const startEditModel = (model: { id: string; name: string; spec?: string; note?: string }) => {
@@ -400,27 +398,24 @@ const ComparePage: React.FC = () => {
                         </div>
                       );})}
 
-                      {/* Add Model */}
-                      {addingModelFor === cat.id ? (
-                        <div className="compare-add-model-row">
-                          <input className="input" placeholder="型号名称" value={newModelName}
-                            onChange={e => setNewModelName(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleAddModel(cat.id)}
-                            style={{ width: 120 }} />
-                          <input className="input" placeholder="规格" value={newModelSpec}
-                            onChange={e => setNewModelSpec(e.target.value)}
-                            style={{ width: 100 }} />
-                          <input className="input" placeholder="备注" value={newModelNote}
-                            onChange={e => setNewModelNote(e.target.value)}
-                            style={{ width: 100 }} />
-                          <button className="btn btn-primary btn-sm" onClick={() => handleAddModel(cat.id)}>添加</button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => { setAddingModelFor(null); setNewModelName(''); setNewModelSpec(''); setNewModelNote(''); }}>取消</button>
-                        </div>
-                      ) : (
-                        <button className="btn btn-outline btn-sm" onClick={() => setAddingModelFor(cat.id)} style={{ margin: '8px 16px' }}>
+                      {/* Add Model – always visible */}
+                      <div className="compare-add-model-row">
+                        <input className="input" placeholder="型号名称" value={newModelName}
+                          onChange={e => setNewModelName(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleAddModel(cat.id)}
+                          style={{ width: 120, fontSize: 12, padding: '4px 8px' }} />
+                        <input className="input" placeholder="规格" value={newModelSpec}
+                          onChange={e => setNewModelSpec(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleAddModel(cat.id)}
+                          style={{ width: 100, fontSize: 12, padding: '4px 8px' }} />
+                        <input className="input" placeholder="备注" value={newModelNote}
+                          onChange={e => setNewModelNote(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleAddModel(cat.id)}
+                          style={{ width: 100, fontSize: 12, padding: '4px 8px' }} />
+                        <button className="btn btn-primary btn-sm" onClick={() => handleAddModel(cat.id)} disabled={!newModelName.trim()}>
                           <IconPlus size={14} /> 添加型号
                         </button>
-                      )}
+                      </div>
                     </div>
                   )}
                 </div>
