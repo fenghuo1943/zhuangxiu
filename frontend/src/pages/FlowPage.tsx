@@ -15,7 +15,18 @@ const FlowPage: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newStage, setNewStage] = useState({ title: '', days: '', desc: '' });
   const [selectedResource, setSelectedResource] = useState<FlowResource | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('flow_sidebar_open');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen(prev => {
+      const next = !prev;
+      localStorage.setItem('flow_sidebar_open', String(next));
+      return next;
+    });
+  }, []);
 
   // Load flow data from backend on mount
   useEffect(() => {
@@ -110,7 +121,7 @@ const FlowPage: React.FC = () => {
               <button
                 type="button"
                 className="aside-toggle"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
+                onClick={toggleSidebar}
                 aria-label={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}
               >
                 {sidebarOpen ? '收起' : '展开'}

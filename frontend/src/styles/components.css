@@ -3873,7 +3873,15 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .flow-stat-bar { display: none; }
 
   .aside-toggle { display: inline-block; }
-  .flow-aside { min-width: 0; overflow: hidden; }
+  .flow-aside {
+    min-width: 0; overflow: hidden;
+    border: 1px solid var(--fresh-line);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, .94);
+    box-shadow: 0 8px 22px rgba(55, 42, 31, .04);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
   .stage-list { display: flex; flex-direction: column; gap: 4px; max-height: none; }
   .stage-chip { flex-shrink: 0; font-size: 12px; padding: 9px 10px; width: 100%; white-space: nowrap; }
 
