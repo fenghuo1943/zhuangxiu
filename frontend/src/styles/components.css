@@ -3291,7 +3291,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 }
 
 .purchase-shopping-hd {
-  padding: 16px 20px;
+  padding: 12px 20px;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
@@ -3304,12 +3304,19 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   display: flex;
   align-items: center;
   gap: 12px;
-  justify-self: start;
 }
 
-.purchase-shopping-icon {
-  font-size: 26px;
-  line-height: 1;
+.purchase-shopping-hd-center {
+  display: flex;
+  align-items: center;
+  justify-self: center;
+}
+
+.purchase-shopping-hd-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  justify-self: end;
 }
 
 .purchase-shopping-title {
@@ -3324,19 +3331,6 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   font-size: 11px;
   color: #999;
   margin-top: 2px;
-}
-
-.purchase-shopping-hd-center {
-  display: flex;
-  align-items: center;
-  justify-self: center;
-}
-
-.purchase-shopping-hd-right {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  justify-self: end;
 }
 
 .purchase-shopping-toggle {
@@ -3493,6 +3487,50 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   gap: 2px;
   flex-shrink: 0;
   margin-left: 8px;
+}
+
+/* ── Shopping card mobile ── */
+@media (max-width: 767px) {
+  .purchase-shopping-hd {
+    grid-template-columns: auto 1fr auto;
+    gap: 6px;
+    padding: 10px 14px;
+  }
+
+  .purchase-shopping-hd-center {
+    font-size: 11px;
+  }
+
+  /* Hide the label prefix, keep only the amount */
+  .purchase-shopping-total {
+    font-size: 0;
+  }
+
+  .purchase-shopping-total strong {
+    font-size: 13px;
+  }
+
+  .purchase-shopping-link {
+    display: none;
+  }
+
+  .purchase-shopping-title {
+    font-size: 14px;
+  }
+
+  .purchase-shopping-sub {
+    display: none;
+  }
+
+  .purchase-shopping-toggle-btn {
+    height: 26px;
+    padding: 0 7px;
+    font-size: 11px;
+  }
+
+  .purchase-shopping-bd {
+    padding: 10px 14px 14px;
+  }
 }
 
 /* ── Summary ── */

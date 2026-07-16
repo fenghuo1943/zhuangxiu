@@ -418,9 +418,8 @@ const PurchasePage: React.FC = () => {
         <div className="purchase-shopping-card">
           <div className="purchase-shopping-hd">
             <div className="purchase-shopping-hd-left">
-              <span className="purchase-shopping-icon">🛒</span>
               <div>
-                <h2 className="purchase-shopping-title">我的待购清单</h2>
+                <h2 className="purchase-shopping-title">待购清单</h2>
                 <span className="purchase-shopping-sub">
                   {totalShoppingCount > 0
                     ? `${pendingShoppingCount} 待购 / ${purchasedShoppingCount} 已购`
