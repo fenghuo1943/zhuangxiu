@@ -3292,12 +3292,11 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 .purchase-shopping-hd {
   padding: 16px 20px;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   border-bottom: 1px solid #f2efe9;
   background: linear-gradient(135deg, #fffefd, #fff9f2);
-  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -3305,6 +3304,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   display: flex;
   align-items: center;
   gap: 12px;
+  justify-self: start;
 }
 
 .purchase-shopping-icon {
@@ -3326,10 +3326,51 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   margin-top: 2px;
 }
 
+.purchase-shopping-hd-center {
+  display: flex;
+  align-items: center;
+  justify-self: center;
+}
+
 .purchase-shopping-hd-right {
   display: flex;
   align-items: center;
   gap: 14px;
+  justify-self: end;
+}
+
+.purchase-shopping-toggle {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  background: #f6f3ef;
+  border: 1px solid #e8e4df;
+  border-radius: 10px;
+}
+
+.purchase-shopping-toggle-btn {
+  height: 30px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #999;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .2s;
+  white-space: nowrap;
+}
+
+.purchase-shopping-toggle-btn:hover {
+  color: #666;
+}
+
+.purchase-shopping-toggle-btn.active {
+  color: #e45b3f;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(55, 42, 31, .07);
 }
 
 .purchase-shopping-total {

@@ -415,6 +415,21 @@ export function updatePurchaseRefQty(itemId: string, qty: number) {
   persist();
 }
 
+export function updatePurchaseRefItem(itemId: string, updates: { name?: string; spec?: string; qty?: number; unit?: string }) {
+  const purchaseReferences = globalState.purchaseReferences.map(stage => ({
+    ...stage,
+    subs: stage.subs.map(sub => ({
+      ...sub,
+      items: sub.items.map(item =>
+        item.id === itemId ? { ...item, ...updates } : item
+      ),
+    })),
+  }));
+  globalState = { ...globalState, purchaseReferences };
+  notify();
+  persist();
+}
+
 /** Load selected purchases from backend */
 export async function loadSelectedPurchasesFromBackend(): Promise<void> {
   if (!isAuthenticated()) return;

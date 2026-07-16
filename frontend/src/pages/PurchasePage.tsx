@@ -3,7 +3,7 @@ import AppShell from '../components/layout/AppShell';
 import {
   useStore, togglePurchaseRef, addCustomPurchaseItem,
   deletePurchaseRefItem, updatePurchaseRefQty, isItemPurchased,
-  togglePurchased, toggleModelSync, getBestQuotePrice,
+  togglePurchased, toggleModelSync, getBestQuotePrice, updatePurchaseRefItem,
 } from '../data/store';
 import type { PurchaseReferenceStage, PurchaseReferenceSubgroup, PurchaseReferenceItem } from '../data/types';
 
@@ -92,7 +92,11 @@ const PurchasePage: React.FC = () => {
   const [quickQty, setQuickQty] = useState('1');
 
   // Shopping card
-  const [showPurchasedInCard, setShowPurchasedInCard] = useState(false);
+  const [shoppingListView, setShoppingListView] = useState<'pending' | 'purchased'>('pending');
+  const [editingShoppingId, setEditingShoppingId] = useState<string | null>(null);
+  const [editShoppingName, setEditShoppingName] = useState('');
+  const [editShoppingSpec, setEditShoppingSpec] = useState('');
+  const [editShoppingQty, setEditShoppingQty] = useState('');
 
   // Toast
   const [toastMsg, setToastMsg] = useState('');
@@ -226,6 +230,32 @@ const PurchasePage: React.FC = () => {
     });
     return total;
   }, [shoppingItemsWithPrice, unmatchedSyncedModels]);
+
+  // Separate cost for pending vs purchased
+  const pendingCost = useMemo(() => {
+    let total = 0;
+    shoppingItemsWithPrice.forEach(item => {
+      if (!state.purchasedItemIds.includes(item.itemId) && item.matchedPrice) {
+        total += item.matchedPrice * item.qty;
+      }
+    });
+    unmatchedSyncedModels.forEach(m => {
+      if (m.price) total += m.price;
+    });
+    return total;
+  }, [shoppingItemsWithPrice, unmatchedSyncedModels, state.purchasedItemIds]);
+
+  const purchasedCost = useMemo(() => {
+    let total = 0;
+    shoppingItemsWithPrice.forEach(item => {
+      if (state.purchasedItemIds.includes(item.itemId) && item.matchedPrice) {
+        total += item.matchedPrice * item.qty;
+      }
+    });
+    return total;
+  }, [shoppingItemsWithPrice, state.purchasedItemIds]);
+
+  const displayCost = shoppingListView === 'pending' ? pendingCost : purchasedCost;
 
   const totalShoppingCount = shoppingItems.length + unmatchedSyncedModels.length;
   const pendingShoppingCount = shoppingItems.filter(it => !isItemPurchased(it.itemId)).length;
@@ -373,6 +403,14 @@ const PurchasePage: React.FC = () => {
               <div className="purchase-summary-value" style={{ color: '#48bb78' }}>{selectedItems}</div>
               <div className="purchase-summary-label">已选待购</div>
             </div>
+            <div className="purchase-summary-item">
+              <div className="purchase-summary-value" style={{ color: '#e45b3f' }}>{pendingShoppingCount}</div>
+              <div className="purchase-summary-label">当前待购</div>
+            </div>
+            <div className="purchase-summary-item">
+              <div className="purchase-summary-value" style={{ color: '#999' }}>{purchasedShoppingCount}</div>
+              <div className="purchase-summary-label">当前已购</div>
+            </div>
           </div>
         </div>
 
@@ -390,10 +428,28 @@ const PurchasePage: React.FC = () => {
                 </span>
               </div>
             </div>
+            <div className="purchase-shopping-hd-center">
+              <div className="purchase-shopping-toggle">
+                <button
+                  type="button"
+                  className={`purchase-shopping-toggle-btn${shoppingListView === 'pending' ? ' active' : ''}`}
+                  onClick={() => setShoppingListView('pending')}
+                >
+                  待购{pendingShoppingCount > 0 ? ` (${pendingShoppingCount})` : ''}
+                </button>
+                <button
+                  type="button"
+                  className={`purchase-shopping-toggle-btn${shoppingListView === 'purchased' ? ' active' : ''}`}
+                  onClick={() => setShoppingListView('purchased')}
+                >
+                  已购{purchasedShoppingCount > 0 ? ` (${purchasedShoppingCount})` : ''}
+                </button>
+              </div>
+            </div>
             <div className="purchase-shopping-hd-right">
-              {totalEstimatedCost > 0 && (
+              {displayCost > 0 && (
                 <span className="purchase-shopping-total">
-                  预估总计 <strong>¥{totalEstimatedCost.toLocaleString()}</strong>
+                  {shoppingListView === 'pending' ? '预估总计' : '已购总计'} <strong>¥{displayCost.toLocaleString()}</strong>
                 </span>
               )}
               <a href="/compare" className="purchase-shopping-link">去比价 →</a>
@@ -412,26 +468,44 @@ const PurchasePage: React.FC = () => {
                 {shoppingItems.length > 0 && (
                   <div className="purchase-shopping-section">
                     {(() => {
-                      // Group by stage
+                      // Group by stage, filter by current view
                       const grouped = new Map<string, typeof shoppingItemsWithPrice>();
-                      const displayItems = showPurchasedInCard
-                        ? shoppingItemsWithPrice
-                        : shoppingItemsWithPrice.filter(it => !isItemPurchased(it.itemId));
+                      const displayItems = shoppingListView === 'pending'
+                        ? shoppingItemsWithPrice.filter(it => !isItemPurchased(it.itemId))
+                        : shoppingItemsWithPrice.filter(it => isItemPurchased(it.itemId));
                       displayItems.forEach(item => {
                         const list = grouped.get(item.stageParent) || [];
                         list.push(item);
                         grouped.set(item.stageParent, list);
                       });
-                      if (displayItems.length === 0 && !showPurchasedInCard) {
+                      if (displayItems.length === 0) {
                         return (
                           <div style={{ textAlign: 'center', padding: '8px 0', fontSize: 12, color: '#999' }}>
-                            🎉 全部已购！
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-sm"
-                              style={{ marginLeft: 8 }}
-                              onClick={() => setShowPurchasedInCard(true)}
-                            >查看已购</button>
+                            {shoppingListView === 'pending' ? (
+                              <>
+                                🎉 全部已购！
+                                {purchasedShoppingCount > 0 && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm"
+                                    style={{ marginLeft: 8 }}
+                                    onClick={() => setShoppingListView('purchased')}
+                                  >查看已购</button>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                📦 暂无已购物品
+                                {pendingShoppingCount > 0 && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm"
+                                    style={{ marginLeft: 8 }}
+                                    onClick={() => setShoppingListView('pending')}
+                                  >返回待购</button>
+                                )}
+                              </>
+                            )}
                           </div>
                         );
                       }
@@ -440,65 +514,128 @@ const PurchasePage: React.FC = () => {
                           <div className="purchase-shopping-group-label">{stageName}</div>
                           {items.map(item => {
                             const purchased = isItemPurchased(item.itemId);
+                            const isEditing = editingShoppingId === item.itemId;
                             return (
-                              <div key={item.itemId} className={`purchase-shopping-row${purchased ? ' purchased' : ''}`}>
-                                <div className="purchase-shopping-row-info">
-                                  <span className="purchase-shopping-row-name">
-                                    {purchased && <span style={{ color: '#48bb78', marginRight: 4 }}>✓</span>}
-                                    {item.name}
-                                  </span>
-                                  {item.spec && <span className="purchase-shopping-row-spec">{item.spec}</span>}
-                                  <span className="purchase-shopping-row-qty">×{item.qty}{item.unit || '个'}</span>
-                                  {item.matchedPrice && (
-                                    <span className="purchase-shopping-row-price">
-                                      ¥{item.matchedPrice.toLocaleString()}
-                                      {item.matchedChannel && <span className="purchase-shopping-row-channel"> ({item.matchedChannel})</span>}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="purchase-shopping-row-actions">
-                                  {!purchased && (
+                              <div key={item.itemId} className={`purchase-shopping-row${purchased ? ' purchased' : ''}${isEditing ? ' editing' : ''}`}>
+                                {isEditing ? (
+                                  <div className="purchase-shopping-edit-row" onClick={e => e.stopPropagation()}>
+                                    <input
+                                      className="input"
+                                      value={editShoppingName}
+                                      onChange={e => setEditShoppingName(e.target.value)}
+                                      placeholder="名称"
+                                      style={{ width: 100, fontSize: 12, padding: '3px 6px' }}
+                                    />
+                                    <input
+                                      className="input"
+                                      value={editShoppingSpec}
+                                      onChange={e => setEditShoppingSpec(e.target.value)}
+                                      placeholder="规格"
+                                      style={{ width: 80, fontSize: 12, padding: '3px 6px' }}
+                                    />
+                                    <input
+                                      className="input"
+                                      type="number"
+                                      min="1"
+                                      value={editShoppingQty}
+                                      onChange={e => setEditShoppingQty(e.target.value)}
+                                      placeholder="数量"
+                                      style={{ width: 56, fontSize: 12, padding: '3px 6px' }}
+                                    />
                                     <button
-                                      className="fresh-icon-btn"
-                                      title="标记已购买"
+                                      className="btn btn-primary btn-xs"
                                       onClick={() => {
-                                        togglePurchased(item.itemId);
-                                        showToast('已标记为购买');
+                                        const newQty = Math.max(1, parseInt(editShoppingQty) || 1);
+                                        updatePurchaseRefItem(item.itemId, {
+                                          name: editShoppingName.trim() || item.name,
+                                          spec: editShoppingSpec.trim(),
+                                          qty: newQty,
+                                        });
+                                        setEditingShoppingId(null);
+                                        showToast('已更新');
                                       }}
-                                    >
-                                      <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                                    </button>
-                                  )}
-                                  <button
-                                    className="fresh-icon-btn"
-                                    title="移出清单"
-                                    onClick={() => handleToggle(item.itemId)}
+                                      style={{ fontSize: 10, padding: '3px 8px' }}
+                                    >确定</button>
+                                    <button
+                                      className="btn btn-ghost btn-xs"
+                                      onClick={() => setEditingShoppingId(null)}
+                                      style={{ fontSize: 10, padding: '3px 8px' }}
+                                    >取消</button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div className="purchase-shopping-row-info">
+                                      <span className="purchase-shopping-row-name">
+                                        {purchased && <span style={{ color: '#48bb78', marginRight: 4 }}>✓</span>}
+                                        {item.name}
+                                      </span>
+                                      {item.spec && <span className="purchase-shopping-row-spec">{item.spec}</span>}
+                                      <span className="purchase-shopping-row-qty">×{item.qty}{item.unit || '个'}</span>
+                                      {item.matchedPrice && (
+                                        <span className="purchase-shopping-row-price">
+                                          ¥{item.matchedPrice.toLocaleString()}
+                                          {item.matchedChannel && <span className="purchase-shopping-row-channel"> ({item.matchedChannel})</span>}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="purchase-shopping-row-actions">
+                                      <button
+                                        className="fresh-icon-btn"
+                                        title="编辑"
+                                        onClick={() => {
+                                          setEditingShoppingId(item.itemId);
+                                          setEditShoppingName(item.name);
+                                          setEditShoppingSpec(item.spec || '');
+                                          setEditShoppingQty(String(item.qty));
+                                        }}
+                                      >
+                                        <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                      </button>
+                                      {!purchased ? (
+                                        <button
+                                          className="fresh-icon-btn"
+                                          title="标记已购买"
+                                          onClick={() => {
+                                            togglePurchased(item.itemId);
+                                            showToast('已标记为购买');
+                                          }}
+                                        >
+                                          <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                                        </button>
+                                      ) : (
+                                        <button
+                                          className="fresh-icon-btn"
+                                          title="取消已购"
+                                          style={{ color: '#e45b3f' }}
+                                          onClick={() => {
+                                            togglePurchased(item.itemId);
+                                            showToast('已取消已购标记');
+                                          }}
+                                        >
+                                          <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10z"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+                                        </button>
+                                      )}
+                                      <button
+                                        className="fresh-icon-btn"
+                                        title="移出清单"
+                                        onClick={() => handleToggle(item.itemId)}
                                   >
                                     <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>
                                   </button>
                                 </div>
+                                  </>
+                                )}
                               </div>
                             );
                           })}
                         </div>
                       ));
                     })()}
-                    {/* Toggle purchased visibility */}
-                    {shoppingItemsWithPrice.some(it => isItemPurchased(it.itemId)) && shoppingItemsWithPrice.some(it => !isItemPurchased(it.itemId)) && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        style={{ marginTop: 6, fontSize: 11 }}
-                        onClick={() => setShowPurchasedInCard(!showPurchasedInCard)}
-                      >
-                        {showPurchasedInCard ? '隐藏' : '查看'}已购物品
-                      </button>
-                    )}
                   </div>
                 )}
 
-                {/* Unmatched synced models from compare page */}
-                {unmatchedSyncedModels.length > 0 && (
+                {/* Unmatched synced models from compare page — only in pending view */}
+                {shoppingListView === 'pending' && unmatchedSyncedModels.length > 0 && (
                   <div className="purchase-shopping-section">
                     <div className="purchase-shopping-group-label" style={{ color: '#5c7fa8' }}>
                       📊 来自比价同步
