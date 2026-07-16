@@ -4,6 +4,7 @@ import {
   useStore, togglePurchaseRef, addCustomPurchaseItem,
   deletePurchaseRefItem, updatePurchaseRefQty, isItemPurchased,
   togglePurchased, toggleModelSync, getBestQuotePrice, updatePurchaseRefItem,
+  addPurchaseToCompare,
 } from '../data/store';
 import type { PurchaseReferenceStage, PurchaseReferenceSubgroup, PurchaseReferenceItem } from '../data/types';
 
@@ -446,11 +447,9 @@ const PurchasePage: React.FC = () => {
               </div>
             </div>
             <div className="purchase-shopping-hd-right">
-              {displayCost > 0 && (
-                <span className="purchase-shopping-total">
-                  {shoppingListView === 'pending' ? '预估总计' : '已购总计'} <strong>¥{displayCost.toLocaleString()}</strong>
-                </span>
-              )}
+              <span className="purchase-shopping-total" style={displayCost === 0 ? { visibility: 'hidden' } : undefined}>
+                {shoppingListView === 'pending' ? '预估总计' : '已购总计'} <strong>¥{displayCost.toLocaleString()}</strong>
+              </span>
               <a href="/compare" className="purchase-shopping-link">去比价 →</a>
             </div>
           </div>
@@ -578,6 +577,22 @@ const PurchasePage: React.FC = () => {
                                       )}
                                     </div>
                                     <div className="purchase-shopping-row-actions">
+                                      <button
+                                        className="fresh-icon-btn"
+                                        title="添加至比价"
+                                        onClick={() => {
+                                          addPurchaseToCompare({
+                                            itemId: item.itemId,
+                                            name: item.name,
+                                            spec: item.spec,
+                                            stageParent: item.stageParent,
+                                            qty: item.qty,
+                                          });
+                                          showToast(`已添加「${item.name}」到比价`);
+                                        }}
+                                      >
+                                        <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                                      </button>
                                       <button
                                         className="fresh-icon-btn"
                                         title="编辑"
