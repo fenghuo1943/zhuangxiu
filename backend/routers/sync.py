@@ -38,7 +38,7 @@ async def _ensure_project(project_id: str, user: User, db: AsyncSession) -> Proj
 async def export_state(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Export all project data as JSON (same format as frontend localStorage)."""
     from sqlalchemy import select
-    from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceCategory, PriceModel, ChannelQuote, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep
+    from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceCategory, PriceModel, ChannelQuote, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep, PurchasedItem
 
     proj = await _ensure_project(project_id, user, db)
     sid = proj.id  # scoped project ID
@@ -64,6 +64,7 @@ async def export_state(project_id: str, user: User = Depends(get_current_user), 
         price_data.append({"id": pc.id, "name": pc.name, "icon": pc.icon, "models": models_data})
 
     sel = (await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == sid))).scalars().all()
+    purch = (await db.execute(select(PurchasedItem).where(PurchasedItem.project_id == sid))).scalars().all()
     synced = (await db.execute(select(SyncedModel).where(SyncedModel.project_id == sid))).scalars().all()
 
     # Stage notes
@@ -99,6 +100,7 @@ async def export_state(project_id: str, user: User = Depends(get_current_user), 
         "flowCustomOrder": fp.custom_order if fp else None,
         "priceCategories": price_data,
         "selectedPurchaseIds": [s.item_id for s in sel],
+        "purchasedItemIds": [p.item_id for p in purch],
         "syncedModelIds": [s.model_id for s in synced],
         "stageNotes": notes_by_stage,
         "customFlowSteps": custom_steps_data,
@@ -109,7 +111,7 @@ async def export_state(project_id: str, user: User = Depends(get_current_user), 
 async def import_state(project_id: str, data: AppStateSync, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Import full project state from JSON."""
     from sqlalchemy import select, delete
-    from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceCategory, PriceModel, ChannelQuote, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep
+    from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceCategory, PriceModel, ChannelQuote, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep, PurchasedItem
     import uuid
     from datetime import date as date_type, datetime, timezone
 
@@ -117,7 +119,7 @@ async def import_state(project_id: str, data: AppStateSync, user: User = Depends
     sid = proj.id  # scoped project ID
 
     # Clear existing data
-    for model in [Todo, Expense, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep]:
+    for model in [Todo, Expense, SelectedPurchase, PurchasedItem, SyncedModel, StageNote, CustomFlowStep]:
         await db.execute(delete(model).where(model.project_id == sid))
     await db.execute(delete(Budget).where(Budget.project_id == sid))
     await db.execute(delete(BudgetCategory).where(BudgetCategory.project_id == sid))
@@ -187,6 +189,8 @@ async def import_state(project_id: str, data: AppStateSync, user: User = Depends
     # Import selections
     for sid in data.selected_purchase_ids:
         db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=sid))
+    for pid in data.purchased_item_ids:
+        db.add(PurchasedItem(id=f"pi_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=pid))
     for mid in data.synced_model_ids:
         db.add(SyncedModel(id=f"sm_{uuid.uuid4().hex[:12]}", project_id=project_id, model_id=mid))
 

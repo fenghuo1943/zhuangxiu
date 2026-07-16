@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..database import get_db
-from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, SelectedPurchase
-from ..schemas import PurchaseRefStageOut, PurchaseRefSubgroupOut, PurchaseRefItemOut, CustomPurchaseCreate
+from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, SelectedPurchase, PurchasedItem, PriceCategory, PriceModel
+from ..schemas import PurchaseRefStageOut, PurchaseRefSubgroupOut, PurchaseRefItemOut, CustomPurchaseCreate, AddToCompareRequest
 from ..auth import get_current_user
 import uuid
 
@@ -116,3 +116,60 @@ async def delete_purchase_item(project_id: str, item_id: str, user: User = Depen
     if item and item.id.startswith("p_custom_"):
         await db.delete(item)
     await db.commit()
+
+
+# ── Purchased status ──
+
+@router.get("/api/projects/{project_id}/purchase/purchased", response_model=list[str])
+async def get_purchased(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(PurchasedItem).where(PurchasedItem.project_id == project_id))
+    return [pi.item_id for pi in result.scalars().all()]
+
+
+@router.put("/api/projects/{project_id}/purchase/purchased/{item_id}")
+async def toggle_purchased(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    proj = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
+    if not proj.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    result = await db.execute(select(PurchasedItem).where(PurchasedItem.project_id == project_id, PurchasedItem.item_id == item_id))
+    existing = result.scalar_one_or_none()
+    if existing:
+        await db.delete(existing)
+        await db.commit()
+        return {"purchased": False}
+    else:
+        pi = PurchasedItem(id=f"pi_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=item_id)
+        db.add(pi)
+        await db.commit()
+        return {"purchased": True}
+
+
+# ── Add purchase item to compare ──
+
+@router.post("/api/projects/{project_id}/purchase/add-to-compare", status_code=201)
+async def add_purchase_to_compare(project_id: str, data: AddToCompareRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    proj = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
+    if not proj.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    # Find or create PriceCategory matching the stage parent name
+    cat_result = await db.execute(select(PriceCategory).where(PriceCategory.project_id == project_id, PriceCategory.name == data.category_name))
+    cat = cat_result.scalar_one_or_none()
+    if not cat:
+        cat = PriceCategory(id=f"pc_{uuid.uuid4().hex[:12]}", project_id=project_id, name=data.category_name, icon="📦")
+        db.add(cat)
+        await db.flush()
+
+    # Create PriceModel
+    model = PriceModel(
+        id=f"pm_{uuid.uuid4().hex[:12]}",
+        category_id=cat.id,
+        name=data.item_name,
+        spec=data.spec or "",
+        quantity=data.quantity,
+    )
+    db.add(model)
+    await db.commit()
+    await db.refresh(model)
+    return {"category_id": cat.id, "model_id": model.id, "name": model.name}

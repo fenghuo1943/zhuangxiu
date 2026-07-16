@@ -3,12 +3,12 @@ import AppShell from '../components/layout/AppShell';
 import {
   useStore, addPriceCategory, deletePriceCategory,
   addPriceModel, deletePriceModel,
-  addChannelQuote, deleteChannelQuote, getTotalChannelCount,
+  deleteChannelQuote, getTotalChannelCount,
   toggleModelSync, isModelSynced,
 } from '../data/store';
 import {
   IconCompare, IconPlus, IconTrash, IconChevronDown,
-  IconSearch, IconX, IconDollar, IconEdit, IconDownload, IconUpload,
+  IconSearch, IconX, IconDownload, IconUpload,
 } from '../components/common/Icons';
 
 const ComparePage: React.FC = () => {
@@ -23,12 +23,6 @@ const ComparePage: React.FC = () => {
   const [newModelName, setNewModelName] = useState('');
   const [newModelSpec, setNewModelSpec] = useState('');
   const [newModelNote, setNewModelNote] = useState('');
-  const [newModelQty, setNewModelQty] = useState('1');
-
-  // Add quote state per model
-  const [addingQuoteFor, setAddingQuoteFor] = useState<string | null>(null);
-  const [newQuoteChannel, setNewQuoteChannel] = useState('');
-  const [newQuotePrice, setNewQuotePrice] = useState('');
 
   const pc = state.priceCategories;
   const filteredCategories = searchQuery.trim()
@@ -56,29 +50,22 @@ const ComparePage: React.FC = () => {
 
   const handleAddModel = (catId: string) => {
     if (!newModelName.trim()) return;
-    addPriceModel(catId, newModelName.trim(), newModelSpec.trim(), newModelNote.trim(), parseInt(newModelQty) || 1);
-    setNewModelName(''); setNewModelSpec(''); setNewModelNote(''); setNewModelQty('1');
+    addPriceModel(catId, newModelName.trim(), newModelSpec.trim(), newModelNote.trim(), 1);
+    setNewModelName(''); setNewModelSpec(''); setNewModelNote('');
     setAddingModelFor(null);
-  };
-
-  const handleAddQuote = (modelId: string) => {
-    if (!newQuoteChannel.trim()) return;
-    addChannelQuote(modelId, newQuoteChannel.trim(), newQuotePrice ? parseFloat(newQuotePrice) : undefined);
-    setNewQuoteChannel(''); setNewQuotePrice('');
-    setAddingQuoteFor(null);
   };
 
   // CSV export
   const handleExportCSV = () => {
     const BOM = '﻿';
-    const rows = ['品类,型号,规格,备注,数量,渠道,价格'];
+    const rows = ['品类,型号,规格,备注,渠道,价格'];
     state.priceCategories.forEach(cat => {
       cat.models.forEach(m => {
         if (m.channelQuotes.length === 0) {
-          rows.push(`"${cat.name}","${m.name}","${m.spec || ''}","${m.note || ''}",${m.quantity || 1},,--`);
+          rows.push(`"${cat.name}","${m.name}","${m.spec || ''}","${m.note || ''}",--`);
         } else {
           m.channelQuotes.forEach(q => {
-            rows.push(`"${cat.name}","${m.name}","${m.spec || ''}","${m.note || ''}",${m.quantity || 1},"${q.channel}",${q.price ?? ''}`);
+            rows.push(`"${cat.name}","${m.name}","${m.spec || ''}","${m.note || ''}","${q.channel}",${q.price ?? ''}`);
           });
         }
       });
@@ -273,7 +260,6 @@ const ComparePage: React.FC = () => {
                             <span className="compare-model-name">{model.name}</span>
                             {model.spec && <span className="compare-model-spec">{model.spec}</span>}
                             {model.note && <span className="compare-model-note">{model.note}</span>}
-                            <span className="compare-model-qty">×{model.quantity || 1}</span>
                           </div>
                           <div className="compare-model-quotes">
                             {model.channelQuotes.map(quote => (
@@ -291,24 +277,6 @@ const ComparePage: React.FC = () => {
                                 </button>
                               </div>
                             ))}
-                            {addingQuoteFor === model.id ? (
-                              <div className="compare-add-quote-row">
-                                <input className="input" placeholder="渠道名" value={newQuoteChannel}
-                                  onChange={e => setNewQuoteChannel(e.target.value)}
-                                  onKeyDown={e => e.key === 'Enter' && handleAddQuote(model.id)}
-                                  style={{ width: 80, fontSize: 11, padding: '3px 6px' }} />
-                                <input className="input" type="number" placeholder="价格" value={newQuotePrice}
-                                  onChange={e => setNewQuotePrice(e.target.value)}
-                                  onKeyDown={e => e.key === 'Enter' && handleAddQuote(model.id)}
-                                  style={{ width: 80, fontSize: 11, padding: '3px 6px' }} />
-                                <button className="btn btn-primary btn-sm" onClick={() => handleAddQuote(model.id)} style={{ fontSize: 10 }}>确定</button>
-                                <button className="btn btn-ghost btn-sm" onClick={() => { setAddingQuoteFor(null); setNewQuoteChannel(''); setNewQuotePrice(''); }} style={{ fontSize: 10 }}>取消</button>
-                              </div>
-                            ) : (
-                              <button className="btn btn-ghost btn-sm" onClick={() => setAddingQuoteFor(model.id)} style={{ fontSize: 10 }}>
-                                <IconPlus size={10} /> 添加报价
-                              </button>
-                            )}
                           </div>
                           <button
                             className={`btn btn-sm ${isModelSynced(model.id) ? 'btn-green' : 'btn-outline'}`}
@@ -337,11 +305,8 @@ const ComparePage: React.FC = () => {
                           <input className="input" placeholder="备注" value={newModelNote}
                             onChange={e => setNewModelNote(e.target.value)}
                             style={{ width: 100 }} />
-                          <input className="input" type="number" min="1" value={newModelQty}
-                            onChange={e => setNewModelQty(e.target.value)}
-                            style={{ width: 55 }} />
                           <button className="btn btn-primary btn-sm" onClick={() => handleAddModel(cat.id)}>添加</button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => { setAddingModelFor(null); setNewModelName(''); setNewModelSpec(''); setNewModelNote(''); setNewModelQty('1'); }}>取消</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => { setAddingModelFor(null); setNewModelName(''); setNewModelSpec(''); setNewModelNote(''); }}>取消</button>
                         </div>
                       ) : (
                         <button className="btn btn-outline btn-sm" onClick={() => setAddingModelFor(cat.id)} style={{ margin: '8px 16px' }}>

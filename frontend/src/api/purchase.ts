@@ -31,3 +31,24 @@ export async function addCustomPurchaseItem(
 export async function deletePurchaseItem(projectId: string, itemId: string): Promise<void> {
   return apiDelete(`/api/projects/${projectId}/purchase/items/${itemId}`);
 }
+
+/** Get purchased item IDs for a project */
+export async function fetchPurchasedItems(projectId: string): Promise<string[]> {
+  return apiGet(`/api/projects/${projectId}/purchase/purchased`);
+}
+
+/** Toggle an item's purchased status */
+export async function togglePurchasedItem(
+  projectId: string,
+  itemId: string,
+): Promise<{ purchased: boolean }> {
+  return apiPut(`/api/projects/${projectId}/purchase/purchased/${itemId}`);
+}
+
+/** Create a PriceModel from a purchase item (add to compare system) */
+export async function addPurchaseToCompareApi(
+  projectId: string,
+  data: { item_id: string; item_name: string; spec?: string; category_name: string; quantity: number },
+): Promise<{ category_id: string; model_id: string; name: string }> {
+  return apiPost(`/api/projects/${projectId}/purchase/add-to-compare`, data);
+}

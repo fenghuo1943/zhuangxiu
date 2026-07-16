@@ -4,7 +4,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..database import get_db
-from ..models import User, Project, PriceCategory, PriceModel, ChannelQuote, SyncedModel
+from ..models import User, Project, PriceCategory, PriceModel, ChannelQuote, SyncedModel, SelectedPurchase, PurchaseRefItem, PurchasedItem
 from ..schemas import PriceCategoryCreate, PriceCategoryOut, PriceModelCreate, PriceModelOut, ChannelQuoteCreate, ChannelQuoteOut
 from ..auth import get_current_user
 import uuid
@@ -109,12 +109,36 @@ async def toggle_model_sync(project_id: str, model_id: str, user: User = Depends
     if existing:
         await db.delete(existing)
         await db.commit()
-        return {"synced": False}
+        return {"synced": False, "auto_purchased": 0}
     else:
         sm = SyncedModel(id=f"sm_{uuid.uuid4().hex[:12]}", project_id=project_id, model_id=model_id)
         db.add(sm)
+
+        # Reverse sync: auto-purchase matching selected purchase items
+        auto_purchased = 0
+        model_result = await db.execute(select(PriceModel).where(PriceModel.id == model_id))
+        model = model_result.scalar_one_or_none()
+        if model:
+            sel_result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == project_id))
+            selected_ids = [s.item_id for s in sel_result.scalars().all()]
+            if selected_ids:
+                from sqlalchemy import func
+                items_result = await db.execute(
+                    select(PurchaseRefItem).where(
+                        PurchaseRefItem.id.in_(selected_ids),
+                        func.lower(PurchaseRefItem.name) == model.name.lower()
+                    )
+                )
+                for item in items_result.scalars().all():
+                    existing_purch = await db.execute(
+                        select(PurchasedItem).where(PurchasedItem.project_id == project_id, PurchasedItem.item_id == item.id)
+                    )
+                    if not existing_purch.scalar_one_or_none():
+                        db.add(PurchasedItem(id=f"pi_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=item.id))
+                        auto_purchased += 1
+
         await db.commit()
-        return {"synced": True}
+        return {"synced": True, "auto_purchased": auto_purchased}
 
 
 @router.get("/export-csv")

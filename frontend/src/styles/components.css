@@ -1210,9 +1210,77 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 .focus-stat b { display: block; margin-top: 4px; font-size: 20px; color: var(--fresh-text); font-weight: 800; }
 
 /* ==================== Expense & Purchase Summary ==================== */
-.purchase-summary-list { text-align: center; padding: 8px 0; }
+.purchase-summary-list { text-align: left; padding: 0; }
 .purchase-count { font-size: 13px; color: var(--fresh-muted); }
 .purchase-count strong { color: var(--fresh-coral); font-size: 18px; }
+
+.purchase-summary-group { margin-bottom: 10px; }
+.purchase-summary-group:last-child { margin-bottom: 0; }
+.purchase-summary-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fresh-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 0 6px;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 4px;
+}
+
+.purchase-summary-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.purchase-summary-item:hover { background: #f9fafb; }
+.purchase-summary-item.purchased .purchase-summary-item-name {
+  text-decoration: line-through;
+  color: var(--fresh-muted);
+  opacity: 0.7;
+}
+.purchase-summary-item-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.purchase-summary-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.purchase-summary-item-name svg { color: #48bb78; flex-shrink: 0; }
+.purchase-summary-item-spec {
+  font-size: 11px;
+  color: var(--fresh-muted);
+  background: #f5f5f5;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.purchase-summary-item-qty {
+  font-size: 11px;
+  color: var(--fresh-muted);
+  white-space: nowrap;
+}
+.purchase-summary-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.purchase-ref-tag.tag-purchased {
+  background: #c6f6d5;
+  color: #276749;
+}
 
 .expense-mini-list { display: grid; gap: 6px; }
 .expense-mini-item {

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import AppShell from '../components/layout/AppShell';
 import {
   useStore, togglePurchaseRef, addCustomPurchaseItem,
-  deletePurchaseRefItem, updatePurchaseRefQty,
+  deletePurchaseRefItem, updatePurchaseRefQty, isItemPurchased,
 } from '../data/store';
 import type { PurchaseReferenceStage, PurchaseReferenceSubgroup, PurchaseReferenceItem } from '../data/types';
 
@@ -431,6 +431,9 @@ const PurchasePage: React.FC = () => {
                                     <span className={`purchase-ref-tag ${isSelected(item.id) ? 'tag-selected' : 'tag-default'}`}>
                                       {isSelected(item.id) ? '已选' : '参考'}
                                     </span>
+                                    {isItemPurchased(item.id) && (
+                                      <span className="purchase-ref-tag tag-purchased">已购</span>
+                                    )}
                                     <button
                                       type="button"
                                       className="purchase-ref-delete"

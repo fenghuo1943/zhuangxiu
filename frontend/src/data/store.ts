@@ -44,6 +44,7 @@ function getInitialState(): AppState {
         purchaseItems: parsed.purchaseItems || [],
         purchaseReferences: parsed.purchaseReferences || PURCHASE_REFERENCES,
         selectedPurchaseIds: parsed.selectedPurchaseIds || [],
+        purchasedItemIds: parsed.purchasedItemIds || [],
         expenses: parsed.expenses || [],
         recentExpenses: parsed.recentExpenses || [],
         flowType: parsed.flowType || 'new',
@@ -72,6 +73,7 @@ function getInitialState(): AppState {
     purchaseItems: [],
     purchaseReferences: PURCHASE_REFERENCES,
     selectedPurchaseIds: [],
+    purchasedItemIds: [],
     expenses: [],
     recentExpenses: [],
     flowType: 'new',
@@ -475,6 +477,70 @@ export async function loadPurchaseReferencesFromBackend(): Promise<void> {
   }
 }
 
+// ── Purchased status ──
+
+export function togglePurchased(itemId: string) {
+  const set = new Set(globalState.purchasedItemIds);
+  if (set.has(itemId)) set.delete(itemId);
+  else set.add(itemId);
+  globalState = { ...globalState, purchasedItemIds: Array.from(set) };
+  notify();
+  persist();
+
+  if (isAuthenticated()) {
+    import('../api/purchase').then(({ togglePurchasedItem }) => {
+      togglePurchasedItem(globalState.activeProjectId, itemId).catch(() => {});
+    });
+  }
+}
+
+export function isItemPurchased(itemId: string): boolean {
+  return globalState.purchasedItemIds.includes(itemId);
+}
+
+/** Load purchased items from backend */
+export async function loadPurchasedFromBackend(): Promise<void> {
+  if (!isAuthenticated()) return;
+  try {
+    const { fetchPurchasedItems } = await import('../api/purchase');
+    const purIds = await fetchPurchasedItems(globalState.activeProjectId);
+    globalState = { ...globalState, purchasedItemIds: purIds };
+    notify();
+    persist();
+  } catch { /* backend unreachable */ }
+}
+
+// ── Add purchase item to compare ──
+
+export function addPurchaseToCompare(item: {
+  itemId: string;
+  name: string;
+  spec?: string;
+  stageParent: string;
+  qty: number;
+}) {
+  // Optimistic local: find or create category, create model
+  let cat = globalState.priceCategories.find(c => c.name === item.stageParent);
+  if (!cat) {
+    cat = addPriceCategory(item.stageParent, '📦');
+    cat = globalState.priceCategories.find(c => c.name === item.stageParent)!;
+  }
+  addPriceModel(cat.id, item.name, item.spec || '', '', item.qty);
+
+  // Sync to backend
+  if (isAuthenticated()) {
+    import('../api/purchase').then(({ addPurchaseToCompareApi }) => {
+      addPurchaseToCompareApi(globalState.activeProjectId, {
+        item_id: item.itemId,
+        item_name: item.name,
+        spec: item.spec || '',
+        category_name: item.stageParent,
+        quantity: item.qty,
+      }).catch(() => {});
+    });
+  }
+}
+
 // ==================== Expense Actions ====================
 
 function _bkCatId(frontendCatId: string): string {
@@ -686,11 +752,25 @@ export function deleteChannelQuote(modelId: string, quoteId: string) {
 
 export function toggleModelSync(modelId: string) {
   const set = new Set(globalState.syncedModelIds);
-  if (set.has(modelId)) set.delete(modelId);
-  else set.add(modelId);
+  const isSyncing = !set.has(modelId);
+  if (isSyncing) set.add(modelId);
+  else set.delete(modelId);
   globalState = { ...globalState, syncedModelIds: Array.from(set) };
   notify();
   persist();
+
+  // Sync to backend (also triggers auto-purchase of matching items)
+  if (isAuthenticated()) {
+    import('../api/compare').then(({ toggleModelSyncApi }) => {
+      toggleModelSyncApi(globalState.activeProjectId, modelId)
+        .then((res) => {
+          if (res.auto_purchased > 0) {
+            loadPurchasedFromBackend();
+          }
+        })
+        .catch(() => {});
+    });
+  }
 }
 
 export function isModelSynced(modelId: string): boolean {
@@ -1255,6 +1335,7 @@ export async function syncFromServerAfterLogin(): Promise<void> {
     await loadFlowFromBackend();
     await loadPurchaseReferencesFromBackend();
     await loadSelectedPurchasesFromBackend();
+    await loadPurchasedFromBackend();
   } catch {
     // Server unreachable — keep local data
   }

@@ -40,6 +40,7 @@ class Project(Base):
     flow_progress = relationship("FlowProgress", back_populates="project", uselist=False, cascade="all, delete-orphan")
     price_categories = relationship("PriceCategory", back_populates="project", cascade="all, delete-orphan")
     selected_purchases = relationship("SelectedPurchase", back_populates="project", cascade="all, delete-orphan")
+    purchased_items = relationship("PurchasedItem", back_populates="project", cascade="all, delete-orphan")
     synced_models = relationship("SyncedModel", back_populates="project", cascade="all, delete-orphan")
     stage_notes = relationship("StageNote", back_populates="project", cascade="all, delete-orphan")
     custom_flow_steps = relationship("CustomFlowStep", back_populates="project", cascade="all, delete-orphan")
@@ -145,6 +146,15 @@ class SelectedPurchase(Base):
     item_id = Column(String(36), ForeignKey("purchase_ref_items.id"), nullable=False)
 
     project = relationship("Project", back_populates="selected_purchases")
+
+
+class PurchasedItem(Base):
+    __tablename__ = "purchased_items"
+    id = _pk()
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
+    item_id = Column(String(36), nullable=False)
+
+    project = relationship("Project", back_populates="purchased_items")
 
 
 # ---- Price Comparison ----

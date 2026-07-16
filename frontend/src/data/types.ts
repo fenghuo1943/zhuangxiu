@@ -193,6 +193,7 @@ export interface AppState {
   purchaseItems: PurchaseItem[];
   purchaseReferences: PurchaseReferenceStage[];
   selectedPurchaseIds: string[];
+  purchasedItemIds: string[];
   expenses: Expense[];
   recentExpenses: Expense[];
   expenseSubCategories: ExpenseSubCategory[];

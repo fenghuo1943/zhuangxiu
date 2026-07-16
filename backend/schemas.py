@@ -183,6 +183,14 @@ class CustomPurchaseCreate(BaseModel):
     qty: int = 1
 
 
+class AddToCompareRequest(BaseModel):
+    item_id: str
+    item_name: str
+    spec: Optional[str] = None
+    category_name: str
+    quantity: int = 1
+
+
 # ---- Price Compare ----
 class ChannelQuoteCreate(BaseModel):
     channel: str = Field(..., max_length=100)
@@ -281,6 +289,7 @@ class AppStateSync(BaseModel):
     flow_progress: Optional[dict] = None
     price_categories: List[dict] = []
     selected_purchase_ids: List[str] = []
+    purchased_item_ids: List[str] = []
     synced_model_ids: List[str] = []
     stage_notes: Optional[dict] = None
     custom_flow_steps: List[dict] = []
