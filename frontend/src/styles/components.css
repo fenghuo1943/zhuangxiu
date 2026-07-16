@@ -3704,6 +3704,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 .compare-cat-header-left { display: flex; align-items: center; gap: 10px; }
 .compare-cat-header-left strong { font-size: 15px; }
 .compare-cat-icon { font-size: 20px; }
+.compare-cat-price { font-size: 13px; font-weight: 700; color: #22C55E; white-space: nowrap; margin-right: 8px; }
 .compare-cat-header-right { display: flex; align-items: center; gap: 8px; }
 
 .compare-cat-body { border-top: 1px solid var(--fresh-line); padding: 0; }

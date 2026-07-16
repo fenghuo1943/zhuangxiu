@@ -4,7 +4,7 @@ import {
   useStore, addPriceCategory, deletePriceCategory,
   addPriceModel, deletePriceModel, updatePriceModel,
   addChannelQuote, deleteChannelQuote, updateChannelQuote,
-  selectBestQuote, getBestQuotePrice, getTotalChannelCount,
+  selectBestQuote, getModelDisplayPrice, getCategoryDisplayPrice, getTotalChannelCount,
   toggleModelSync, isModelSynced,
 } from '../data/store';
 import {
@@ -301,6 +301,23 @@ const ComparePage: React.FC = () => {
                       <span className="badge badge-default">{cat.models.length} 个型号</span>
                     </div>
                     <div className="compare-cat-header-right">
+                      {(() => { const p = getCategoryDisplayPrice(cat.id); return p ? <span className="compare-cat-price">{p}</span> : null; })()}
+                      {(() => {
+                        const bestModelId = cat.models.find(m => state.bestQuoteIds[m.id])?.id;
+                        const targetId = bestModelId || cat.models.find(m => isModelSynced(m.id))?.id;
+                        const synced = targetId ? isModelSynced(targetId) : false;
+                        return (
+                          <button
+                            className={`btn btn-sm ${synced ? 'btn-green' : 'btn-outline'}`}
+                            onClick={(e) => { e.stopPropagation(); if (bestModelId) toggleModelSync(bestModelId); }}
+                            title={synced ? '已同步到待购，点击取消' : bestModelId ? '同步最优报价型号到待购清单' : '请先选中最优报价'}
+                            style={{ fontSize: 10 }}
+                            disabled={!bestModelId}
+                          >
+                            {synced ? '✓ 已同步' : '同步'}
+                          </button>
+                        );
+                      })()}
                       <button
                         className="icon-btn"
                         onClick={(e) => { e.stopPropagation(); deletePriceCategory(cat.id); }}
@@ -319,7 +336,7 @@ const ComparePage: React.FC = () => {
                       {/* Models */}
                       {cat.models.map(model => {
                         const quotesOpen = expandedQuotes.has(model.id);
-                        const bestPrice = getBestQuotePrice(model.id);
+                        const displayPrice = getModelDisplayPrice(model.id);
                         return (
                         <div key={model.id} className="compare-prod-card">
                           {/* Model header – click to expand quotes */}
@@ -350,18 +367,10 @@ const ComparePage: React.FC = () => {
                               </div>
                             )}
                             <div className="compare-prod-actions" onClick={e => e.stopPropagation()}>
-                              {bestPrice !== null && (
-                                <span className="compare-prod-lowest">¥{bestPrice.toLocaleString()}</span>
+                              {displayPrice && (
+                                <span className="compare-prod-lowest">{displayPrice}</span>
                               )}
                               <span className="badge badge-default" style={{ fontSize: 10 }}>{model.channelQuotes.length} 报价</span>
-                              <button
-                                className={`btn btn-sm ${isModelSynced(model.id) ? 'btn-green' : 'btn-outline'}`}
-                                onClick={() => toggleModelSync(model.id)}
-                                title={isModelSynced(model.id) ? '已同步到待购，点击取消' : '同步到待购清单'}
-                                style={{ fontSize: 10 }}
-                              >
-                                {isModelSynced(model.id) ? '✓' : '同步'}
-                              </button>
                               <button className="fresh-icon-btn" onClick={() => startEditModel(model)} title="编辑" style={{ width: 22, height: 22 }}>
                                 <IconEdit size={12} />
                               </button>

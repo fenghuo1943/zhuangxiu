@@ -786,6 +786,25 @@ export function selectBestQuote(modelId: string, quoteId: string | null) {
   if (quoteId === null) {
     delete bestQuoteIds[modelId];
   } else {
+    // Find the category containing this model, clear all other models in same category
+    let categoryId: string | null = null;
+    for (const cat of globalState.priceCategories) {
+      if (cat.models.some(m => m.id === modelId)) {
+        categoryId = cat.id;
+        break;
+      }
+    }
+    if (categoryId) {
+      // Clear selections from ALL other models in this category
+      for (const cat of globalState.priceCategories) {
+        if (cat.id === categoryId) {
+          for (const m of cat.models) {
+            if (m.id !== modelId) delete bestQuoteIds[m.id];
+          }
+          break;
+        }
+      }
+    }
     bestQuoteIds[modelId] = quoteId;
   }
   globalState = { ...globalState, bestQuoteIds };
@@ -805,6 +824,56 @@ export function getBestQuotePrice(modelId: string): number | null {
     }
   }
   return null;
+}
+
+/** Get min/max price range for a model's quotes. Returns null if no quotes with prices. */
+export function getModelPriceRange(modelId: string): { min: number; max: number } | null {
+  const prices: number[] = [];
+  for (const cat of globalState.priceCategories) {
+    for (const m of cat.models) {
+      if (m.id === modelId) {
+        for (const q of m.channelQuotes) {
+          if (q.price !== undefined && q.price !== null) prices.push(q.price);
+        }
+      }
+    }
+  }
+  if (prices.length === 0) return null;
+  return { min: Math.min(...prices), max: Math.max(...prices) };
+}
+
+/** Get the display price for a model: best quote price if selected, otherwise min~max range. */
+export function getModelDisplayPrice(modelId: string): string | null {
+  const best = getBestQuotePrice(modelId);
+  if (best !== null) return `¥${best.toLocaleString()}`;
+  const range = getModelPriceRange(modelId);
+  if (range) return range.min === range.max ? `¥${range.min.toLocaleString()}` : `¥${range.min.toLocaleString()}~${range.max.toLocaleString()}`;
+  return null;
+}
+
+/** Get display price for a category: best quote from any selected model, otherwise overall min~max. */
+export function getCategoryDisplayPrice(categoryId: string): string | null {
+  const cat = globalState.priceCategories.find(c => c.id === categoryId);
+  if (!cat) return null;
+
+  // Check for any selected best quote across models
+  let bestPrice: number | null = null;
+  const allPrices: number[] = [];
+  for (const m of cat.models) {
+    const bp = getBestQuotePrice(m.id);
+    if (bp !== null) {
+      if (bestPrice === null || bp < bestPrice) bestPrice = bp;
+    }
+    for (const q of m.channelQuotes) {
+      if (q.price !== undefined && q.price !== null) allPrices.push(q.price);
+    }
+  }
+
+  if (bestPrice !== null) return `¥${bestPrice.toLocaleString()}`;
+  if (allPrices.length === 0) return null;
+  const min = Math.min(...allPrices);
+  const max = Math.max(...allPrices);
+  return min === max ? `¥${min.toLocaleString()}` : `¥${min.toLocaleString()}~${max.toLocaleString()}`;
 }
 
 export function toggleModelSync(modelId: string) {
