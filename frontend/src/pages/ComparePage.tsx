@@ -4,7 +4,7 @@ import {
   useStore, addCompareItem, removeCompareItem,
   addPriceModel, deletePriceModel, updatePriceModel,
   addChannelQuote, deleteChannelQuote, updateChannelQuote,
-  selectBestQuote, getModelDisplayPrice, getItemDisplayPrice, getTotalChannelCount,
+  selectBestQuote, getModelDisplayPrice, getItemDisplayPrice,
   toggleModelSync, isModelSynced,
 } from '../data/store';
 import { addCompareItemApi } from '../api/compare';
@@ -65,7 +65,6 @@ const ComparePage: React.FC = () => {
     : ci;
 
   const totalModels = ci.reduce((sum, c) => sum + c.models.length, 0);
-  const totalChannels = getTotalChannelCount();
   const syncedCount = state.syncedModelIds.length;
 
   const toggleItem = (id: string) => {
@@ -265,10 +264,6 @@ const ComparePage: React.FC = () => {
               <b className="flow-stat-value">{totalModels}</b>
             </div>
             <div className="flow-stat">
-              <span className="flow-stat-label">报价渠道</span>
-              <b className="flow-stat-value">{totalChannels}</b>
-            </div>
-            <div className="flow-stat">
               <span className="flow-stat-label">已标记已购</span>
               <b className="flow-stat-value" style={{ color: syncedCount > 0 ? 'var(--fresh-coral)' : undefined }}>{syncedCount}</b>
             </div>
@@ -302,7 +297,7 @@ const ComparePage: React.FC = () => {
             onChange={e => setQuickQty(e.target.value.replace(/\D/g, '') || '1')}
             style={{ width: 60, fontSize: 12 }}
           />
-          <button className="btn btn-primary" type="button" onClick={handleQuickAdd}>添加</button>
+          <button className="btn btn-primary" type="button" onClick={handleQuickAdd} style={{ justifyContent: 'center' }}>添加</button>
         </div>
 
         {/* Search & CSV */}
