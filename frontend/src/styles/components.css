@@ -3578,7 +3578,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 /* ── Quick-add grid ── */
 .purchase-quick-add-v2 {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(120px, .7fr) 78px 74px;
+  grid-template-columns: minmax(180px, 1fr) minmax(120px, .7fr) auto 74px;
   gap: 8px;
   margin-bottom: 14px;
   padding: 12px;

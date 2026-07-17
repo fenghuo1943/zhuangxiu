@@ -284,19 +284,22 @@ const ComparePage: React.FC = () => {
           <select
             value={quickStage}
             onChange={e => setQuickStage(e.target.value)}
-            style={{ width: 200, fontSize: 12 }}
+            style={{ width: '100%', fontSize: 12 }}
           >
             {quickStageOptions.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
-          <input
-            type="number"
-            min="1"
-            value={quickQty}
-            onChange={e => setQuickQty(e.target.value.replace(/\D/g, '') || '1')}
-            style={{ width: 60, fontSize: 12 }}
-          />
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 12, color: 'var(--fresh-muted)', whiteSpace: 'nowrap' }}>数量：</span>
+            <input
+              type="number"
+              min="1"
+              value={quickQty}
+              onChange={e => setQuickQty(e.target.value.replace(/\D/g, '') || '1')}
+              style={{ width: 56, fontSize: 12 }}
+            />
+          </span>
           <button className="btn btn-primary" type="button" onClick={handleQuickAdd} style={{ justifyContent: 'center' }}>添加</button>
         </div>
 
