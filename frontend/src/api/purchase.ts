@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiPut, apiDelete } from './client';
-import type { PurchaseReferenceStage } from '../data/types';
+import type { PurchaseReferenceStage, CompareItem } from '../data/types';
 
 /** Fetch all purchase reference data (public, no auth needed) */
 export async function fetchPurchaseReferences(): Promise<PurchaseReferenceStage[]> {
@@ -45,10 +45,15 @@ export async function togglePurchasedItem(
   return apiPut(`/api/projects/${projectId}/purchase/purchased/${itemId}`);
 }
 
-/** Create a PriceCategory from a purchase item (item becomes 品类, user adds 型号 manually) */
-export async function addPurchaseToCompareApi(
+/** Toggle needs_compare flag on a purchase item */
+export async function toggleItemCompare(
   projectId: string,
-  data: { item_id: string; item_name: string; spec?: string; category_name: string; quantity: number },
-): Promise<{ category_id: string; name: string }> {
-  return apiPost(`/api/projects/${projectId}/purchase/add-to-compare`, data);
+  itemId: string,
+): Promise<{ needs_compare: boolean }> {
+  return apiPut(`/api/projects/${projectId}/purchase/toggle-compare/${itemId}`, {});
+}
+
+/** Get comparison data for a specific purchase item */
+export async function fetchItemComparison(projectId: string, itemId: string): Promise<CompareItem | null> {
+  return apiGet(`/api/projects/${projectId}/purchase/items/${itemId}/comparison`);
 }

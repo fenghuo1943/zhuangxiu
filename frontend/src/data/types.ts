@@ -60,6 +60,7 @@ export interface PurchaseReferenceItem {
   qty: number;
   unit?: string;
   selected?: boolean;
+  needs_compare?: boolean;
 }
 
 export interface PurchaseReferenceSubgroup {
@@ -169,17 +170,25 @@ export interface ChannelQuote {
 
 export interface PriceModel {
   id: string;
+  item_id?: string | null;
+  project_id?: string | null;
   name: string;
   spec?: string;
   note?: string;
   quantity?: number;
+  best_quote_id?: string | null;
   channelQuotes: ChannelQuote[];
 }
 
-export interface PriceCategory {
-  id: string;
-  name: string;
-  icon?: string;
+/** Item with comparison models (used in compare page) */
+export interface CompareItem {
+  item_id: string;
+  item_name: string;
+  spec?: string | null;
+  qty: number;
+  unit?: string | null;
+  stage_parent?: string | null;
+  subgroup_name?: string | null;
   models: PriceModel[];
 }
 
@@ -206,8 +215,8 @@ export interface AppState {
   customFlowSteps: CustomFlowStep[];
   flowStepsFromBackend: Record<string, FlowStep[]>;  // flowType -> FlowStep[] from DB
   syncedModelIds: string[];
-  bestQuoteIds: Record<string, string>;  // modelId -> quoteId (mutually exclusive per model)
-  priceCategories: PriceCategory[];
+  bestQuoteIds: Record<string, string>;  // modelId -> quoteId
+  compareItems: CompareItem[];           // items with needs_compare + their models
   projectStates: Record<string, ProjectState>;
 }
 

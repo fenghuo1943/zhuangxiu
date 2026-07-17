@@ -4,7 +4,8 @@ import {
   useStore, togglePurchaseRef, addCustomPurchaseItem,
   deletePurchaseRefItem, updatePurchaseRefQty, isItemPurchased,
   togglePurchased, toggleModelSync, getBestQuotePrice, updatePurchaseRefItem,
-  addPurchaseToCompare,
+  addPurchaseToCompare, isItemInComparison, getItemBestPrice,
+  getItemBestChannel,
 } from '../data/store';
 import type { PurchaseReferenceStage, PurchaseReferenceSubgroup, PurchaseReferenceItem } from '../data/types';
 
@@ -171,9 +172,9 @@ const PurchasePage: React.FC = () => {
   }, [state.purchaseReferences, state.selectedPurchaseIds]);
 
   const syncedPriceModels = useMemo(() => {
-    const models: { modelId: string; modelName: string; spec?: string; catName: string; price?: number; channel?: string; note?: string }[] = [];
-    state.priceCategories.forEach(cat => {
-      cat.models.forEach(model => {
+    const models: { modelId: string; modelName: string; spec?: string; catName: string; price?: number; channel?: string; note?: string; purchaseItemId?: string | null }[] = [];
+    state.compareItems.forEach(item => {
+      item.models.forEach(model => {
         if (state.syncedModelIds.includes(model.id)) {
           const bestPrice = getBestQuotePrice(model.id);
           const bestQuoteId = state.bestQuoteIds[model.id];
@@ -182,41 +183,70 @@ const PurchasePage: React.FC = () => {
             modelId: model.id,
             modelName: model.name,
             spec: model.spec,
-            catName: cat.name,
+            catName: item.item_name,
             price: bestPrice ?? undefined,
             channel: bestQuote?.channel,
             note: model.note,
+            purchaseItemId: item.item_id,
           });
         }
       });
     });
     return models;
-  }, [state.priceCategories, state.syncedModelIds, state.bestQuoteIds]);
+  }, [state.compareItems, state.syncedModelIds, state.bestQuoteIds]);
 
-  // Match synced models to shopping items by name (for price display)
+  // Match compare items to shopping items by FK (primary) or name (fallback)
   const shoppingItemsWithPrice = useMemo(() => {
     return shoppingItems.map(item => {
-      // Try to find a matching synced model by name
+      // First try FK-based lookup via compareItems
+      const ci = state.compareItems.find(c => c.item_id === item.itemId);
+      // Fallback: try name matching against all compareItems
+      const matchedCi = ci || state.compareItems.find(c =>
+        c.item_name === item.name ||
+        c.item_name.includes(item.name) ||
+        item.name.includes(c.item_name)
+      );
+      if (matchedCi) {
+        let bestPrice: number | null = null;
+        let bestChannel: string | undefined;
+        let bestModelId: string | undefined;
+        for (const model of matchedCi.models) {
+          const bp = getBestQuotePrice(model.id);
+          if (bp !== null && (bestPrice === null || bp < bestPrice)) {
+            bestPrice = bp;
+            const bestQuoteId = state.bestQuoteIds[model.id];
+            if (bestQuoteId) {
+              bestChannel = model.channelQuotes.find(q => q.id === bestQuoteId)?.channel;
+            }
+            bestModelId = model.id;
+          }
+        }
+        return { ...item, matchedPrice: bestPrice ?? undefined, matchedChannel: bestChannel, matchedModelId: bestModelId, hasComparison: true, comparisonItemId: matchedCi.item_id };
+      }
+      // Last fallback: try fuzzy name matching via syncedPriceModels for backward compat
       const match = syncedPriceModels.find(m =>
         m.modelName === item.name ||
         m.catName === item.name ||
         m.modelName.includes(item.name) ||
         item.name.includes(m.modelName)
       );
-      return { ...item, matchedPrice: match?.price, matchedChannel: match?.channel, matchedModelId: match?.modelId };
+      return { ...item, matchedPrice: match?.price, matchedChannel: match?.channel, matchedModelId: match?.modelId, hasComparison: false };
     });
-  }, [shoppingItems, syncedPriceModels]);
+  }, [shoppingItems, state.compareItems, state.syncedModelIds, state.bestQuoteIds, syncedPriceModels]);
 
-  // Unmatched synced models (no corresponding shopping item)
+  // Unmatched synced models — only those without FK link
   const unmatchedSyncedModels = useMemo(() => {
-    return syncedPriceModels.filter(m =>
-      !shoppingItems.some(item =>
+    return syncedPriceModels.filter(m => {
+      // If the model's category has a purchase_item_id linked to a shopping item, it's matched
+      if (m.purchaseItemId && shoppingItems.some(item => item.itemId === m.purchaseItemId)) return false;
+      // Also check fuzzy name match
+      return !shoppingItems.some(item =>
         m.modelName === item.name ||
         m.catName === item.name ||
         m.modelName.includes(item.name) ||
         item.name.includes(m.modelName)
-      )
-    );
+      );
+    });
   }, [syncedPriceModels, shoppingItems]);
 
   const totalEstimatedCost = useMemo(() => {
@@ -577,22 +607,33 @@ const PurchasePage: React.FC = () => {
                                       )}
                                     </div>
                                     <div className="purchase-shopping-row-actions">
-                                      <button
-                                        className="fresh-icon-btn"
-                                        title="添加至比价"
-                                        onClick={() => {
-                                          addPurchaseToCompare({
-                                            itemId: item.itemId,
-                                            name: item.name,
-                                            spec: item.spec,
-                                            stageParent: item.stageParent,
-                                            qty: item.qty,
-                                          });
-                                          showToast(`已添加「${item.name}」到比价`);
-                                        }}
-                                      >
-                                        <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                                      </button>
+                                      {isItemInComparison(item.itemId) ? (
+                                        <a
+                                          className="fresh-icon-btn"
+                                          title="查看比价"
+                                          href="/compare"
+                                          style={{ color: '#48bb78' }}
+                                        >
+                                          <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                                        </a>
+                                      ) : (
+                                        <button
+                                          className="fresh-icon-btn"
+                                          title="添加至比价"
+                                          onClick={() => {
+                                            addPurchaseToCompare({
+                                              itemId: item.itemId,
+                                              name: item.name,
+                                              spec: item.spec,
+                                              stageParent: item.stageParent,
+                                              qty: item.qty,
+                                            });
+                                            showToast(`已添加「${item.name}」到比价`);
+                                          }}
+                                        >
+                                          <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                                        </button>
+                                      )}
                                       <button
                                         className="fresh-icon-btn"
                                         title="编辑"

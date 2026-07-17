@@ -1,10 +1,12 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..database import get_db
-from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, SelectedPurchase, PurchasedItem, PriceCategory, PriceModel
-from ..schemas import PurchaseRefStageOut, PurchaseRefSubgroupOut, PurchaseRefItemOut, CustomPurchaseCreate, AddToCompareRequest
+from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, SelectedPurchase, PurchasedItem, PriceModel, ChannelQuote
+from ..schemas import PurchaseRefStageOut, PurchaseRefSubgroupOut, PurchaseRefItemOut, CustomPurchaseCreate, CompareItemOut, PriceModelOut, ChannelQuoteOut
 from ..auth import get_current_user
+from sqlalchemy import update
 import uuid
 
 router = APIRouter(tags=["Purchase"])
@@ -106,6 +108,11 @@ async def delete_purchase_item(project_id: str, item_id: str, user: User = Depen
     if not proj.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="项目不存在")
 
+    # Unlink any PriceCategory that references this item
+    await db.execute(
+        update(PriceCategory).where(PriceCategory.purchase_item_id == item_id).values(purchase_item_id=None)
+    )
+
     # Remove selection
     sel_result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == project_id, SelectedPurchase.item_id == item_id))
     for sp in sel_result.scalars().all():
@@ -145,21 +152,71 @@ async def toggle_purchased(project_id: str, item_id: str, user: User = Depends(g
         return {"purchased": True}
 
 
-# ── Add purchase item to compare ──
+# ── Toggle needs_compare flag on purchase item ──
 
-@router.post("/api/projects/{project_id}/purchase/add-to-compare", status_code=201)
-async def add_purchase_to_compare(project_id: str, data: AddToCompareRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+@router.put("/api/projects/{project_id}/purchase/toggle-compare/{item_id}")
+async def toggle_purchase_compare(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     proj = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
     if not proj.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="项目不存在")
 
-    # Use the item name as the PriceCategory name
-    cat_result = await db.execute(select(PriceCategory).where(PriceCategory.project_id == project_id, PriceCategory.name == data.item_name))
-    cat = cat_result.scalar_one_or_none()
-    if not cat:
-        cat = PriceCategory(id=f"pc_{uuid.uuid4().hex[:12]}", project_id=project_id, name=data.item_name, icon="📦")
-        db.add(cat)
-        await db.commit()
-        await db.refresh(cat)
+    item_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.id == item_id))
+    item = item_result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="物品不存在")
 
-    return {"category_id": cat.id, "name": cat.name}
+    item.needs_compare = not item.needs_compare
+    # Auto-select if turning on compare
+    if item.needs_compare:
+        sel_result = await db.execute(
+            select(SelectedPurchase).where(SelectedPurchase.project_id == project_id, SelectedPurchase.item_id == item_id)
+        )
+        if not sel_result.scalar_one_or_none():
+            db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=item_id))
+    await db.commit()
+    return {"needs_compare": item.needs_compare}
+
+
+# ── Get comparison data for a purchase item ──
+
+@router.get("/api/projects/{project_id}/purchase/items/{item_id}/comparison", response_model=Optional[CompareItemOut])
+async def get_item_comparison(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    proj = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
+    if not proj.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    item_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.id == item_id))
+    item = item_result.scalar_one_or_none()
+    if not item:
+        return None
+
+    # Get context
+    sub_result = await db.execute(select(PurchaseRefSubgroup).where(PurchaseRefSubgroup.id == item.subgroup_id))
+    subgroup = sub_result.scalar_one_or_none()
+    stage_parent = subgroup_name = None
+    if subgroup:
+        subgroup_name = subgroup.name
+        stage_result = await db.execute(select(PurchaseRefStage).where(PurchaseRefStage.id == subgroup.stage_id))
+        stage = stage_result.scalar_one_or_none()
+        if stage: stage_parent = stage.parent
+
+    # Get models
+    models_result = await db.execute(
+        select(PriceModel).where(PriceModel.item_id == item_id, PriceModel.project_id == project_id)
+    )
+    models_out = []
+    for m in models_result.scalars().all():
+        quotes_result = await db.execute(select(ChannelQuote).where(ChannelQuote.model_id == m.id))
+        quotes_out = [ChannelQuoteOut.model_validate(q) for q in quotes_result.scalars().all()]
+        models_out.append(PriceModelOut(
+            id=m.id, item_id=m.item_id, project_id=m.project_id,
+            name=m.name, spec=m.spec, note=m.note, quantity=m.quantity,
+            best_quote_id=None, quotes=quotes_out,
+        ))
+
+    return CompareItemOut(
+        item_id=item.id, item_name=item.name, spec=item.spec,
+        qty=item.qty, unit=item.unit,
+        stage_parent=stage_parent, subgroup_name=subgroup_name,
+        models=models_out,
+    )

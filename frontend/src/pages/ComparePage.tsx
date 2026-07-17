@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import AppShell from '../components/layout/AppShell';
 import {
-  useStore, addPriceCategory, deletePriceCategory,
+  useStore, addCompareItem, removeCompareItem,
   addPriceModel, deletePriceModel, updatePriceModel,
   addChannelQuote, deleteChannelQuote, updateChannelQuote,
-  selectBestQuote, getModelDisplayPrice, getCategoryDisplayPrice, getTotalChannelCount,
+  selectBestQuote, getModelDisplayPrice, getItemDisplayPrice, getTotalChannelCount,
   toggleModelSync, isModelSynced,
 } from '../data/store';
+import { addCompareItemApi } from '../api/compare';
+import { isAuthenticated } from '../api/client';
 import {
   IconCompare, IconPlus, IconTrash, IconChevronDown,
   IconSearch, IconX, IconEdit, IconDownload, IconUpload,
@@ -15,10 +17,23 @@ import {
 const ComparePage: React.FC = () => {
   const state = useStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [newCatName, setNewCatName] = useState('');
 
-  // Add model state per category
+  // Quick-add state (matches PurchasePage's quick-add bar)
+  const [quickName, setQuickName] = useState('');
+  const [quickStage, setQuickStage] = useState('0_0');
+  const [quickQty, setQuickQty] = useState('1');
+
+  // Build stage/subgroup dropdown options
+  const quickStageOptions: { value: string; label: string }[] = [];
+  state.purchaseReferences.forEach((stage, pi) => {
+    stage.subs.forEach((sub, si) => {
+      quickStageOptions.push({ value: `${pi}_${si}`, label: `${stage.parent} / ${sub.name}` });
+    });
+  });
+
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
+  // Add model state
   const [newModelName, setNewModelName] = useState('');
   const [newModelSpec, setNewModelSpec] = useState('');
   const [newModelNote, setNewModelNote] = useState('');
@@ -29,7 +44,7 @@ const ComparePage: React.FC = () => {
   const [editModelSpec, setEditModelSpec] = useState('');
   const [editModelNote, setEditModelNote] = useState('');
 
-  // Quote expand/collapse state
+  // Quote expand/collapse
   const [expandedQuotes, setExpandedQuotes] = useState<Set<string>>(new Set());
 
   // Add quote state
@@ -44,17 +59,17 @@ const ComparePage: React.FC = () => {
   const [editQuotePrice, setEditQuotePrice] = useState('');
   const [editQuoteNote, setEditQuoteNote] = useState('');
 
-  const pc = state.priceCategories;
-  const filteredCategories = searchQuery.trim()
-    ? pc.filter(c => c.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
-    : pc;
+  const ci = state.compareItems;
+  const filteredItems = searchQuery.trim()
+    ? ci.filter(c => c.item_name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : ci;
 
-  const totalModels = pc.reduce((sum, c) => sum + c.models.length, 0);
+  const totalModels = ci.reduce((sum, c) => sum + c.models.length, 0);
   const totalChannels = getTotalChannelCount();
   const syncedCount = state.syncedModelIds.length;
 
-  const toggleCategory = (id: string) => {
-    setExpandedCategories(prev => {
+  const toggleItem = (id: string) => {
+    setExpandedItems(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -62,15 +77,27 @@ const ComparePage: React.FC = () => {
     });
   };
 
-  const handleAddCategory = () => {
-    if (!newCatName.trim()) return;
-    addPriceCategory(newCatName.trim());
-    setNewCatName('');
+  const handleQuickAdd = () => {
+    if (!quickName.trim()) return;
+    const [pi, si] = quickStage.split('_').map(Number);
+    const stage = state.purchaseReferences[pi];
+    const sub = stage?.subs[si];
+    if (!stage || !sub) return;
+    const qty = Math.max(1, parseInt(quickQty) || 1);
+    addCompareItem(quickName.trim(), stage.parent, sub.name, qty, '', '个');
+    // Sync to backend
+    if (isAuthenticated()) {
+      addCompareItemApi(state.activeProjectId, {
+        name: quickName.trim(), stage_parent: stage.parent,
+        subgroup_name: sub.name, qty, spec: '', unit: '个',
+      }).catch(() => {});
+    }
+    setQuickName(''); setQuickQty('1');
   };
 
-  const handleAddModel = (catId: string) => {
+  const handleAddModel = (itemId: string) => {
     if (!newModelName.trim()) return;
-    addPriceModel(catId, newModelName.trim(), newModelSpec.trim(), newModelNote.trim(), 1);
+    addPriceModel(itemId, newModelName.trim(), newModelSpec.trim(), newModelNote.trim(), 1);
     setNewModelName(''); setNewModelSpec(''); setNewModelNote('');
   };
 
@@ -127,14 +154,17 @@ const ComparePage: React.FC = () => {
   // CSV export
   const handleExportCSV = () => {
     const BOM = '﻿';
-    const rows = ['品类,型号,规格,备注,渠道,价格'];
-    state.priceCategories.forEach(cat => {
-      cat.models.forEach(m => {
+    const rows = ['物品,规格,阶段,分组,数量,型号,型号备注,渠道,价格'];
+    state.compareItems.forEach(item => {
+      if (item.models.length === 0) {
+        rows.push(`"${item.item_name}","${item.spec || ''}","${item.stage_parent || ''}","${item.subgroup_name || ''}",${item.qty},,,--,`);
+      }
+      item.models.forEach(m => {
         if (m.channelQuotes.length === 0) {
-          rows.push(`"${cat.name}","${m.name}","${m.spec || ''}","${m.note || ''}",--`);
+          rows.push(`"${item.item_name}","${item.spec || ''}","${item.stage_parent || ''}","${item.subgroup_name || ''}",${item.qty},"${m.name}","${m.note || ''}",,--`);
         } else {
           m.channelQuotes.forEach(q => {
-            rows.push(`"${cat.name}","${m.name}","${m.spec || ''}","${m.note || ''}","${q.channel}",${q.price ?? ''}`);
+            rows.push(`"${item.item_name}","${item.spec || ''}","${item.stage_parent || ''}","${item.subgroup_name || ''}",${item.qty},"${m.name}","${m.note || ''}","${q.channel}",${q.price ?? ''}`);
           });
         }
       });
@@ -157,31 +187,35 @@ const ComparePage: React.FC = () => {
       const clean = text.replace(/^﻿/, '');
       const lines = clean.split(/\r?\n/).filter(l => l.trim());
       let imported = 0;
-      // Map: categoryName -> { models: Map<modelName, model> }
-      const catMap = new Map<string, { catId: string; models: Map<string, string> }>();
       for (let i = 1; i < lines.length; i++) {
         const fields = parseCSVLine(lines[i]);
         if (fields.length < 5) continue;
-        const [catName, modelName, spec, note, qtyStr, channel, priceStr] = fields;
-        if (!catName || !modelName) continue;
+        const [itemName, spec, stageName, subgroupName, qtyStr, modelName, modelNote, channel, priceStr] = fields;
+        if (!itemName || !modelName) continue;
+        const qty = parseInt(qtyStr) || 1;
 
-        let entry = catMap.get(catName);
-        if (!entry) {
-          const existingCat = state.priceCategories.find(c => c.name === catName);
-          if (!existingCat) {
-            addPriceCategory(catName, '📦');
-            // Re-fetch state... we'll use the just-added one
+        // Find or create item
+        let existingItem = state.compareItems.find(c => c.item_name === itemName);
+        if (!existingItem) {
+          const [pi, si] = quickStage.split('_').map(Number);
+          const stage = state.purchaseReferences[pi];
+          const sub = stage?.subs[si];
+          if (!stage || !sub) continue;
+          const itemId = `p_import_${Date.now()}_${imported}`;
+          addCompareItem(itemId, itemName, stage.parent, sub.name, qty, spec);
+          existingItem = state.compareItems.find(c => c.item_id === itemId);
+        }
+        if (!existingItem) continue;
+
+        addPriceModel(existingItem.item_id, modelName, spec || undefined, modelNote || undefined, 1);
+        if (channel && channel !== '--') {
+          const model = state.compareItems.find(c => c.item_id === existingItem!.item_id)?.models.find(m => m.name === modelName);
+          if (model) {
+            const price = parseFloat(priceStr) || undefined;
+            addChannelQuote(model.id, channel, price);
           }
-          entry = { catId: existingCat?.id || '', models: new Map() };
-          catMap.set(catName, entry);
         }
-
-        if (!entry.models.has(modelName)) {
-          const qty = parseInt(qtyStr) || 1;
-          addPriceModel(entry.catId || catName, modelName, spec, note, qty);
-          entry.models.set(modelName, 'added');
-          imported++;
-        }
+        imported++;
       }
       setImportMsg({ type: 'success', text: `CSV: 导入 ${imported} 个型号` });
       setTimeout(() => setImportMsg(null), 3000);
@@ -191,7 +225,6 @@ const ComparePage: React.FC = () => {
 
   const [importMsg, setImportMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // CSV line parser (reuse)
   function parseCSVLine(line: string): string[] {
     const result: string[] = [];
     let current = ''; let inQuotes = false;
@@ -220,12 +253,12 @@ const ComparePage: React.FC = () => {
               <IconCompare size={14} /> 采购比价
             </span>
             <h1>多渠道比价，选最优方案</h1>
-            <p>按品类收集不同渠道的报价，对比后同步到待购清单。</p>
+            <p>添加待购物品后，为每个物品收集不同渠道的报价进行对比。</p>
           </div>
           <div className="compare-header-stats">
             <div className="flow-stat">
-              <span className="flow-stat-label">品类数</span>
-              <b className="flow-stat-value">{pc.length}</b>
+              <span className="flow-stat-label">比价物品</span>
+              <b className="flow-stat-value">{ci.length}</b>
             </div>
             <div className="flow-stat">
               <span className="flow-stat-label">型号数</span>
@@ -236,92 +269,113 @@ const ComparePage: React.FC = () => {
               <b className="flow-stat-value">{totalChannels}</b>
             </div>
             <div className="flow-stat">
-              <span className="flow-stat-label">已同步待购</span>
+              <span className="flow-stat-label">已标记已购</span>
               <b className="flow-stat-value" style={{ color: syncedCount > 0 ? 'var(--fresh-coral)' : undefined }}>{syncedCount}</b>
             </div>
           </div>
         </div>
 
-        {/* Add Category */}
-        <div className="compare-add-cat">
+        {/* Quick-Add Bar — matches PurchasePage */}
+        <div className="purchase-quick-add-v2">
           <input
+            type="text"
             className="input"
-            placeholder="新品类名称（如：冰箱、瓷砖、木门）"
-            value={newCatName}
-            onChange={e => setNewCatName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
-            style={{ width: 260 }}
+            placeholder="直接添加比价物品，例如：冰箱"
+            value={quickName}
+            onChange={e => setQuickName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
+            style={{ flex: 1, minWidth: 200 }}
           />
-          <button className="btn btn-primary btn-sm" onClick={handleAddCategory} disabled={!newCatName.trim()}>
-            <IconPlus size={14} /> 添加品类
-          </button>
+          <select
+            value={quickStage}
+            onChange={e => setQuickStage(e.target.value)}
+            style={{ width: 200, fontSize: 12 }}
+          >
+            {quickStageOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min="1"
+            value={quickQty}
+            onChange={e => setQuickQty(e.target.value.replace(/\D/g, '') || '1')}
+            style={{ width: 60, fontSize: 12 }}
+          />
+          <button className="btn btn-primary" type="button" onClick={handleQuickAdd}>添加</button>
         </div>
 
         {/* Search & CSV */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
           <div className="compare-search">
             <IconSearch size={14} />
-            <input className="input" placeholder="搜索品类..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: 32, width: 240 }} />
+            <input className="input" placeholder="搜索比价物品..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: 32, width: 240 }} />
           </div>
           <button className="btn btn-outline btn-sm" onClick={handleExportCSV}><IconDownload size={14} /> 导出 CSV</button>
           <button className="btn btn-outline btn-sm" onClick={handleImportCSV}><IconUpload size={14} /> 导入 CSV</button>
           {importMsg && <span className={`backup-msg ${importMsg.type}`} style={{ padding: '4px 10px', fontSize: 12 }}>{importMsg.text}</span>}
         </div>
 
-        {/* Category Cards */}
-        {filteredCategories.length === 0 ? (
+        {/* Compare Items */}
+        {filteredItems.length === 0 ? (
           <div className="card">
             <div className="card-bd">
               <div className="empty-state">
                 <div className="empty-state-icon">⚖️</div>
                 <p className="empty-state-title">
-                  {searchQuery ? '未找到匹配的品类' : '暂无比价品类'}
+                  {searchQuery ? '未找到匹配的物品' : '暂无比价物品'}
                 </p>
                 <p className="empty-state-desc">
-                  {searchQuery ? '尝试其他关键词' : '添加品类开始比价，例如冰箱、瓷砖、木门等'}
+                  {searchQuery ? '尝试其他关键词' : '使用上方快速添加栏，先添加物品再进行比价'}
                 </p>
               </div>
             </div>
           </div>
         ) : (
           <div className="compare-categories">
-            {filteredCategories.map(cat => {
-              const isOpen = expandedCategories.has(cat.id);
+            {filteredItems.map(item => {
+              const isOpen = expandedItems.has(item.item_id);
               return (
-                <div key={cat.id} className={`compare-cat-card card ${isOpen ? 'open' : ''}`}>
+                <div key={item.item_id} className={`compare-cat-card card ${isOpen ? 'open' : ''}`}>
                   <div
                     className="compare-cat-header"
-                    onClick={() => toggleCategory(cat.id)}
+                    onClick={() => toggleItem(item.item_id)}
                     role="button"
                     tabIndex={0}
                     aria-expanded={isOpen}
                   >
                     <div className="compare-cat-header-left">
-                      <strong>{cat.name}</strong>
-                      <span className="badge badge-default">{cat.models.length} 个型号</span>
+                      <strong>{item.item_name}</strong>
+                      {item.spec && <span style={{ fontSize: 12, color: '#666' }}>{item.spec}</span>}
+                      <span className="badge badge-default">{item.models.length} 个型号</span>
+                      <span className="badge" style={{ fontSize: 10, background: '#f0f4ff', color: '#3b5998' }}>
+                        {item.stage_parent}/{item.subgroup_name}
+                      </span>
+                      <span className="badge" style={{ fontSize: 10, background: '#e8f5e9', color: '#2e7d32' }}>
+                        ×{item.qty}{item.unit || '个'}
+                      </span>
                     </div>
                     <div className="compare-cat-header-right">
-                      {(() => { const p = getCategoryDisplayPrice(cat.id); return p ? <span className="compare-cat-price">{p}</span> : null; })()}
+                      {(() => { const p = getItemDisplayPrice(item.item_id); return p ? <span className="compare-cat-price">{p}</span> : null; })()}
                       {(() => {
-                        const bestModelId = cat.models.find(m => state.bestQuoteIds[m.id])?.id;
-                        const targetId = bestModelId || cat.models.find(m => isModelSynced(m.id))?.id;
-                        const synced = targetId ? isModelSynced(targetId) : false;
+                        const bestModelId = item.models.find(m => state.bestQuoteIds[m.id])?.id;
+                        const synced = bestModelId ? isModelSynced(bestModelId) : false;
                         return (
                           <button
                             className={`btn btn-sm ${synced ? 'btn-green' : 'btn-outline'}`}
                             onClick={(e) => { e.stopPropagation(); if (bestModelId) toggleModelSync(bestModelId); }}
-                            title={synced ? '已同步到待购，点击取消' : bestModelId ? '同步最优报价型号到待购清单' : '请先选中最优报价'}
+                            title={synced ? '已标记已购，点击取消' : bestModelId ? '标记此物品为已购' : '请先选中最优报价'}
                             style={{ fontSize: 10 }}
                             disabled={!bestModelId}
                           >
-                            {synced ? '✓ 已同步' : '同步'}
+                            {synced ? '✓ 已购' : '标记已购'}
                           </button>
                         );
                       })()}
                       <button
                         className="icon-btn"
-                        onClick={(e) => { e.stopPropagation(); deletePriceCategory(cat.id); }}
-                        title="删除品类"
+                        onClick={(e) => { e.stopPropagation(); removeCompareItem(item.item_id); }}
+                        title="移出比价"
                       >
                         <IconTrash size={14} />
                       </button>
@@ -333,13 +387,11 @@ const ComparePage: React.FC = () => {
 
                   {isOpen && (
                     <div className="compare-cat-body">
-                      {/* Models */}
-                      {cat.models.map(model => {
+                      {item.models.map(model => {
                         const quotesOpen = expandedQuotes.has(model.id);
                         const displayPrice = getModelDisplayPrice(model.id);
                         return (
                         <div key={model.id} className="compare-prod-card">
-                          {/* Model header – click to expand quotes */}
                           <div className="compare-prod-hd"
                             onClick={() => toggleQuotes(model.id)}
                             role="button" tabIndex={0}
@@ -367,14 +419,12 @@ const ComparePage: React.FC = () => {
                               </div>
                             )}
                             <div className="compare-prod-actions" onClick={e => e.stopPropagation()}>
-                              {displayPrice && (
-                                <span className="compare-prod-lowest">{displayPrice}</span>
-                              )}
+                              {displayPrice && <span className="compare-prod-lowest">{displayPrice}</span>}
                               <span className="badge badge-default" style={{ fontSize: 10 }}>{model.channelQuotes.length} 报价</span>
                               <button className="fresh-icon-btn" onClick={() => startEditModel(model)} title="编辑" style={{ width: 22, height: 22 }}>
                                 <IconEdit size={12} />
                               </button>
-                              <button className="fresh-icon-btn" onClick={() => deletePriceModel(cat.id, model.id)} title="删除" style={{ width: 22, height: 22 }}>
+                              <button className="fresh-icon-btn" onClick={() => deletePriceModel(item.item_id, model.id)} title="删除" style={{ width: 22, height: 22 }}>
                                 <IconTrash size={12} />
                               </button>
                               <span className={`compare-prod-arrow ${quotesOpen ? 'open' : ''}`}>
@@ -383,7 +433,6 @@ const ComparePage: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Model body – quotes, collapsed by default */}
                           {quotesOpen && (
                             <div className="compare-prod-bd">
                               {model.channelQuotes.map(quote => {
@@ -420,9 +469,7 @@ const ComparePage: React.FC = () => {
                                       {quote.price !== undefined && (
                                         <span className="compare-quote-price">¥{quote.price.toLocaleString()}</span>
                                       )}
-                                      {quote.note && (
-                                        <span className="compare-quote-note">{quote.note}</span>
-                                      )}
+                                      {quote.note && <span className="compare-quote-note">{quote.note}</span>}
                                     </>
                                   )}
                                   <div className="compare-quote-actions">
@@ -461,21 +508,21 @@ const ComparePage: React.FC = () => {
                         </div>
                       );})}
 
-                      {/* Add Model – always visible */}
+                      {/* Add Model */}
                       <div className="compare-add-model-row">
                         <input className="input" placeholder="型号名称" value={newModelName}
                           onChange={e => setNewModelName(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && handleAddModel(cat.id)}
+                          onKeyDown={e => e.key === 'Enter' && handleAddModel(item.item_id)}
                           style={{ width: 120, fontSize: 12, padding: '4px 8px' }} />
                         <input className="input" placeholder="规格" value={newModelSpec}
                           onChange={e => setNewModelSpec(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && handleAddModel(cat.id)}
+                          onKeyDown={e => e.key === 'Enter' && handleAddModel(item.item_id)}
                           style={{ width: 100, fontSize: 12, padding: '4px 8px' }} />
                         <input className="input" placeholder="备注" value={newModelNote}
                           onChange={e => setNewModelNote(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && handleAddModel(cat.id)}
+                          onKeyDown={e => e.key === 'Enter' && handleAddModel(item.item_id)}
                           style={{ width: 100, fontSize: 12, padding: '4px 8px' }} />
-                        <button className="btn btn-primary btn-sm" onClick={() => handleAddModel(cat.id)} disabled={!newModelName.trim()}>
+                        <button className="btn btn-primary btn-sm" onClick={() => handleAddModel(item.item_id)} disabled={!newModelName.trim()}>
                           <IconPlus size={14} /> 添加型号
                         </button>
                       </div>

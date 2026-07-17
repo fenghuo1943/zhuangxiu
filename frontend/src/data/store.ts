@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { AppState, Todo, BudgetCategory, Expense, PurchaseItem, PriceCategory, PriceModel, ChannelQuote, FlowStep, StageNote, CustomFlowStep, ExpenseSubCategory, ExpenseGroup } from './types';
+import type { AppState, Todo, BudgetCategory, Expense, PurchaseItem, CompareItem, PriceModel, ChannelQuote, FlowStep, StageNote, CustomFlowStep, ExpenseSubCategory, ExpenseGroup } from './types';
 import {
   DEFAULT_STAGES,
   DEFAULT_BUDGET_CATEGORIES,
@@ -55,7 +55,7 @@ function getInitialState(): AppState {
         flowStepsFromBackend: parsed.flowStepsFromBackend || {},
         syncedModelIds: parsed.syncedModelIds || [],
         bestQuoteIds: parsed.bestQuoteIds || {},
-        priceCategories: parsed.priceCategories || [],
+        compareItems: parsed.compareItems || [],
         projectStates: parsed.projectStates || {},
         expenseSubCategories: parsed.expenseSubCategories || DEFAULT_SUB_CATEGORIES,
         expenseGroups: parsed.expenseGroups || DEFAULT_EXPENSE_GROUPS,
@@ -85,7 +85,7 @@ function getInitialState(): AppState {
     flowStepsFromBackend: {},
     syncedModelIds: [],
     bestQuoteIds: {},
-    priceCategories: [],
+    compareItems: [],
     projectStates: {},
     expenseSubCategories: DEFAULT_SUB_CATEGORIES,
     expenseGroups: DEFAULT_EXPENSE_GROUPS,
@@ -329,7 +329,7 @@ export function togglePurchaseRef(itemId: string) {
   }
 }
 
-export function addCustomPurchaseItem(name: string, stageParent: string, qty: number, spec?: string, subgroupName?: string, unit?: string) {
+export function addCustomPurchaseItem(name: string, stageParent: string, qty: number, spec?: string, subgroupName?: string, unit?: string): string {
   const id = `p_custom_${Date.now()}`;
   const purchaseReferences = globalState.purchaseReferences.map(stage => {
     if (stage.parent !== stageParent) return stage;
@@ -370,7 +370,7 @@ export function addCustomPurchaseItem(name: string, stageParent: string, qty: nu
       }).catch(() => {});
     });
   }
-}
+  return id;
 
 export function deletePurchaseRefItem(itemId: string) {
   // Find the item to get its stage parent (for possible backend sync)
@@ -536,22 +536,24 @@ export function addPurchaseToCompare(item: {
   stageParent: string;
   qty: number;
 }) {
-  // The purchase item becomes a PriceCategory — user adds models manually
-  let cat = globalState.priceCategories.find(c => c.name === item.name);
-  if (!cat) {
-    cat = addPriceCategory(item.name, '📦');
-  }
+  // Set needs_compare flag on the purchase reference item
+  const purchaseReferences = globalState.purchaseReferences.map(stage => ({
+    ...stage,
+    subs: stage.subs.map(sub => ({
+      ...sub,
+      items: sub.items.map(it =>
+        it.id === item.itemId ? { ...it, needs_compare: true } : it
+      ),
+    })),
+  }));
+  globalState = { ...globalState, purchaseReferences };
+  notify();
+  persist();
 
   // Sync to backend
   if (isAuthenticated()) {
-    import('../api/purchase').then(({ addPurchaseToCompareApi }) => {
-      addPurchaseToCompareApi(globalState.activeProjectId, {
-        item_id: item.itemId,
-        item_name: item.name,
-        spec: item.spec || '',
-        category_name: item.stageParent,
-        quantity: item.qty,
-      }).catch(() => {});
+    import('../api/purchase').then(({ toggleItemCompare }) => {
+      toggleItemCompare(globalState.activeProjectId, item.itemId).catch(() => {});
     });
   }
 }
@@ -682,65 +684,101 @@ export function updateExpense(expenseId: string, updates: Partial<Omit<Expense, 
   }
 }
 
-// ==================== Price Category Actions ====================
+// ==================== Compare Item Actions ====================
 
-export function addPriceCategory(name: string, icon?: string) {
-  const category: PriceCategory = {
-    id: `pc_${Date.now()}`,
-    name,
-    icon: icon || '📦',
+/** Get all compare items (items with needs_compare + their models) */
+export function getCompareItems(): CompareItem[] {
+  return globalState.compareItems;
+}
+
+/** Add a compare item with needs_compare flag (from compare page's quick-add form) */
+export function addCompareItem(itemName: string, stageParent: string, subgroupName: string, qty: number, spec?: string, unit?: string): CompareItem {
+  // Add the purchase item and get the real generated ID
+  const realItemId = addCustomPurchaseItem(itemName, stageParent, qty, spec || '', subgroupName, unit || '个');
+  // Also set needs_compare flag on the purchaseReferences item
+  const purchaseReferences = globalState.purchaseReferences.map(stage => ({
+    ...stage,
+    subs: stage.subs.map(sub => ({
+      ...sub,
+      items: sub.items.map(it =>
+        it.id === realItemId ? { ...it, needs_compare: true } : it
+      ),
+    })),
+  }));
+  // Add to compareItems with the REAL item ID
+  const ci: CompareItem = {
+    item_id: realItemId,
+    item_name: itemName,
+    spec: spec || '',
+    qty,
+    unit: unit || '个',
+    stage_parent: stageParent,
+    subgroup_name: subgroupName,
     models: [],
   };
-  globalState = { ...globalState, priceCategories: [...globalState.priceCategories, category] };
+  globalState = { ...globalState, purchaseReferences, compareItems: [...globalState.compareItems, ci] };
   notify();
   persist();
-  return category;
+  return ci;
 }
 
-export function deletePriceCategory(categoryId: string) {
+/** Remove item from compare (set needs_compare=false) */
+export function removeCompareItem(itemId: string) {
   globalState = {
     ...globalState,
-    priceCategories: globalState.priceCategories.filter(c => c.id !== categoryId),
+    compareItems: globalState.compareItems.filter(c => c.item_id !== itemId),
   };
+  // Also unset needs_compare on purchase reference
+  const purchaseReferences = globalState.purchaseReferences.map(stage => ({
+    ...stage,
+    subs: stage.subs.map(sub => ({
+      ...sub,
+      items: sub.items.map(it =>
+        it.id === itemId ? { ...it, needs_compare: false } : it
+      ),
+    })),
+  }));
+  globalState = { ...globalState, purchaseReferences };
   notify();
   persist();
 }
 
-export function addPriceModel(categoryId: string, name: string, spec?: string, note?: string, quantity?: number) {
+export function addPriceModel(itemId: string, name: string, spec?: string, note?: string, quantity?: number) {
   const model: PriceModel = {
     id: `pm_${Date.now()}`,
+    item_id: itemId,
     name,
     spec: spec || '',
     note: note || '',
     quantity: quantity || 1,
     channelQuotes: [],
   };
-  const priceCategories = globalState.priceCategories.map(c =>
-    c.id === categoryId ? { ...c, models: [...c.models, model] } : c
+  const compareItems = globalState.compareItems.map(c =>
+    c.item_id === itemId ? { ...c, models: [...c.models, model] } : c
   );
-  globalState = { ...globalState, priceCategories };
+  globalState = { ...globalState, compareItems };
   notify();
   persist();
   return model;
 }
 
-export function deletePriceModel(categoryId: string, modelId: string) {
-  const priceCategories = globalState.priceCategories.map(c =>
-    c.id === categoryId ? { ...c, models: c.models.filter(m => m.id !== modelId) } : c
+export function deletePriceModel(itemId: string, modelId: string) {
+  const compareItems = globalState.compareItems.map(c =>
+    c.item_id === itemId ? { ...c, models: c.models.filter(m => m.id !== modelId) } : c
   );
-  globalState = { ...globalState, priceCategories };
+  globalState = { ...globalState, compareItems };
   notify();
   persist();
 }
 
 export function updatePriceModel(modelId: string, updates: { name?: string; spec?: string; note?: string }) {
-  const priceCategories = globalState.priceCategories.map(c => ({
+  const compareItems = globalState.compareItems.map(c => ({
     ...c,
     models: c.models.map(m =>
       m.id === modelId ? { ...m, ...updates } : m
     ),
   }));
-  globalState = { ...globalState, priceCategories };
+  globalState = { ...globalState, compareItems };
   notify();
   persist();
 }
@@ -754,35 +792,34 @@ export function addChannelQuote(modelId: string, channel: string, price?: number
     url,
     updatedAt: new Date().toISOString(),
   };
-  const priceCategories = globalState.priceCategories.map(c => ({
+  const compareItems = globalState.compareItems.map(c => ({
     ...c,
     models: c.models.map(m =>
       m.id === modelId ? { ...m, channelQuotes: [...m.channelQuotes, quote] } : m
     ),
   }));
-  globalState = { ...globalState, priceCategories };
+  globalState = { ...globalState, compareItems };
   notify();
   persist();
   return quote;
 }
 
 export function deleteChannelQuote(modelId: string, quoteId: string) {
-  const priceCategories = globalState.priceCategories.map(c => ({
+  const compareItems = globalState.compareItems.map(c => ({
     ...c,
     models: c.models.map(m =>
       m.id === modelId ? { ...m, channelQuotes: m.channelQuotes.filter(q => q.id !== quoteId) } : m
     ),
   }));
-  // Also remove from bestQuoteIds if this quote was selected
   const bestQuoteIds = { ...globalState.bestQuoteIds };
   if (bestQuoteIds[modelId] === quoteId) delete bestQuoteIds[modelId];
-  globalState = { ...globalState, priceCategories, bestQuoteIds };
+  globalState = { ...globalState, compareItems, bestQuoteIds };
   notify();
   persist();
 }
 
 export function updateChannelQuote(quoteId: string, updates: { channel?: string; price?: number; note?: string }) {
-  const priceCategories = globalState.priceCategories.map(c => ({
+  const compareItems = globalState.compareItems.map(c => ({
     ...c,
     models: c.models.map(m => ({
       ...m,
@@ -791,7 +828,7 @@ export function updateChannelQuote(quoteId: string, updates: { channel?: string;
       ),
     })),
   }));
-  globalState = { ...globalState, priceCategories };
+  globalState = { ...globalState, compareItems };
   notify();
   persist();
 }
@@ -801,19 +838,18 @@ export function selectBestQuote(modelId: string, quoteId: string | null) {
   if (quoteId === null) {
     delete bestQuoteIds[modelId];
   } else {
-    // Find the category containing this model, clear all other models in same category
-    let categoryId: string | null = null;
-    for (const cat of globalState.priceCategories) {
-      if (cat.models.some(m => m.id === modelId)) {
-        categoryId = cat.id;
+    // Clear best quotes from all other models in the same item (one-best-per-item)
+    let itemId: string | null = null;
+    for (const ci of globalState.compareItems) {
+      if (ci.models.some(m => m.id === modelId)) {
+        itemId = ci.item_id;
         break;
       }
     }
-    if (categoryId) {
-      // Clear selections from ALL other models in this category
-      for (const cat of globalState.priceCategories) {
-        if (cat.id === categoryId) {
-          for (const m of cat.models) {
+    if (itemId) {
+      for (const ci of globalState.compareItems) {
+        if (ci.item_id === itemId) {
+          for (const m of ci.models) {
             if (m.id !== modelId) delete bestQuoteIds[m.id];
           }
           break;
@@ -825,13 +861,19 @@ export function selectBestQuote(modelId: string, quoteId: string | null) {
   globalState = { ...globalState, bestQuoteIds };
   notify();
   persist();
+
+  if (isAuthenticated()) {
+    import('../api/compare').then(({ setBestQuoteApi }) => {
+      setBestQuoteApi(globalState.activeProjectId, modelId, quoteId).catch(() => {});
+    });
+  }
 }
 
 export function getBestQuotePrice(modelId: string): number | null {
   const quoteId = globalState.bestQuoteIds[modelId];
   if (!quoteId) return null;
-  for (const cat of globalState.priceCategories) {
-    for (const m of cat.models) {
+  for (const ci of globalState.compareItems) {
+    for (const m of ci.models) {
       if (m.id === modelId) {
         const quote = m.channelQuotes.find(q => q.id === quoteId);
         return quote?.price ?? null;
@@ -841,11 +883,10 @@ export function getBestQuotePrice(modelId: string): number | null {
   return null;
 }
 
-/** Get min/max price range for a model's quotes. Returns null if no quotes with prices. */
 export function getModelPriceRange(modelId: string): { min: number; max: number } | null {
   const prices: number[] = [];
-  for (const cat of globalState.priceCategories) {
-    for (const m of cat.models) {
+  for (const ci of globalState.compareItems) {
+    for (const m of ci.models) {
       if (m.id === modelId) {
         for (const q of m.channelQuotes) {
           if (q.price !== undefined && q.price !== null) prices.push(q.price);
@@ -857,7 +898,6 @@ export function getModelPriceRange(modelId: string): { min: number; max: number 
   return { min: Math.min(...prices), max: Math.max(...prices) };
 }
 
-/** Get the display price for a model: best quote price if selected, otherwise min~max range. */
 export function getModelDisplayPrice(modelId: string): string | null {
   const best = getBestQuotePrice(modelId);
   if (best !== null) return `¥${best.toLocaleString()}`;
@@ -866,15 +906,14 @@ export function getModelDisplayPrice(modelId: string): string | null {
   return null;
 }
 
-/** Get display price for a category: best quote from any selected model, otherwise overall min~max. */
-export function getCategoryDisplayPrice(categoryId: string): string | null {
-  const cat = globalState.priceCategories.find(c => c.id === categoryId);
-  if (!cat) return null;
+/** Get display price for an item: best quote from any selected model, otherwise overall min~max. */
+export function getItemDisplayPrice(itemId: string): string | null {
+  const ci = globalState.compareItems.find(c => c.item_id === itemId);
+  if (!ci) return null;
 
-  // Check for any selected best quote across models
   let bestPrice: number | null = null;
   const allPrices: number[] = [];
-  for (const m of cat.models) {
+  for (const m of ci.models) {
     const bp = getBestQuotePrice(m.id);
     if (bp !== null) {
       if (bestPrice === null || bp < bestPrice) bestPrice = bp;
@@ -883,7 +922,6 @@ export function getCategoryDisplayPrice(categoryId: string): string | null {
       if (q.price !== undefined && q.price !== null) allPrices.push(q.price);
     }
   }
-
   if (bestPrice !== null) return `¥${bestPrice.toLocaleString()}`;
   if (allPrices.length === 0) return null;
   const min = Math.min(...allPrices);
@@ -897,10 +935,26 @@ export function toggleModelSync(modelId: string) {
   if (isSyncing) set.add(modelId);
   else set.delete(modelId);
   globalState = { ...globalState, syncedModelIds: Array.from(set) };
+
+  // If syncing, toggle purchased on the linked item via model's item_id
+  if (isSyncing) {
+    let purchaseItemId: string | null = null;
+    for (const ci of globalState.compareItems) {
+      if (ci.models.some(m => m.id === modelId)) {
+        purchaseItemId = ci.item_id;
+        break;
+      }
+    }
+    if (purchaseItemId) {
+      const purSet = new Set(globalState.purchasedItemIds);
+      purSet.add(purchaseItemId);
+      globalState = { ...globalState, purchasedItemIds: Array.from(purSet) };
+    }
+  }
+
   notify();
   persist();
 
-  // Sync to backend (also triggers auto-purchase of matching items)
   if (isAuthenticated()) {
     import('../api/compare').then(({ toggleModelSyncApi }) => {
       toggleModelSyncApi(globalState.activeProjectId, modelId)
@@ -918,10 +972,46 @@ export function isModelSynced(modelId: string): boolean {
   return globalState.syncedModelIds.includes(modelId);
 }
 
+// ── Purchase-comparison helpers (based on needs_compare flag) ──
+
+export function isItemInComparison(itemId: string): boolean {
+  return globalState.purchaseReferences.some(stage =>
+    stage.subs.some(sub =>
+      sub.items.some(item => item.id === itemId && item.needs_compare === true)
+    )
+  );
+}
+
+export function getItemBestPrice(itemId: string): number | null {
+  const ci = globalState.compareItems.find(c => c.item_id === itemId);
+  if (!ci) return null;
+  let bestPrice: number | null = null;
+  for (const model of ci.models) {
+    const bp = getBestQuotePrice(model.id);
+    if (bp !== null && (bestPrice === null || bp < bestPrice)) {
+      bestPrice = bp;
+    }
+  }
+  return bestPrice;
+}
+
+export function getItemBestChannel(itemId: string): string | undefined {
+  const ci = globalState.compareItems.find(c => c.item_id === itemId);
+  if (!ci) return undefined;
+  for (const model of ci.models) {
+    const quoteId = globalState.bestQuoteIds[model.id];
+    if (quoteId) {
+      const quote = model.channelQuotes.find(q => q.id === quoteId);
+      if (quote) return quote.channel;
+    }
+  }
+  return undefined;
+}
+
 export function getTotalChannelCount(): number {
   let count = 0;
-  globalState.priceCategories.forEach(c => {
-    c.models.forEach(m => {
+  globalState.compareItems.forEach(ci => {
+    ci.models.forEach(m => {
       count += m.channelQuotes.length;
     });
   });

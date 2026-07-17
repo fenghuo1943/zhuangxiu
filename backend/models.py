@@ -39,6 +39,7 @@ class Project(Base):
     expenses = relationship("Expense", back_populates="project", cascade="all, delete-orphan")
     flow_progress = relationship("FlowProgress", back_populates="project", uselist=False, cascade="all, delete-orphan")
     price_categories = relationship("PriceCategory", back_populates="project", cascade="all, delete-orphan")
+    price_models = relationship("PriceModel", back_populates=None, foreign_keys="[PriceModel.project_id]", cascade="all, delete-orphan")
     selected_purchases = relationship("SelectedPurchase", back_populates="project", cascade="all, delete-orphan")
     purchased_items = relationship("PurchasedItem", back_populates="project", cascade="all, delete-orphan")
     synced_models = relationship("SyncedModel", back_populates="project", cascade="all, delete-orphan")
@@ -135,8 +136,10 @@ class PurchaseRefItem(Base):
     spec = Column(String(100), nullable=True)
     qty = Column(Integer, default=1)
     unit = Column(String(20), nullable=True)
+    needs_compare = Column(Boolean, default=False, index=True)
 
     subgroup = relationship("PurchaseRefSubgroup", back_populates="items")
+    price_models = relationship("PriceModel", back_populates="purchase_item", cascade="all, delete-orphan")
 
 
 class SelectedPurchase(Base):
@@ -159,27 +162,36 @@ class PurchasedItem(Base):
 
 # ---- Price Comparison ----
 
+# [DEPRECATED] PriceCategory table — replaced by PurchaseRefItem.needs_compare + PriceModel.item_id FK.
+# Table kept for migration compat; no new data should be written here.
 class PriceCategory(Base):
     __tablename__ = "price_categories"
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     name = Column(String(100), nullable=False)
     icon = Column(String(10), default="📦")
+    purchase_item_id = Column(String(36), ForeignKey("purchase_ref_items.id"), nullable=True, index=True)
+    best_quote_id = Column(String(36), ForeignKey("channel_quotes.id"), nullable=True)
 
     project = relationship("Project", back_populates="price_categories")
-    models = relationship("PriceModel", back_populates="category", cascade="all, delete-orphan")
+    models = relationship("PriceModel", back_populates="category", foreign_keys="[PriceModel.category_id]", cascade="all, delete-orphan")
+    purchase_item = relationship("PurchaseRefItem", foreign_keys=[purchase_item_id])
+    best_quote = relationship("ChannelQuote", foreign_keys=[best_quote_id])
 
 
 class PriceModel(Base):
     __tablename__ = "price_models"
     id = _pk()
-    category_id = Column(String(36), ForeignKey("price_categories.id"), nullable=False)
+    category_id = Column(String(36), ForeignKey("price_categories.id"), nullable=True)  # deprecated
+    item_id = Column(String(36), ForeignKey("purchase_ref_items.id"), nullable=True, index=True)     # NEW: direct FK to purchase item
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)            # NEW: project context
     name = Column(String(200), nullable=False)
     spec = Column(String(100), nullable=True)
     note = Column(String(200), nullable=True)
     quantity = Column(Integer, default=1)
 
-    category = relationship("PriceCategory", back_populates="models")
+    category = relationship("PriceCategory", back_populates="models", foreign_keys=[category_id])
+    purchase_item = relationship("PurchaseRefItem", back_populates="price_models", foreign_keys=[item_id])
     quotes = relationship("ChannelQuote", back_populates="model", cascade="all, delete-orphan")
 
 

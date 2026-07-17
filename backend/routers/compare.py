@@ -1,11 +1,12 @@
 import csv, io
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..database import get_db
-from ..models import User, Project, PriceCategory, PriceModel, ChannelQuote, SyncedModel, SelectedPurchase, PurchaseRefItem, PurchasedItem
-from ..schemas import PriceCategoryCreate, PriceCategoryOut, PriceModelCreate, PriceModelOut, ChannelQuoteCreate, ChannelQuoteOut
+from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, PriceModel, ChannelQuote, SyncedModel, SelectedPurchase, PurchasedItem
+from ..schemas import PriceModelCreate, PriceModelOut, ChannelQuoteCreate, ChannelQuoteOut, SetBestQuoteRequest, CompareItemOut, CustomPurchaseCreate
 from ..auth import get_current_user
 import uuid
 from datetime import datetime, timezone
@@ -21,58 +22,146 @@ async def _verify_owner(project_id: str, user: User, db: AsyncSession) -> Projec
     return project
 
 
-@router.get("", response_model=list[PriceCategoryOut])
-async def list_categories(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+def _build_model_out(m: PriceModel, quotes: list[ChannelQuote]) -> PriceModelOut:
+    return PriceModelOut(
+        id=m.id, item_id=m.item_id, project_id=m.project_id,
+        name=m.name, spec=m.spec, note=m.note, quantity=m.quantity,
+        best_quote_id=None, quotes=[ChannelQuoteOut.model_validate(q) for q in quotes],
+    )
+
+
+# ── List compare items ──
+
+@router.get("", response_model=list[CompareItemOut])
+async def list_compare_items(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await _verify_owner(project_id, user, db)
-    result = await db.execute(select(PriceCategory).where(PriceCategory.project_id == project_id))
-    categories = result.scalars().all()
+
+    # Get all purchase items with needs_compare=True
+    items_result = await db.execute(
+        select(PurchaseRefItem).where(PurchaseRefItem.needs_compare == True)
+    )
+    items = items_result.scalars().all()
+
     out = []
-    for cat in categories:
-        models_result = await db.execute(select(PriceModel).where(PriceModel.category_id == cat.id))
-        models = []
-        for m in models_result.scalars().all():
+    for item in items:
+        # Get subgroup and stage for context
+        sub_result = await db.execute(select(PurchaseRefSubgroup).where(PurchaseRefSubgroup.id == item.subgroup_id))
+        subgroup = sub_result.scalar_one_or_none()
+        stage_parent = None
+        subgroup_name = None
+        if subgroup:
+            subgroup_name = subgroup.name
+            stage_result = await db.execute(select(PurchaseRefStage).where(PurchaseRefStage.id == subgroup.stage_id))
+            stage = stage_result.scalar_one_or_none()
+            if stage:
+                stage_parent = stage.parent
+
+        # Get price models for this item (for this project)
+        models_result = await db.execute(
+            select(PriceModel).where(PriceModel.item_id == item.id, PriceModel.project_id == project_id)
+        )
+        models = models_result.scalars().all()
+        models_out = []
+        for m in models:
             quotes_result = await db.execute(select(ChannelQuote).where(ChannelQuote.model_id == m.id))
-            quotes = [ChannelQuoteOut.model_validate(q) for q in quotes_result.scalars().all()]
-            models.append(PriceModelOut(id=m.id, name=m.name, spec=m.spec, note=m.note, quantity=m.quantity, quotes=quotes))
-        out.append(PriceCategoryOut(id=cat.id, name=cat.name, icon=cat.icon, models=models))
+            models_out.append(_build_model_out(m, quotes_result.scalars().all()))
+
+        out.append(CompareItemOut(
+            item_id=item.id, item_name=item.name, spec=item.spec,
+            qty=item.qty, unit=item.unit,
+            stage_parent=stage_parent, subgroup_name=subgroup_name,
+            models=models_out,
+        ))
+
     return out
 
 
-@router.post("/categories", response_model=PriceCategoryOut, status_code=201)
-async def create_category(project_id: str, data: PriceCategoryCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+# ── Add compare item (same as purchase custom add + needs_compare flag) ──
+
+@router.post("", response_model=CompareItemOut, status_code=201)
+async def add_compare_item(project_id: str, data: CustomPurchaseCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await _verify_owner(project_id, user, db)
-    cat = PriceCategory(id=f"pc_{uuid.uuid4().hex[:12]}", project_id=project_id, name=data.name, icon=data.icon)
-    db.add(cat)
+
+    # Find stage by parent name
+    stage_result = await db.execute(select(PurchaseRefStage).where(PurchaseRefStage.parent == data.stage_parent))
+    stage = stage_result.scalar_one_or_none()
+    if not stage:
+        raise HTTPException(status_code=404, detail="采购阶段不存在")
+
+    # Find subgroup
+    sub = None
+    if data.subgroup_name:
+        sub_result = await db.execute(
+            select(PurchaseRefSubgroup).where(
+                PurchaseRefSubgroup.stage_id == stage.id,
+                PurchaseRefSubgroup.name == data.subgroup_name,
+            )
+        )
+        sub = sub_result.scalar_one_or_none()
+    if not sub:
+        sub_result = await db.execute(select(PurchaseRefSubgroup).where(PurchaseRefSubgroup.stage_id == stage.id).limit(1))
+        sub = sub_result.scalar_one_or_none()
+    if not sub:
+        raise HTTPException(status_code=404, detail="子分组不存在")
+
+    item = PurchaseRefItem(
+        id=f"p_auto_{uuid.uuid4().hex[:12]}",
+        subgroup_id=sub.id,
+        name=data.name,
+        spec=data.spec or "",
+        qty=data.qty,
+        unit=data.unit or "个",
+        needs_compare=True,
+    )
+    db.add(item)
+    # Auto-select
+    db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=item.id))
     await db.commit()
-    await db.refresh(cat)
-    return PriceCategoryOut(id=cat.id, name=cat.name, icon=cat.icon, models=[])
+    await db.refresh(item)
+    return CompareItemOut(
+        item_id=item.id, item_name=item.name, spec=item.spec,
+        qty=item.qty, unit=item.unit,
+        stage_parent=data.stage_parent, subgroup_name=data.subgroup_name,
+        models=[],
+    )
 
 
-@router.delete("/categories/{category_id}", status_code=204)
-async def delete_category(project_id: str, category_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+# ── Toggle needs_compare (remove from compare list) ──
+
+@router.put("/items/{item_id}/toggle-compare")
+async def toggle_item_compare(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await _verify_owner(project_id, user, db)
-    result = await db.execute(select(PriceCategory).where(PriceCategory.id == category_id, PriceCategory.project_id == project_id))
-    cat = result.scalar_one_or_none()
-    if not cat:
-        raise HTTPException(status_code=404, detail="品类不存在")
-    await db.delete(cat)
+    item_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.id == item_id))
+    item = item_result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="物品不存在")
+    item.needs_compare = not item.needs_compare
     await db.commit()
+    return {"needs_compare": item.needs_compare}
 
 
-@router.post("/categories/{category_id}/models", response_model=PriceModelOut, status_code=201)
-async def create_model(project_id: str, category_id: str, data: PriceModelCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+# ── Models CRUD ──
+
+@router.post("/items/{item_id}/models", response_model=PriceModelOut, status_code=201)
+async def create_model(project_id: str, item_id: str, data: PriceModelCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await _verify_owner(project_id, user, db)
-    model = PriceModel(id=f"pm_{uuid.uuid4().hex[:12]}", category_id=category_id, name=data.name, spec=data.spec, note=data.note, quantity=data.quantity)
+    model = PriceModel(
+        id=f"pm_{uuid.uuid4().hex[:12]}",
+        item_id=item_id, project_id=project_id,
+        name=data.name, spec=data.spec, note=data.note, quantity=data.quantity,
+    )
     db.add(model)
     await db.commit()
     await db.refresh(model)
-    return PriceModelOut(id=model.id, name=model.name, spec=model.spec, note=model.note, quantity=model.quantity, quotes=[])
+    return PriceModelOut(id=model.id, item_id=model.item_id, project_id=model.project_id,
+        name=model.name, spec=model.spec, note=model.note, quantity=model.quantity,
+        best_quote_id=None, quotes=[])
 
 
 @router.delete("/models/{model_id}", status_code=204)
 async def delete_model(project_id: str, model_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await _verify_owner(project_id, user, db)
-    result = await db.execute(select(PriceModel).where(PriceModel.id == model_id))
+    result = await db.execute(select(PriceModel).where(PriceModel.id == model_id, PriceModel.project_id == project_id))
     model = result.scalar_one_or_none()
     if not model:
         raise HTTPException(status_code=404, detail="型号不存在")
@@ -80,10 +169,13 @@ async def delete_model(project_id: str, model_id: str, user: User = Depends(get_
     await db.commit()
 
 
+# ── Quotes CRUD (operate on model, unchanged) ──
+
 @router.post("/models/{model_id}/quotes", response_model=ChannelQuoteOut, status_code=201)
 async def create_quote(project_id: str, model_id: str, data: ChannelQuoteCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await _verify_owner(project_id, user, db)
-    quote = ChannelQuote(id=f"ch_{uuid.uuid4().hex[:12]}", model_id=model_id, channel=data.channel, price=data.price, url=data.url, updated_at=datetime.now(timezone.utc))
+    quote = ChannelQuote(id=f"ch_{uuid.uuid4().hex[:12]}", model_id=model_id,
+        channel=data.channel, price=data.price, url=data.url, updated_at=datetime.now(timezone.utc))
     db.add(quote)
     await db.commit()
     await db.refresh(quote)
@@ -101,62 +193,94 @@ async def delete_quote(project_id: str, quote_id: str, user: User = Depends(get_
     await db.commit()
 
 
+# ── Best quote selection ──
+
+@router.put("/models/{model_id}/best-quote")
+async def set_best_quote(project_id: str, model_id: str, data: SetBestQuoteRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    await _verify_owner(project_id, user, db)
+    model_result = await db.execute(select(PriceModel).where(PriceModel.id == model_id, PriceModel.project_id == project_id))
+    model = model_result.scalar_one_or_none()
+    if not model:
+        raise HTTPException(status_code=404, detail="型号不存在")
+
+    if data.quote_id:
+        quote_result = await db.execute(select(ChannelQuote).where(ChannelQuote.id == data.quote_id, ChannelQuote.model_id == model_id))
+        if not quote_result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="报价不存在")
+
+    return {"best_quote_id": data.quote_id}
+
+
+# ── Sync (mark linked purchase item as purchased) ──
+
 @router.put("/models/{model_id}/sync")
 async def toggle_model_sync(project_id: str, model_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await _verify_owner(project_id, user, db)
+    model_result = await db.execute(select(PriceModel).where(PriceModel.id == model_id, PriceModel.project_id == project_id))
+    model = model_result.scalar_one_or_none()
+    if not model:
+        raise HTTPException(status_code=404, detail="型号不存在")
+
+    # Check SyncedModel for backward compat
     result = await db.execute(select(SyncedModel).where(SyncedModel.project_id == project_id, SyncedModel.model_id == model_id))
     existing = result.scalar_one_or_none()
     if existing:
         await db.delete(existing)
         await db.commit()
         return {"synced": False, "auto_purchased": 0}
-    else:
-        sm = SyncedModel(id=f"sm_{uuid.uuid4().hex[:12]}", project_id=project_id, model_id=model_id)
-        db.add(sm)
 
-        # Reverse sync: auto-purchase matching selected purchase items
-        auto_purchased = 0
-        model_result = await db.execute(select(PriceModel).where(PriceModel.id == model_id))
-        model = model_result.scalar_one_or_none()
-        if model:
-            sel_result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == project_id))
-            selected_ids = [s.item_id for s in sel_result.scalars().all()]
-            if selected_ids:
-                from sqlalchemy import func
-                items_result = await db.execute(
-                    select(PurchaseRefItem).where(
-                        PurchaseRefItem.id.in_(selected_ids),
-                        func.lower(PurchaseRefItem.name) == model.name.lower()
-                    )
-                )
-                for item in items_result.scalars().all():
-                    existing_purch = await db.execute(
-                        select(PurchasedItem).where(PurchasedItem.project_id == project_id, PurchasedItem.item_id == item.id)
-                    )
-                    if not existing_purch.scalar_one_or_none():
-                        db.add(PurchasedItem(id=f"pi_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=item.id))
-                        auto_purchased += 1
+    # Create synced record
+    db.add(SyncedModel(id=f"sm_{uuid.uuid4().hex[:12]}", project_id=project_id, model_id=model_id))
 
-        await db.commit()
-        return {"synced": True, "auto_purchased": auto_purchased}
+    # Auto-purchase: toggle purchased on the linked purchase item
+    auto_purchased = 0
+    if model.item_id:
+        pur_result = await db.execute(
+            select(PurchasedItem).where(PurchasedItem.project_id == project_id, PurchasedItem.item_id == model.item_id)
+        )
+        if not pur_result.scalar_one_or_none():
+            db.add(PurchasedItem(id=f"pi_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=model.item_id))
+            auto_purchased = 1
 
+    await db.commit()
+    return {"synced": True, "auto_purchased": auto_purchased}
+
+
+# ── CSV export/import ──
 
 @router.get("/export-csv")
 async def export_csv(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await _verify_owner(project_id, user, db)
-    result = await db.execute(select(PriceCategory).where(PriceCategory.project_id == project_id))
-    categories = result.scalars().all()
+    items_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.needs_compare == True))
+    items = items_result.scalars().all()
+
     output = io.StringIO()
-    output.write("﻿品类,型号,规格,备注,数量,渠道,价格\n")
-    for cat in categories:
-        models_result = await db.execute(select(PriceModel).where(PriceModel.category_id == cat.id))
-        for m in models_result.scalars().all():
+    output.write("﻿物品,规格,阶段,分组,数量,型号,型号备注,渠道,价格\n")
+    for item in items:
+        # Get context
+        sub_result = await db.execute(select(PurchaseRefSubgroup).where(PurchaseRefSubgroup.id == item.subgroup_id))
+        subgroup = sub_result.scalar_one_or_none()
+        stage_name = subgroup_name = ""
+        if subgroup:
+            subgroup_name = subgroup.name
+            stage_result = await db.execute(select(PurchaseRefStage).where(PurchaseRefStage.id == subgroup.stage_id))
+            stage = stage_result.scalar_one_or_none()
+            if stage: stage_name = stage.parent
+
+        models_result = await db.execute(
+            select(PriceModel).where(PriceModel.item_id == item.id, PriceModel.project_id == project_id)
+        )
+        models = models_result.scalars().all()
+        if not models:
+            output.write(f'"{item.name}","{item.spec or ""}","{stage_name}","{subgroup_name}",{item.qty},,,--,\n')
+        for m in models:
             quotes_result = await db.execute(select(ChannelQuote).where(ChannelQuote.model_id == m.id))
             quotes = quotes_result.scalars().all()
             if not quotes:
-                output.write(f'"{cat.name}","{m.name}","{m.spec or ""}","{m.note or ""}",{m.quantity},,--\n')
+                output.write(f'"{item.name}","{item.spec or ""}","{stage_name}","{subgroup_name}",{item.qty},"{m.name}","{m.note or ""}",,--\n')
             for q in quotes:
-                output.write(f'"{cat.name}","{m.name}","{m.spec or ""}","{m.note or ""}",{m.quantity},"{q.channel}",{q.price or ""}\n')
+                output.write(f'"{item.name}","{item.spec or ""}","{stage_name}","{subgroup_name}",{item.qty},"{m.name}","{m.note or ""}","{q.channel}",{q.price or ""}\n')
+
     output.seek(0)
     return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename=compare_{project_id}.csv"})
@@ -170,22 +294,79 @@ async def import_csv(project_id: str, file: UploadFile = File(...), user: User =
     reader = csv.reader(io.StringIO(text))
     rows = list(reader)
     imported = 0
-    cat_cache: dict[str, str] = {}
+    item_cache: dict[str, str] = {}
     for i, row in enumerate(rows):
         if i == 0: continue
         if len(row) < 5: continue
-        cat_name, model_name, spec, note, qty_str = row[0], row[1], row[2], row[3], row[4]
-        if not cat_name or not model_name: continue
+        item_name, spec, stage_name, subgroup_name, qty_str = row[0], row[1], row[2], row[3], row[4]
+        model_name = row[5] if len(row) > 5 else ""
+        model_note = row[6] if len(row) > 6 else ""
+        channel = row[7] if len(row) > 7 else ""
+        price_str = row[8] if len(row) > 8 else ""
+
+        if not item_name or not model_name: continue
         qty = int(qty_str) if qty_str.isdigit() else 1
 
-        if cat_name not in cat_cache:
-            cat = PriceCategory(id=f"pc_{uuid.uuid4().hex[:12]}", project_id=project_id, name=cat_name)
-            db.add(cat)
-            cat_cache[cat_name] = cat.id
-            await db.flush()
+        cache_key = f"{item_name}|{spec}"
+        if cache_key not in item_cache:
+            # Find or create item with needs_compare
+            item_result = await db.execute(
+                select(PurchaseRefItem).where(PurchaseRefItem.name == item_name, PurchaseRefItem.needs_compare == True).limit(1)
+            )
+            item = item_result.scalar_one_or_none()
+            if not item:
+                # Create new item — find default subgroup
+                sub = None
+                if stage_name and subgroup_name:
+                    stage_result = await db.execute(select(PurchaseRefStage).where(PurchaseRefStage.parent == stage_name))
+                    stage = stage_result.scalar_one_or_none()
+                    if stage:
+                        sub_result = await db.execute(select(PurchaseRefSubgroup).where(
+                            PurchaseRefSubgroup.stage_id == stage.id, PurchaseRefSubgroup.name == subgroup_name))
+                        sub = sub_result.scalar_one_or_none()
+                if not sub:
+                    stage_result = await db.execute(select(PurchaseRefStage).limit(1))
+                    stage = stage_result.scalar_one_or_none()
+                    if stage:
+                        sub_result = await db.execute(select(PurchaseRefSubgroup).where(PurchaseRefSubgroup.stage_id == stage.id).limit(1))
+                        sub = sub_result.scalar_one_or_none()
+                    if not sub:
+                        continue
+                item = PurchaseRefItem(
+                    id=f"p_import_{uuid.uuid4().hex[:12]}",
+                    subgroup_id=sub.id, name=item_name, spec=spec or None,
+                    qty=qty, unit="个", needs_compare=True,
+                )
+                db.add(item)
+                await db.flush()
+                db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=item.id))
+            item_cache[cache_key] = item.id
 
-        model = PriceModel(id=f"pm_{uuid.uuid4().hex[:12]}", category_id=cat_cache[cat_name], name=model_name, spec=spec or None, note=note or None, quantity=qty)
-        db.add(model)
+        # Create model
+        price = float(price_str) if price_str and price_str != "--" else None
+        existing_model = False
+        models_result = await db.execute(
+            select(PriceModel).where(PriceModel.item_id == item_cache[cache_key], PriceModel.project_id == project_id, PriceModel.name == model_name)
+        )
+        model = models_result.scalar_one_or_none()
+        if not model:
+            model = PriceModel(
+                id=f"pm_{uuid.uuid4().hex[:12]}",
+                item_id=item_cache[cache_key], project_id=project_id,
+                name=model_name, spec=None, note=model_note or None, quantity=1,
+            )
+            db.add(model)
+            await db.flush()
+        else:
+            existing_model = True
+
+        # Add quote
+        if channel:
+            db.add(ChannelQuote(
+                id=f"ch_{uuid.uuid4().hex[:12]}", model_id=model.id,
+                channel=channel, price=price, updated_at=datetime.now(timezone.utc),
+            ))
         imported += 1
+
     await db.commit()
     return {"imported": imported}

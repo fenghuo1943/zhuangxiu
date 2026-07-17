@@ -52,6 +52,7 @@ async def export_state(project_id: str, user: User = Depends(get_current_user), 
 
     fp = (await db.execute(select(FlowProgress).where(FlowProgress.project_id == sid))).scalar_one_or_none()
 
+    # Export price categories (deprecated compat) + direct price_models
     price_cats = (await db.execute(select(PriceCategory).where(PriceCategory.project_id == sid))).scalars().all()
     price_data = []
     for pc in price_cats:
@@ -60,8 +61,24 @@ async def export_state(project_id: str, user: User = Depends(get_current_user), 
         for m in models:
             quotes = (await db.execute(select(ChannelQuote).where(ChannelQuote.model_id == m.id))).scalars().all()
             models_data.append({"id": m.id, "name": m.name, "spec": m.spec, "note": m.note, "quantity": m.quantity,
+                "item_id": m.item_id, "project_id": m.project_id,
                 "channelQuotes": [{"id": q.id, "channel": q.channel, "price": q.price, "url": q.url, "updatedAt": q.updated_at.isoformat() if q.updated_at else None} for q in quotes]})
-        price_data.append({"id": pc.id, "name": pc.name, "icon": pc.icon, "models": models_data})
+        price_data.append({"id": pc.id, "name": pc.name, "icon": pc.icon,
+            "purchase_item_id": pc.purchase_item_id, "best_quote_id": pc.best_quote_id,
+            "models": models_data})
+
+    # Export direct price_models (new format, keyed by item_id)
+    direct_models = (await db.execute(
+        select(PriceModel).where(PriceModel.project_id == sid, PriceModel.item_id != None)
+    )).scalars().all()
+    price_models_data = []
+    for m in direct_models:
+        quotes = (await db.execute(select(ChannelQuote).where(ChannelQuote.model_id == m.id))).scalars().all()
+        price_models_data.append({
+            "id": m.id, "item_id": m.item_id, "project_id": m.project_id,
+            "name": m.name, "spec": m.spec, "note": m.note, "quantity": m.quantity,
+            "channelQuotes": [{"id": q.id, "channel": q.channel, "price": q.price, "url": q.url, "updatedAt": q.updated_at.isoformat() if q.updated_at else None} for q in quotes],
+        })
 
     sel = (await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == sid))).scalars().all()
     purch = (await db.execute(select(PurchasedItem).where(PurchasedItem.project_id == sid))).scalars().all()
@@ -99,6 +116,7 @@ async def export_state(project_id: str, user: User = Depends(get_current_user), 
         "flowDoneStepIds": fp.done_step_ids if fp else [],
         "flowCustomOrder": fp.custom_order if fp else None,
         "priceCategories": price_data,
+        "priceModels": price_models_data,
         "selectedPurchaseIds": [s.item_id for s in sel],
         "purchasedItemIds": [p.item_id for p in purch],
         "syncedModelIds": [s.model_id for s in synced],
@@ -176,15 +194,35 @@ async def import_state(project_id: str, data: AppStateSync, user: User = Depends
             sort_order=cs.get("sort_order", 0),
         ))
 
-    # Import price categories
+    # Import price categories (deprecated compat)
     for pc in data.price_categories:
-        cat = PriceCategory(id=pc.get("id", f"pc_{uuid.uuid4().hex[:12]}"), project_id=project_id, name=pc["name"], icon=pc.get("icon", "📦"))
+        cat = PriceCategory(
+            id=pc.get("id", f"pc_{uuid.uuid4().hex[:12]}"),
+            project_id=project_id,
+            name=pc["name"],
+            icon=pc.get("icon", "📦"),
+            purchase_item_id=pc.get("purchase_item_id"),
+            best_quote_id=pc.get("best_quote_id"),
+        )
         db.add(cat)
         for m in pc.get("models", []):
-            model = PriceModel(id=m.get("id", f"pm_{uuid.uuid4().hex[:12]}"), category_id=cat.id, name=m["name"], spec=m.get("spec"), note=m.get("note"), quantity=m.get("quantity", 1))
+            model = PriceModel(id=m.get("id", f"pm_{uuid.uuid4().hex[:12]}"),
+                category_id=cat.id, item_id=m.get("item_id"), project_id=m.get("project_id", sid),
+                name=m["name"], spec=m.get("spec"), note=m.get("note"), quantity=m.get("quantity", 1))
             db.add(model)
             for q in m.get("channelQuotes", []):
                 db.add(ChannelQuote(id=q.get("id", f"ch_{uuid.uuid4().hex[:12]}"), model_id=model.id, channel=q["channel"], price=q.get("price"), url=q.get("url")))
+
+    # Import direct price_models (new format)
+    for pm in data.price_models:
+        model = PriceModel(
+            id=pm.get("id", f"pm_{uuid.uuid4().hex[:12]}"),
+            item_id=pm.get("item_id"), project_id=pm.get("project_id", sid),
+            name=pm["name"], spec=pm.get("spec"), note=pm.get("note"), quantity=pm.get("quantity", 1),
+        )
+        db.add(model)
+        for q in pm.get("channelQuotes", []):
+            db.add(ChannelQuote(id=q.get("id", f"ch_{uuid.uuid4().hex[:12]}"), model_id=model.id, channel=q["channel"], price=q.get("price"), url=q.get("url")))
 
     # Import selections
     for sid in data.selected_purchase_ids:

@@ -163,6 +163,7 @@ class PurchaseRefItemOut(BaseModel):
     spec: Optional[str]
     qty: int
     unit: Optional[str]
+    needs_compare: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -183,12 +184,10 @@ class CustomPurchaseCreate(BaseModel):
     qty: int = 1
 
 
-class AddToCompareRequest(BaseModel):
-    item_id: str
-    item_name: str
-    spec: Optional[str] = None
-    category_name: str
-    quantity: int = 1
+# ── Add to compare (just sets needs_compare flag) ──
+
+class ToggleCompareRequest(BaseModel):
+    needs_compare: bool = True
 
 
 # ---- Price Compare ----
@@ -214,25 +213,30 @@ class PriceModelCreate(BaseModel):
 
 class PriceModelOut(BaseModel):
     id: str
+    item_id: Optional[str] = None
+    project_id: Optional[str] = None
     name: str
     spec: Optional[str]
     note: Optional[str]
     quantity: int
+    best_quote_id: Optional[str] = None
     quotes: List[ChannelQuoteOut]
 
     model_config = {"from_attributes": True}
 
-class PriceCategoryCreate(BaseModel):
-    name: str = Field(..., max_length=100)
-    icon: str = "📦"
+class CompareItemOut(BaseModel):
+    """Purchase item with comparison data (models + quotes) for the compare page."""
+    item_id: str
+    item_name: str
+    spec: Optional[str] = None
+    qty: int
+    unit: Optional[str] = None
+    stage_parent: Optional[str] = None
+    subgroup_name: Optional[str] = None
+    models: List[PriceModelOut] = []
 
-class PriceCategoryOut(BaseModel):
-    id: str
-    name: str
-    icon: Optional[str]
-    models: List[PriceModelOut]
-
-    model_config = {"from_attributes": True}
+class SetBestQuoteRequest(BaseModel):
+    quote_id: Optional[str] = None  # None = clear selection
 
 
 # ---- Stage Notes ----
@@ -287,7 +291,8 @@ class AppStateSync(BaseModel):
     expenses: List[dict] = []
     budget: Optional[dict] = None
     flow_progress: Optional[dict] = None
-    price_categories: List[dict] = []
+    price_categories: List[dict] = []  # deprecated — kept for backward compat
+    price_models: List[dict] = []     # NEW: model data directly keyed by item_id
     selected_purchase_ids: List[str] = []
     purchased_item_ids: List[str] = []
     synced_model_ids: List[str] = []
