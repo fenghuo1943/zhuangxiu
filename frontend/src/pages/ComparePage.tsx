@@ -362,7 +362,6 @@ const ComparePage: React.FC = () => {
                           <div className="compare-cat-header-left">
                             <strong>{item.item_name}</strong>
                             {item.spec && <span style={{ fontSize: 12, color: '#666' }}>{item.spec}</span>}
-                            <span className="badge badge-default">{item.models.length} 个型号</span>
                             <span className="badge" style={{ fontSize: 10, background: '#e8f5e9', color: '#2e7d32' }}>
                               ×{item.qty}{item.unit || '个'}
                             </span>
@@ -430,7 +429,7 @@ const ComparePage: React.FC = () => {
                                 {model.note && <span className="compare-model-note">{model.note}</span>}
                               </div>
                             )}
-                            <div className="compare-prod-actions" onClick={e => e.stopPropagation()}>
+                            <div className="compare-prod-actions">
                               {displayPrice && <span className="compare-prod-lowest">{displayPrice}</span>}
                               <span className="badge badge-default" style={{ fontSize: 10 }}>{model.channelQuotes.length} 报价</span>
                               <button className="fresh-icon-btn" onClick={() => startEditModel(model)} title="编辑" style={{ width: 22, height: 22 }}>
