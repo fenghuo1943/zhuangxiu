@@ -371,6 +371,7 @@ export function addCustomPurchaseItem(name: string, stageParent: string, qty: nu
     });
   }
   return id;
+}
 
 export function deletePurchaseRefItem(itemId: string) {
   // Find the item to get its stage parent (for possible backend sync)

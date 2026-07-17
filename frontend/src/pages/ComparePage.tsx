@@ -333,29 +333,41 @@ const ComparePage: React.FC = () => {
           </div>
         ) : (
           <div className="compare-categories">
-            {filteredItems.map(item => {
-              const isOpen = expandedItems.has(item.item_id);
-              return (
-                <div key={item.item_id} className={`compare-cat-card card ${isOpen ? 'open' : ''}`}>
-                  <div
-                    className="compare-cat-header"
-                    onClick={() => toggleItem(item.item_id)}
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={isOpen}
-                  >
-                    <div className="compare-cat-header-left">
-                      <strong>{item.item_name}</strong>
-                      {item.spec && <span style={{ fontSize: 12, color: '#666' }}>{item.spec}</span>}
-                      <span className="badge badge-default">{item.models.length} 个型号</span>
-                      <span className="badge" style={{ fontSize: 10, background: '#f0f4ff', color: '#3b5998' }}>
-                        {item.stage_parent}/{item.subgroup_name}
-                      </span>
-                      <span className="badge" style={{ fontSize: 10, background: '#e8f5e9', color: '#2e7d32' }}>
-                        ×{item.qty}{item.unit || '个'}
-                      </span>
-                    </div>
-                    <div className="compare-cat-header-right">
+            {(() => {
+              // Group items by first-level category (stage_parent)
+              const grouped = new Map<string, typeof filteredItems>();
+              filteredItems.forEach(item => {
+                const parent = item.stage_parent || '未分类';
+                const list = grouped.get(parent) || [];
+                list.push(item);
+                grouped.set(parent, list);
+              });
+              return Array.from(grouped.entries()).map(([stageName, items]) => (
+                <div key={stageName} className="compare-section">
+                  <div className="compare-section-label">
+                    {stageName}
+                    <span className="count">{items.length} 个物品</span>
+                  </div>
+                  {items.map(item => {
+                    const isOpen = expandedItems.has(item.item_id);
+                    return (
+                      <div key={item.item_id} className={`compare-cat-card card ${isOpen ? 'open' : ''}`} style={{ marginBottom: 8 }}>
+                        <div
+                          className="compare-cat-header"
+                          onClick={() => toggleItem(item.item_id)}
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={isOpen}
+                        >
+                          <div className="compare-cat-header-left">
+                            <strong>{item.item_name}</strong>
+                            {item.spec && <span style={{ fontSize: 12, color: '#666' }}>{item.spec}</span>}
+                            <span className="badge badge-default">{item.models.length} 个型号</span>
+                            <span className="badge" style={{ fontSize: 10, background: '#e8f5e9', color: '#2e7d32' }}>
+                              ×{item.qty}{item.unit || '个'}
+                            </span>
+                          </div>
+                          <div className="compare-cat-header-right">
                       {(() => { const p = getItemDisplayPrice(item.item_id); return p ? <span className="compare-cat-price">{p}</span> : null; })()}
                       {(() => {
                         const bestModelId = item.models.find(m => state.bestQuoteIds[m.id])?.id;
@@ -528,9 +540,12 @@ const ComparePage: React.FC = () => {
                       </div>
                     </div>
                   )}
-                </div>
-              );
-            })}
+                      </div>
+                    );
+                  })}
+                  </div>
+                ));
+              })()}
           </div>
         )}
       </div>
