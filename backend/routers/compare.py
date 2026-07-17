@@ -14,8 +14,31 @@ from datetime import datetime, timezone
 router = APIRouter(prefix="/api/projects/{project_id}/compare", tags=["Compare"])
 
 
+def _scoped_id(raw_project_id: str, user_id: str) -> str:
+    """Scope a frontend project ID to the current user for data isolation."""
+    scope = user_id.replace("-", "")[:8]
+    return f"{raw_project_id}_{scope}"
+
+
+async def _ensure_project(raw_project_id: str, user: User, db: AsyncSession) -> str:
+    """Ensure a project exists for this user. Returns the scoped project ID."""
+    sid = _scoped_id(raw_project_id, user.id)
+    result = await db.execute(
+        select(Project).where(Project.id == sid, Project.user_id == user.id)
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        project = Project(id=sid, user_id=user.id, name="默认项目",
+                          owner_name=user.username or "我")
+        db.add(project)
+        await db.commit()
+        await db.refresh(project)
+    return sid
+
+
 async def _verify_owner(project_id: str, user: User, db: AsyncSession) -> Project:
-    result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
+    sid = _scoped_id(project_id, user.id)
+    result = await db.execute(select(Project).where(Project.id == sid, Project.user_id == user.id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
@@ -34,7 +57,7 @@ def _build_model_out(m: PriceModel, quotes: list[ChannelQuote]) -> PriceModelOut
 
 @router.get("", response_model=list[CompareItemOut])
 async def list_compare_items(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
 
     # Get all purchase items with needs_compare=True
     items_result = await db.execute(
@@ -58,7 +81,7 @@ async def list_compare_items(project_id: str, user: User = Depends(get_current_u
 
         # Get price models for this item (for this project)
         models_result = await db.execute(
-            select(PriceModel).where(PriceModel.item_id == item.id, PriceModel.project_id == project_id)
+            select(PriceModel).where(PriceModel.item_id == item.id, PriceModel.project_id == sid)
         )
         models = models_result.scalars().all()
         models_out = []
@@ -80,7 +103,7 @@ async def list_compare_items(project_id: str, user: User = Depends(get_current_u
 
 @router.post("", response_model=CompareItemOut, status_code=201)
 async def add_compare_item(project_id: str, data: CustomPurchaseCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
 
     # Find stage by parent name
     stage_result = await db.execute(select(PurchaseRefStage).where(PurchaseRefStage.parent == data.stage_parent))
@@ -115,7 +138,7 @@ async def add_compare_item(project_id: str, data: CustomPurchaseCreate, user: Us
     )
     db.add(item)
     # Auto-select
-    db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=item.id))
+    db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=item.id))
     await db.commit()
     await db.refresh(item)
     return CompareItemOut(
@@ -144,10 +167,10 @@ async def toggle_item_compare(project_id: str, item_id: str, user: User = Depend
 
 @router.post("/items/{item_id}/models", response_model=PriceModelOut, status_code=201)
 async def create_model(project_id: str, item_id: str, data: PriceModelCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
     model = PriceModel(
         id=f"pm_{uuid.uuid4().hex[:12]}",
-        item_id=item_id, project_id=project_id,
+        item_id=item_id, project_id=sid,
         name=data.name, spec=data.spec, note=data.note, quantity=data.quantity,
     )
     db.add(model)
@@ -160,8 +183,8 @@ async def create_model(project_id: str, item_id: str, data: PriceModelCreate, us
 
 @router.delete("/models/{model_id}", status_code=204)
 async def delete_model(project_id: str, model_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
-    result = await db.execute(select(PriceModel).where(PriceModel.id == model_id, PriceModel.project_id == project_id))
+    sid = await _ensure_project(project_id, user, db)
+    result = await db.execute(select(PriceModel).where(PriceModel.id == model_id, PriceModel.project_id == sid))
     model = result.scalar_one_or_none()
     if not model:
         raise HTTPException(status_code=404, detail="型号不存在")
@@ -197,8 +220,8 @@ async def delete_quote(project_id: str, quote_id: str, user: User = Depends(get_
 
 @router.put("/models/{model_id}/best-quote")
 async def set_best_quote(project_id: str, model_id: str, data: SetBestQuoteRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
-    model_result = await db.execute(select(PriceModel).where(PriceModel.id == model_id, PriceModel.project_id == project_id))
+    sid = await _ensure_project(project_id, user, db)
+    model_result = await db.execute(select(PriceModel).where(PriceModel.id == model_id, PriceModel.project_id == sid))
     model = model_result.scalar_one_or_none()
     if not model:
         raise HTTPException(status_code=404, detail="型号不存在")
@@ -215,14 +238,14 @@ async def set_best_quote(project_id: str, model_id: str, data: SetBestQuoteReque
 
 @router.put("/models/{model_id}/sync")
 async def toggle_model_sync(project_id: str, model_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
-    model_result = await db.execute(select(PriceModel).where(PriceModel.id == model_id, PriceModel.project_id == project_id))
+    sid = await _ensure_project(project_id, user, db)
+    model_result = await db.execute(select(PriceModel).where(PriceModel.id == model_id, PriceModel.project_id == sid))
     model = model_result.scalar_one_or_none()
     if not model:
         raise HTTPException(status_code=404, detail="型号不存在")
 
     # Check SyncedModel for backward compat
-    result = await db.execute(select(SyncedModel).where(SyncedModel.project_id == project_id, SyncedModel.model_id == model_id))
+    result = await db.execute(select(SyncedModel).where(SyncedModel.project_id == sid, SyncedModel.model_id == model_id))
     existing = result.scalar_one_or_none()
     if existing:
         await db.delete(existing)
@@ -230,16 +253,16 @@ async def toggle_model_sync(project_id: str, model_id: str, user: User = Depends
         return {"synced": False, "auto_purchased": 0}
 
     # Create synced record
-    db.add(SyncedModel(id=f"sm_{uuid.uuid4().hex[:12]}", project_id=project_id, model_id=model_id))
+    db.add(SyncedModel(id=f"sm_{uuid.uuid4().hex[:12]}", project_id=sid, model_id=model_id))
 
     # Auto-purchase: toggle purchased on the linked purchase item
     auto_purchased = 0
     if model.item_id:
         pur_result = await db.execute(
-            select(PurchasedItem).where(PurchasedItem.project_id == project_id, PurchasedItem.item_id == model.item_id)
+            select(PurchasedItem).where(PurchasedItem.project_id == sid, PurchasedItem.item_id == model.item_id)
         )
         if not pur_result.scalar_one_or_none():
-            db.add(PurchasedItem(id=f"pi_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=model.item_id))
+            db.add(PurchasedItem(id=f"pi_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=model.item_id))
             auto_purchased = 1
 
     await db.commit()
@@ -250,7 +273,7 @@ async def toggle_model_sync(project_id: str, model_id: str, user: User = Depends
 
 @router.get("/export-csv")
 async def export_csv(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
     items_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.needs_compare == True))
     items = items_result.scalars().all()
 
@@ -268,7 +291,7 @@ async def export_csv(project_id: str, user: User = Depends(get_current_user), db
             if stage: stage_name = stage.parent
 
         models_result = await db.execute(
-            select(PriceModel).where(PriceModel.item_id == item.id, PriceModel.project_id == project_id)
+            select(PriceModel).where(PriceModel.item_id == item.id, PriceModel.project_id == sid)
         )
         models = models_result.scalars().all()
         if not models:
@@ -288,7 +311,7 @@ async def export_csv(project_id: str, user: User = Depends(get_current_user), db
 
 @router.post("/import-csv")
 async def import_csv(project_id: str, file: UploadFile = File(...), user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
+    sid = await _ensure_project(project_id, user, db)
     content = await file.read()
     text = content.decode("utf-8-sig")
     reader = csv.reader(io.StringIO(text))
@@ -339,20 +362,20 @@ async def import_csv(project_id: str, file: UploadFile = File(...), user: User =
                 )
                 db.add(item)
                 await db.flush()
-                db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=item.id))
+                db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=item.id))
             item_cache[cache_key] = item.id
 
         # Create model
         price = float(price_str) if price_str and price_str != "--" else None
         existing_model = False
         models_result = await db.execute(
-            select(PriceModel).where(PriceModel.item_id == item_cache[cache_key], PriceModel.project_id == project_id, PriceModel.name == model_name)
+            select(PriceModel).where(PriceModel.item_id == item_cache[cache_key], PriceModel.project_id == sid, PriceModel.name == model_name)
         )
         model = models_result.scalar_one_or_none()
         if not model:
             model = PriceModel(
                 id=f"pm_{uuid.uuid4().hex[:12]}",
-                item_id=item_cache[cache_key], project_id=project_id,
+                item_id=item_cache[cache_key], project_id=sid,
                 name=model_name, spec=None, note=model_note or None, quantity=1,
             )
             db.add(model)

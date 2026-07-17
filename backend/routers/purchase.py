@@ -3,13 +3,35 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..database import get_db
-from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, SelectedPurchase, PurchasedItem, PriceModel, ChannelQuote
+from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, SelectedPurchase, PurchasedItem, PriceModel, ChannelQuote, PriceCategory
 from ..schemas import PurchaseRefStageOut, PurchaseRefSubgroupOut, PurchaseRefItemOut, CustomPurchaseCreate, CompareItemOut, PriceModelOut, ChannelQuoteOut
 from ..auth import get_current_user
 from sqlalchemy import update
 import uuid
 
 router = APIRouter(tags=["Purchase"])
+
+
+def _scoped_id(raw_project_id: str, user_id: str) -> str:
+    """Scope a frontend project ID to the current user for data isolation."""
+    scope = user_id.replace("-", "")[:8]
+    return f"{raw_project_id}_{scope}"
+
+
+async def _ensure_project(raw_project_id: str, user: User, db: AsyncSession) -> str:
+    """Ensure a project exists for this user. Returns the scoped project ID."""
+    sid = _scoped_id(raw_project_id, user.id)
+    result = await db.execute(
+        select(Project).where(Project.id == sid, Project.user_id == user.id)
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        project = Project(id=sid, user_id=user.id, name="默认项目",
+                          owner_name=user.username or "我")
+        db.add(project)
+        await db.commit()
+        await db.refresh(project)
+    return sid
 
 
 @router.get("/api/purchase/references", response_model=list[PurchaseRefStageOut])
@@ -32,25 +54,23 @@ async def get_references(db: AsyncSession = Depends(get_db)):
 
 @router.get("/api/projects/{project_id}/purchase/selected", response_model=list[str])
 async def get_selected(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == project_id))
+    sid = await _ensure_project(project_id, user, db)
+    result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == sid))
     return [sp.item_id for sp in result.scalars().all()]
 
 
 @router.put("/api/projects/{project_id}/purchase/selected/{item_id}")
 async def toggle_selected(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    # Verify project ownership
-    proj = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not proj.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
+    sid = await _ensure_project(project_id, user, db)
 
-    result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == project_id, SelectedPurchase.item_id == item_id))
+    result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id))
     existing = result.scalar_one_or_none()
     if existing:
         await db.delete(existing)
         await db.commit()
         return {"selected": False}
     else:
-        sp = SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=item_id)
+        sp = SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=item_id)
         db.add(sp)
         await db.commit()
         return {"selected": True}
@@ -58,10 +78,7 @@ async def toggle_selected(project_id: str, item_id: str, user: User = Depends(ge
 
 @router.post("/api/projects/{project_id}/purchase/custom")
 async def add_custom_item(project_id: str, data: CustomPurchaseCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    # Verify project ownership
-    proj = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not proj.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
+    sid = await _ensure_project(project_id, user, db)
 
     # Find the stage by parent name
     stage_result = await db.execute(select(PurchaseRefStage).where(PurchaseRefStage.parent == data.stage_parent))
@@ -95,7 +112,7 @@ async def add_custom_item(project_id: str, data: CustomPurchaseCreate, user: Use
     )
     db.add(item)
     # Auto-select
-    sp = SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=item.id)
+    sp = SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=item.id)
     db.add(sp)
     await db.commit()
     return {"id": item.id, "name": item.name, "spec": item.spec, "qty": item.qty, "unit": item.unit, "selected": True}
@@ -103,10 +120,7 @@ async def add_custom_item(project_id: str, data: CustomPurchaseCreate, user: Use
 
 @router.delete("/api/projects/{project_id}/purchase/items/{item_id}", status_code=204)
 async def delete_purchase_item(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    # Verify project ownership
-    proj = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not proj.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
+    sid = await _ensure_project(project_id, user, db)
 
     # Unlink any PriceCategory that references this item
     await db.execute(
@@ -114,7 +128,7 @@ async def delete_purchase_item(project_id: str, item_id: str, user: User = Depen
     )
 
     # Remove selection
-    sel_result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == project_id, SelectedPurchase.item_id == item_id))
+    sel_result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id))
     for sp in sel_result.scalars().all():
         await db.delete(sp)
     # Only remove custom items (not reference items)
@@ -129,24 +143,23 @@ async def delete_purchase_item(project_id: str, item_id: str, user: User = Depen
 
 @router.get("/api/projects/{project_id}/purchase/purchased", response_model=list[str])
 async def get_purchased(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(PurchasedItem).where(PurchasedItem.project_id == project_id))
+    sid = await _ensure_project(project_id, user, db)
+    result = await db.execute(select(PurchasedItem).where(PurchasedItem.project_id == sid))
     return [pi.item_id for pi in result.scalars().all()]
 
 
 @router.put("/api/projects/{project_id}/purchase/purchased/{item_id}")
 async def toggle_purchased(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    proj = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not proj.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
+    sid = await _ensure_project(project_id, user, db)
 
-    result = await db.execute(select(PurchasedItem).where(PurchasedItem.project_id == project_id, PurchasedItem.item_id == item_id))
+    result = await db.execute(select(PurchasedItem).where(PurchasedItem.project_id == sid, PurchasedItem.item_id == item_id))
     existing = result.scalar_one_or_none()
     if existing:
         await db.delete(existing)
         await db.commit()
         return {"purchased": False}
     else:
-        pi = PurchasedItem(id=f"pi_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=item_id)
+        pi = PurchasedItem(id=f"pi_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=item_id)
         db.add(pi)
         await db.commit()
         return {"purchased": True}
@@ -156,9 +169,7 @@ async def toggle_purchased(project_id: str, item_id: str, user: User = Depends(g
 
 @router.put("/api/projects/{project_id}/purchase/toggle-compare/{item_id}")
 async def toggle_purchase_compare(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    proj = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not proj.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
+    sid = await _ensure_project(project_id, user, db)
 
     item_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.id == item_id))
     item = item_result.scalar_one_or_none()
@@ -169,10 +180,10 @@ async def toggle_purchase_compare(project_id: str, item_id: str, user: User = De
     # Auto-select if turning on compare
     if item.needs_compare:
         sel_result = await db.execute(
-            select(SelectedPurchase).where(SelectedPurchase.project_id == project_id, SelectedPurchase.item_id == item_id)
+            select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id)
         )
         if not sel_result.scalar_one_or_none():
-            db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=item_id))
+            db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=item_id))
     await db.commit()
     return {"needs_compare": item.needs_compare}
 
@@ -181,9 +192,7 @@ async def toggle_purchase_compare(project_id: str, item_id: str, user: User = De
 
 @router.get("/api/projects/{project_id}/purchase/items/{item_id}/comparison", response_model=Optional[CompareItemOut])
 async def get_item_comparison(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    proj = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
-    if not proj.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="项目不存在")
+    sid = await _ensure_project(project_id, user, db)
 
     item_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.id == item_id))
     item = item_result.scalar_one_or_none()
@@ -202,7 +211,7 @@ async def get_item_comparison(project_id: str, item_id: str, user: User = Depend
 
     # Get models
     models_result = await db.execute(
-        select(PriceModel).where(PriceModel.item_id == item_id, PriceModel.project_id == project_id)
+        select(PriceModel).where(PriceModel.item_id == item_id, PriceModel.project_id == sid)
     )
     models_out = []
     for m in models_result.scalars().all():

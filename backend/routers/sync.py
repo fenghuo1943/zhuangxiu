@@ -198,7 +198,7 @@ async def import_state(project_id: str, data: AppStateSync, user: User = Depends
     for pc in data.price_categories:
         cat = PriceCategory(
             id=pc.get("id", f"pc_{uuid.uuid4().hex[:12]}"),
-            project_id=project_id,
+            project_id=sid,
             name=pc["name"],
             icon=pc.get("icon", "📦"),
             purchase_item_id=pc.get("purchase_item_id"),
@@ -217,7 +217,7 @@ async def import_state(project_id: str, data: AppStateSync, user: User = Depends
     for pm in data.price_models:
         model = PriceModel(
             id=pm.get("id", f"pm_{uuid.uuid4().hex[:12]}"),
-            item_id=pm.get("item_id"), project_id=pm.get("project_id", sid),
+            item_id=pm.get("item_id"), project_id=sid,
             name=pm["name"], spec=pm.get("spec"), note=pm.get("note"), quantity=pm.get("quantity", 1),
         )
         db.add(model)
@@ -225,12 +225,12 @@ async def import_state(project_id: str, data: AppStateSync, user: User = Depends
             db.add(ChannelQuote(id=q.get("id", f"ch_{uuid.uuid4().hex[:12]}"), model_id=model.id, channel=q["channel"], price=q.get("price"), url=q.get("url")))
 
     # Import selections
-    for sid in data.selected_purchase_ids:
-        db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=sid))
-    for pid in data.purchased_item_ids:
-        db.add(PurchasedItem(id=f"pi_{uuid.uuid4().hex[:12]}", project_id=project_id, item_id=pid))
-    for mid in data.synced_model_ids:
-        db.add(SyncedModel(id=f"sm_{uuid.uuid4().hex[:12]}", project_id=project_id, model_id=mid))
+    for sp_id in data.selected_purchase_ids:
+        db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=sp_id))
+    for pi_id in data.purchased_item_ids:
+        db.add(PurchasedItem(id=f"pi_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=pi_id))
+    for sm_id in data.synced_model_ids:
+        db.add(SyncedModel(id=f"sm_{uuid.uuid4().hex[:12]}", project_id=sid, model_id=sm_id))
 
     await db.commit()
     return {"status": "ok"}
