@@ -13,6 +13,7 @@ def _now():
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = {"comment": "用户账户表"}
     id = _pk()
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(100), nullable=False)
@@ -25,6 +26,7 @@ class User(Base):
 
 class Project(Base):
     __tablename__ = "projects"
+    __table_args__ = {"comment": "装修项目表"}
     id = _pk()
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     name = Column(String(100), nullable=False)
@@ -49,6 +51,7 @@ class Project(Base):
 
 class Budget(Base):
     __tablename__ = "budgets"
+    __table_args__ = {"comment": "项目预算总表"}
     project_id = Column(String(36), ForeignKey("projects.id"), primary_key=True)
     total = Column(Float, default=0.0)
 
@@ -57,6 +60,7 @@ class Budget(Base):
 
 class BudgetCategory(Base):
     __tablename__ = "budget_categories"
+    __table_args__ = {"comment": "预算分类明细表"}
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     name = Column(String(20), nullable=False)
@@ -69,6 +73,7 @@ class BudgetCategory(Base):
 
 class Todo(Base):
     __tablename__ = "todos"
+    __table_args__ = {"comment": "待办事项表"}
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     title = Column(String(200), nullable=False)
@@ -82,6 +87,7 @@ class Todo(Base):
 
 class Expense(Base):
     __tablename__ = "expenses"
+    __table_args__ = {"comment": "支出记录表"}
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     title = Column(String(200), nullable=False)
@@ -100,6 +106,7 @@ class Expense(Base):
 
 class FlowProgress(Base):
     __tablename__ = "flow_progress"
+    __table_args__ = {"comment": "装修流程进度表"}
     project_id = Column(String(36), ForeignKey("projects.id"), primary_key=True)
     flow_type = Column(String(10), nullable=False, default="new")
     done_step_ids = Column(JSON, default=list)
@@ -112,6 +119,7 @@ class FlowProgress(Base):
 
 class PurchaseRefStage(Base):
     __tablename__ = "purchase_ref_stages"
+    __table_args__ = {"comment": "采购参考阶段表"}
     id = _pk()
     parent = Column(String(100), nullable=False)
 
@@ -120,6 +128,7 @@ class PurchaseRefStage(Base):
 
 class PurchaseRefSubgroup(Base):
     __tablename__ = "purchase_ref_subgroups"
+    __table_args__ = {"comment": "采购参考子分组表"}
     id = _pk()
     stage_id = Column(String(36), ForeignKey("purchase_ref_stages.id"), nullable=False)
     name = Column(String(100), nullable=False)
@@ -130,6 +139,7 @@ class PurchaseRefSubgroup(Base):
 
 class PurchaseRefItem(Base):
     __tablename__ = "purchase_ref_items"
+    __table_args__ = {"comment": "采购参考项目表"}
     id = _pk()
     subgroup_id = Column(String(36), ForeignKey("purchase_ref_subgroups.id"), nullable=False)
     name = Column(String(200), nullable=False)
@@ -144,6 +154,7 @@ class PurchaseRefItem(Base):
 
 class SelectedPurchase(Base):
     __tablename__ = "selected_purchases"
+    __table_args__ = {"comment": "项目已选采购项表"}
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     item_id = Column(String(36), ForeignKey("purchase_ref_items.id"), nullable=False)
@@ -153,6 +164,7 @@ class SelectedPurchase(Base):
 
 class PurchasedItem(Base):
     __tablename__ = "purchased_items"
+    __table_args__ = {"comment": "项目已购物品表"}
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     item_id = Column(String(36), nullable=False)
@@ -166,6 +178,7 @@ class PurchasedItem(Base):
 # Table kept for migration compat; no new data should be written here.
 class PriceCategory(Base):
     __tablename__ = "price_categories"
+    __table_args__ = {"comment": "[已废弃] 比价分类表 — 已被 PurchaseRefItem.needs_compare + PriceModel.item_id FK 替代"}
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     name = Column(String(100), nullable=False)
@@ -181,6 +194,7 @@ class PriceCategory(Base):
 
 class PriceModel(Base):
     __tablename__ = "price_models"
+    __table_args__ = {"comment": "比价型号表"}
     id = _pk()
     category_id = Column(String(36), ForeignKey("price_categories.id"), nullable=True)  # deprecated
     item_id = Column(String(36), ForeignKey("purchase_ref_items.id"), nullable=True, index=True)     # NEW: direct FK to purchase item
@@ -197,6 +211,7 @@ class PriceModel(Base):
 
 class ChannelQuote(Base):
     __tablename__ = "channel_quotes"
+    __table_args__ = {"comment": "渠道报价表"}
     id = _pk()
     model_id = Column(String(36), ForeignKey("price_models.id"), nullable=False)
     channel = Column(String(100), nullable=False)
@@ -210,6 +225,7 @@ class ChannelQuote(Base):
 
 class SyncedModel(Base):
     __tablename__ = "synced_models"
+    __table_args__ = {"comment": "已同步型号表"}
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     model_id = Column(String(36), ForeignKey("price_models.id"), nullable=False)
@@ -220,6 +236,7 @@ class SyncedModel(Base):
 class StageNote(Base):
     """User notes attached to a specific flow stage."""
     __tablename__ = "stage_notes"
+    __table_args__ = {"comment": "阶段备注表"}
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
     stage_id = Column(String(50), nullable=False, index=True)
@@ -232,6 +249,7 @@ class StageNote(Base):
 class CustomFlowStep(Base):
     """User-inserted custom stages in the renovation flow."""
     __tablename__ = "custom_flow_steps"
+    __table_args__ = {"comment": "自定义流程步骤表"}
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
     flow_type = Column(String(10), nullable=False, default="new")
@@ -247,6 +265,7 @@ class CustomFlowStep(Base):
 class KnowledgeArticle(Base):
     """Rich-text knowledge articles for flow stage resources (standards, acceptance, articles, pitfalls)."""
     __tablename__ = "knowledge_articles"
+    __table_args__ = {"comment": "知识文章表"}
     id = Column(Integer, primary_key=True, autoincrement=True)
     resource_id = Column(Integer, unique=True, nullable=False, index=True)
     title = Column(String(200), nullable=False, default="")
@@ -258,6 +277,7 @@ class KnowledgeArticle(Base):
 class FlowStage(Base):
     """Renovation flow stages (e.g., 墙体拆改, 水电改造)."""
     __tablename__ = "flow_stages"
+    __table_args__ = {"comment": "装修流程阶段定义表"}
     id = Column(Integer, primary_key=True, autoincrement=True)
     stage_key = Column(String(50), nullable=False, index=True)  # e.g. 'design', 'demolish'
     flow_type = Column(String(10), nullable=False, default="new")  # 'new' or 'old'
@@ -272,6 +292,7 @@ class FlowStage(Base):
 class FlowStageResource(Base):
     """Individual resources (standards, acceptance, articles, pitfalls) within a flow stage."""
     __tablename__ = "flow_stage_resources"
+    __table_args__ = {"comment": "流程阶段资源表"}
     id = Column(Integer, primary_key=True, autoincrement=True)
     stage_id = Column(Integer, ForeignKey("flow_stages.id"), nullable=False, index=True)
     title = Column(String(200), nullable=False)
