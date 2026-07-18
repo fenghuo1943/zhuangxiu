@@ -1543,9 +1543,9 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .budget-total-input-row { font-size: 11px; }
   .budget-total-input { width: 80px; font-size: 12px; }
 
-  .budget-stage-blocks { flex-wrap: wrap; gap: 4px; }
-  .budget-stage-block { flex: 1 1 100px; min-width: 80px; padding: 6px 3px; }
-  .budget-stage-block-name { font-size: 11px; }
+  .budget-stage-blocks { gap: 3px; }
+  .budget-stage-block { flex: 1; min-width: 0; padding: 6px 2px; }
+  .budget-stage-block-name { font-size: 10px; }
   .budget-stage-block-input { font-size: 10px; }
 
   .budget-slider-bar { height: 24px; }
@@ -1745,8 +1745,8 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .budget-summary-bar { gap: 8px; }
   .budget-summary-labels { font-size: 10px; }
   .budget-summary-right b { font-size: 18px; }
-  .budget-stage-blocks { gap: 3px; }
-  .budget-stage-block { flex: 1 1 70px; min-width: 65px; }
+  .budget-stage-blocks { gap: 2px; }
+  .budget-stage-block { flex: 1; min-width: 0; }
   .budget-stage-block-name { font-size: 10px; }
   .budget-detail-name { width: 50px; font-size: 11px; }
   .budget-detail-spent { width: 50px; font-size: 10px; }
