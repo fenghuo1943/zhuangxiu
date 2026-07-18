@@ -304,13 +304,13 @@ const ComparePage: React.FC = () => {
         </div>
 
         {/* Search & CSV */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+        <div className="compare-toolbar" style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
           <div className="compare-search">
             <IconSearch size={14} />
-            <input className="input" placeholder="搜索比价物品..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: 32, width: 240 }} />
+            <input className="input" placeholder="搜索比价物品..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: 32, width: '100%' }} />
           </div>
-          <button className="btn btn-outline btn-sm" onClick={handleExportCSV}><IconDownload size={14} /> 导出 CSV</button>
-          <button className="btn btn-outline btn-sm" onClick={handleImportCSV}><IconUpload size={14} /> 导入 CSV</button>
+          <button className="btn btn-outline btn-sm" onClick={handleExportCSV}><IconUpload size={14} /> 导出</button>
+          <button className="btn btn-outline btn-sm" onClick={handleImportCSV}><IconDownload size={14} /> 导入</button>
           {importMsg && <span className={`backup-msg ${importMsg.type}`} style={{ padding: '4px 10px', fontSize: 12 }}>{importMsg.text}</span>}
         </div>
 
