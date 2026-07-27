@@ -295,6 +295,7 @@ class AppStateSync(BaseModel):
     price_models: List[dict] = []     # NEW: model data directly keyed by item_id
     selected_purchase_ids: List[str] = []
     purchased_item_ids: List[str] = []
+    project_compare_item_ids: List[str] = []  # NEW: per-project compare item IDs
     synced_model_ids: List[str] = []
     stage_notes: Optional[dict] = None
     custom_flow_steps: List[dict] = []

@@ -1,9 +1,9 @@
 import { apiGet, apiPost, apiPut, apiDelete } from './client';
 import type { PurchaseReferenceStage, CompareItem } from '../data/types';
 
-/** Fetch all purchase reference data (public, no auth needed) */
-export async function fetchPurchaseReferences(): Promise<PurchaseReferenceStage[]> {
-  return apiGet('/api/purchase/references');
+/** 获取采购参考数据（项目专属：公共物品 + 当前项目私有物品） */
+export async function fetchPurchaseReferences(projectId: string): Promise<PurchaseReferenceStage[]> {
+  return apiGet(`/api/purchase/references?project_id=${encodeURIComponent(projectId)}`);
 }
 
 /** Get selected item IDs for a project */
@@ -56,4 +56,9 @@ export async function toggleItemCompare(
 /** Get comparison data for a specific purchase item */
 export async function fetchItemComparison(projectId: string, itemId: string): Promise<CompareItem | null> {
   return apiGet(`/api/projects/${projectId}/purchase/items/${itemId}/comparison`);
+}
+
+/** Get compare item IDs for a project */
+export async function fetchProjectCompareIds(projectId: string): Promise<string[]> {
+  return apiGet(`/api/projects/${projectId}/purchase/compare-ids`);
 }

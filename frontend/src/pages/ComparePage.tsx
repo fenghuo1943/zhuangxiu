@@ -7,8 +7,6 @@ import {
   selectBestQuote, getModelDisplayPrice, getItemDisplayPrice,
   toggleModelSync, isModelSynced,
 } from '../data/store';
-import { addCompareItemApi } from '../api/compare';
-import { isAuthenticated } from '../api/client';
 import {
   IconCompare, IconPlus, IconTrash, IconChevronDown,
   IconSearch, IconX, IconEdit, IconDownload, IconUpload,
@@ -83,14 +81,8 @@ const ComparePage: React.FC = () => {
     const sub = stage?.subs[si];
     if (!stage || !sub) return;
     const qty = Math.max(1, parseInt(quickQty) || 1);
+    // addCompareItem 内部会同步后端（通过比价 API，一次创建物品+加入比价+加入待购）
     addCompareItem(quickName.trim(), stage.parent, sub.name, qty, '', '个');
-    // Sync to backend
-    if (isAuthenticated()) {
-      addCompareItemApi(state.activeProjectId, {
-        name: quickName.trim(), stage_parent: stage.parent,
-        subgroup_name: sub.name, qty, spec: '', unit: '个',
-      }).catch(() => {});
-    }
     setQuickName(''); setQuickQty('1');
   };
 

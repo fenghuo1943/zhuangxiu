@@ -47,6 +47,7 @@ class Project(Base):
     synced_models = relationship("SyncedModel", back_populates="project", cascade="all, delete-orphan")
     stage_notes = relationship("StageNote", back_populates="project", cascade="all, delete-orphan")
     custom_flow_steps = relationship("CustomFlowStep", back_populates="project", cascade="all, delete-orphan")
+    compare_items = relationship("ProjectCompareItem", back_populates="project", cascade="all, delete-orphan")
 
 
 class Budget(Base):
@@ -146,7 +147,9 @@ class PurchaseRefItem(Base):
     spec = Column(String(100), nullable=True)
     qty = Column(Integer, default=1)
     unit = Column(String(20), nullable=True)
-    needs_compare = Column(Boolean, default=False, index=True)
+    needs_compare = Column(Boolean, default=False, index=True)  # kept for backward compat; prefer ProjectCompareItem
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
+    # NULL = 公共种子数据（所有项目可见）；非NULL = 项目专属物品（仅该项目可见）
 
     subgroup = relationship("PurchaseRefSubgroup", back_populates="items")
     price_models = relationship("PriceModel", back_populates="purchase_item", cascade="all, delete-orphan")
@@ -170,6 +173,18 @@ class PurchasedItem(Base):
     item_id = Column(String(36), nullable=False)
 
     project = relationship("Project", back_populates="purchased_items")
+
+
+class ProjectCompareItem(Base):
+    """Per-project compare list — replaces the global needs_compare flag on PurchaseRefItem."""
+    __tablename__ = "project_compare_items"
+    __table_args__ = {"comment": "项目比价物品关联表"}
+    id = _pk()
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    item_id = Column(String(36), ForeignKey("purchase_ref_items.id"), nullable=False, index=True)
+
+    project = relationship("Project")
+    item = relationship("PurchaseRefItem")
 
 
 # ---- Price Comparison ----

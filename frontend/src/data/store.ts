@@ -56,6 +56,7 @@ function getInitialState(): AppState {
         syncedModelIds: parsed.syncedModelIds || [],
         bestQuoteIds: parsed.bestQuoteIds || {},
         compareItems: parsed.compareItems || [],
+        projectCompareItemIds: parsed.projectCompareItemIds || [],
         projectStates: parsed.projectStates || {},
         expenseSubCategories: parsed.expenseSubCategories || DEFAULT_SUB_CATEGORIES,
         expenseGroups: parsed.expenseGroups || DEFAULT_EXPENSE_GROUPS,
@@ -86,6 +87,7 @@ function getInitialState(): AppState {
     syncedModelIds: [],
     bestQuoteIds: {},
     compareItems: [],
+    projectCompareItemIds: [],
     projectStates: {},
     expenseSubCategories: DEFAULT_SUB_CATEGORIES,
     expenseGroups: DEFAULT_EXPENSE_GROUPS,
@@ -472,7 +474,7 @@ export async function loadPurchaseReferencesFromBackend(): Promise<void> {
   if (!isAuthenticated()) return;
   try {
     const { fetchPurchaseReferences } = await import('../api/purchase');
-    const remoteRefs = await fetchPurchaseReferences();
+    const remoteRefs = await fetchPurchaseReferences(globalState.activeProjectId);
     if (remoteRefs && remoteRefs.length > 0) {
       // Add selected state from local selectedPurchaseIds
       const selectedSet = new Set(globalState.selectedPurchaseIds);
@@ -528,6 +530,18 @@ export async function loadPurchasedFromBackend(): Promise<void> {
   } catch { /* backend unreachable */ }
 }
 
+/** Load project compare item IDs from backend */
+export async function loadProjectCompareIdsFromBackend(): Promise<void> {
+  if (!isAuthenticated()) return;
+  try {
+    const { fetchProjectCompareIds } = await import('../api/purchase');
+    const ids = await fetchProjectCompareIds(globalState.activeProjectId);
+    globalState = { ...globalState, projectCompareItemIds: ids };
+    notify();
+    persist();
+  } catch { /* backend unreachable */ }
+}
+
 // ── Add purchase item to compare ──
 
 export function addPurchaseToCompare(item: {
@@ -537,6 +551,13 @@ export function addPurchaseToCompare(item: {
   stageParent: string;
   qty: number;
 }) {
+  // Add to projectCompareItemIds
+  if (!globalState.projectCompareItemIds.includes(item.itemId)) {
+    globalState = {
+      ...globalState,
+      projectCompareItemIds: [...globalState.projectCompareItemIds, item.itemId],
+    };
+  }
   // Set needs_compare flag on the purchase reference item
   const purchaseReferences = globalState.purchaseReferences.map(stage => ({
     ...stage,
@@ -692,23 +713,31 @@ export function getCompareItems(): CompareItem[] {
   return globalState.compareItems;
 }
 
-/** Add a compare item with needs_compare flag (from compare page's quick-add form) */
+/** 在比价页面快速添加物品——本地乐观更新 + 后端通过比价 API 同步 */
 export function addCompareItem(itemName: string, stageParent: string, subgroupName: string, qty: number, spec?: string, unit?: string): CompareItem {
-  // Add the purchase item and get the real generated ID
-  const realItemId = addCustomPurchaseItem(itemName, stageParent, qty, spec || '', subgroupName, unit || '个');
-  // Also set needs_compare flag on the purchaseReferences item
-  const purchaseReferences = globalState.purchaseReferences.map(stage => ({
-    ...stage,
-    subs: stage.subs.map(sub => ({
-      ...sub,
-      items: sub.items.map(it =>
-        it.id === realItemId ? { ...it, needs_compare: true } : it
-      ),
-    })),
-  }));
-  // Add to compareItems with the REAL item ID
+  // 生成本地临时 ID，等后端返回后再替换为真实 ID
+  const tempId = `p_compare_${Date.now()}`;
+
+  // 更新本地 purchaseReferences：添加临时物品
+  const purchaseReferences = globalState.purchaseReferences.map(stage => {
+    if (stage.parent !== stageParent) return stage;
+    return {
+      ...stage,
+      subs: stage.subs.map(sub => {
+        if (sub.name !== subgroupName) return sub;
+        return {
+          ...sub,
+          items: [...sub.items, {
+            id: tempId, name: itemName, spec: spec || '',
+            qty, unit: unit || '个', selected: true, needs_compare: true,
+          }],
+        };
+      }),
+    };
+  });
+
   const ci: CompareItem = {
-    item_id: realItemId,
+    item_id: tempId,
     item_name: itemName,
     spec: spec || '',
     qty,
@@ -717,10 +746,62 @@ export function addCompareItem(itemName: string, stageParent: string, subgroupNa
     subgroup_name: subgroupName,
     models: [],
   };
-  globalState = { ...globalState, purchaseReferences, compareItems: [...globalState.compareItems, ci] };
+
+  globalState = {
+    ...globalState,
+    purchaseReferences,
+    compareItems: [...globalState.compareItems, ci],
+    selectedPurchaseIds: [...globalState.selectedPurchaseIds, tempId],
+    projectCompareItemIds: [...globalState.projectCompareItemIds, tempId],
+  };
   notify();
   persist();
+
+  // 通过比价 API 同步到后端（创建物品 + 加入比价 + 加入待购，一次完成）
+  if (isAuthenticated()) {
+    import('../api/compare').then(({ addCompareItemApi }) => {
+      addCompareItemApi(globalState.activeProjectId, {
+        name: itemName, stage_parent: stageParent,
+        subgroup_name: subgroupName, qty, spec: spec || '', unit: unit || '个',
+      }).then((backendItem) => {
+        // 用后端返回的真实 ID 替换临时 ID
+        _replaceCompareTempId(tempId, backendItem.item_id);
+      }).catch(() => {});
+    });
+  }
+
   return ci;
+}
+
+/** 用后端返回的真实 ID 替换本地临时 ID */
+function _replaceCompareTempId(oldId: string, newId: string) {
+  // 替换 purchaseReferences 中的 ID
+  const purchaseReferences = globalState.purchaseReferences.map(stage => ({
+    ...stage,
+    subs: stage.subs.map(sub => ({
+      ...sub,
+      items: sub.items.map(it => it.id === oldId ? { ...it, id: newId } : it),
+    })),
+  }));
+
+  // 替换 compareItems 中的 item_id
+  const compareItems = globalState.compareItems.map(c =>
+    c.item_id === oldId ? { ...c, item_id: newId } : c
+  );
+
+  // 替换 ID 列表
+  const selectedPurchaseIds = globalState.selectedPurchaseIds.map(id => id === oldId ? newId : id);
+  const projectCompareItemIds = globalState.projectCompareItemIds.map(id => id === oldId ? newId : id);
+
+  globalState = {
+    ...globalState,
+    purchaseReferences,
+    compareItems,
+    selectedPurchaseIds,
+    projectCompareItemIds,
+  };
+  notify();
+  persist();
 }
 
 /** Remove item from compare (set needs_compare=false) */
@@ -728,6 +809,7 @@ export function removeCompareItem(itemId: string) {
   globalState = {
     ...globalState,
     compareItems: globalState.compareItems.filter(c => c.item_id !== itemId),
+    projectCompareItemIds: globalState.projectCompareItemIds.filter(id => id !== itemId),
   };
   // Also unset needs_compare on purchase reference
   const purchaseReferences = globalState.purchaseReferences.map(stage => ({
@@ -742,6 +824,13 @@ export function removeCompareItem(itemId: string) {
   globalState = { ...globalState, purchaseReferences };
   notify();
   persist();
+
+  // Sync to backend
+  if (isAuthenticated()) {
+    import('../api/purchase').then(({ toggleItemCompare }) => {
+      toggleItemCompare(globalState.activeProjectId, itemId).catch(() => {});
+    });
+  }
 }
 
 export function addPriceModel(itemId: string, name: string, spec?: string, note?: string, quantity?: number) {
@@ -976,6 +1065,10 @@ export function isModelSynced(modelId: string): boolean {
 // ── Purchase-comparison helpers (based on needs_compare flag) ──
 
 export function isItemInComparison(itemId: string): boolean {
+  // Check both projectCompareItemIds (from backend) and local compareItems
+  if (globalState.projectCompareItemIds.includes(itemId)) return true;
+  if (globalState.compareItems.some(c => c.item_id === itemId)) return true;
+  // Fallback: check needs_compare flag on reference items (backward compat)
   return globalState.purchaseReferences.some(stage =>
     stage.subs.some(sub =>
       sub.items.some(item => item.id === itemId && item.needs_compare === true)
@@ -1568,6 +1661,7 @@ export async function syncFromServerAfterLogin(): Promise<void> {
     await loadPurchaseReferencesFromBackend();
     await loadSelectedPurchasesFromBackend();
     await loadPurchasedFromBackend();
+    await loadProjectCompareIdsFromBackend();
   } catch {
     // Server unreachable — keep local data
   }

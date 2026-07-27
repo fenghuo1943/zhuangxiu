@@ -1,9 +1,9 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from ..database import get_db
-from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, SelectedPurchase, PurchasedItem, PriceModel, ChannelQuote, PriceCategory
+from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, SelectedPurchase, PurchasedItem, PriceModel, ChannelQuote, PriceCategory, ProjectCompareItem
 from ..schemas import PurchaseRefStageOut, PurchaseRefSubgroupOut, PurchaseRefItemOut, CustomPurchaseCreate, CompareItemOut, PriceModelOut, ChannelQuoteOut
 from ..auth import get_current_user
 from sqlalchemy import update
@@ -13,13 +13,13 @@ router = APIRouter(tags=["Purchase"])
 
 
 def _scoped_id(raw_project_id: str, user_id: str) -> str:
-    """Scope a frontend project ID to the current user for data isolation."""
+    """将前端项目 ID 作用域化到当前用户，实现数据隔离。"""
     scope = user_id.replace("-", "")[:8]
     return f"{raw_project_id}_{scope}"
 
 
 async def _ensure_project(raw_project_id: str, user: User, db: AsyncSession) -> str:
-    """Ensure a project exists for this user. Returns the scoped project ID."""
+    """确保项目存在，返回作用域化后的项目 ID。"""
     sid = _scoped_id(raw_project_id, user.id)
     result = await db.execute(
         select(Project).where(Project.id == sid, Project.user_id == user.id)
@@ -35,20 +35,52 @@ async def _ensure_project(raw_project_id: str, user: User, db: AsyncSession) -> 
 
 
 @router.get("/api/purchase/references", response_model=list[PurchaseRefStageOut])
-async def get_references(db: AsyncSession = Depends(get_db)):
+async def get_references(
+    project_id: str = Query(..., description="项目ID（必填）"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """返回采购参考数据：公共物品（所有项目可见）+ 当前项目专属物品。
+    同时根据 ProjectCompareItem 动态设置 needs_compare 字段。"""
+    sid = _scoped_id(project_id, user.id)
+
+    # 收集该项目已加入比价的物品 ID
+    cmp_result = await db.execute(
+        select(ProjectCompareItem.item_id).where(ProjectCompareItem.project_id == sid)
+    )
+    compare_item_ids = {row[0] for row in cmp_result.fetchall()}
+
+    # 获取阶段，然后过滤物品：公共物品 (project_id IS NULL) 或该项目专属物品
     result = await db.execute(select(PurchaseRefStage))
     stages = result.scalars().all()
     out = []
     for stage in stages:
-        subs_result = await db.execute(select(PurchaseRefSubgroup).where(PurchaseRefSubgroup.stage_id == stage.id))
+        subs_result = await db.execute(
+            select(PurchaseRefSubgroup).where(PurchaseRefSubgroup.stage_id == stage.id)
+        )
         subs = []
         for sub in subs_result.scalars().all():
-            items_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.subgroup_id == sub.id))
-            items = [PurchaseRefItemOut.model_validate(it) for it in items_result.scalars().all()]
-            subs.append(PurchaseRefSubgroupOut(name=sub.name, items=items))
-        out.append(PurchaseRefStageOut(parent=stage.parent, subs=subs))
-    if not out:
-        return []
+            items_result = await db.execute(
+                select(PurchaseRefItem).where(
+                    PurchaseRefItem.subgroup_id == sub.id,
+                    or_(
+                        PurchaseRefItem.project_id == None,   # 公共种子数据
+                        PurchaseRefItem.project_id == sid,    # 该项目专属物品
+                    ),
+                )
+            )
+            items = []
+            for it in items_result.scalars().all():
+                item_out = PurchaseRefItemOut(
+                    id=it.id, name=it.name, spec=it.spec,
+                    qty=it.qty, unit=it.unit,
+                    needs_compare=it.id in compare_item_ids,
+                )
+                items.append(item_out)
+            if items:
+                subs.append(PurchaseRefSubgroupOut(name=sub.name, items=items))
+        if subs:
+            out.append(PurchaseRefStageOut(parent=stage.parent, subs=subs))
     return out
 
 
@@ -80,13 +112,13 @@ async def toggle_selected(project_id: str, item_id: str, user: User = Depends(ge
 async def add_custom_item(project_id: str, data: CustomPurchaseCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     sid = await _ensure_project(project_id, user, db)
 
-    # Find the stage by parent name
+    # 查找阶段
     stage_result = await db.execute(select(PurchaseRefStage).where(PurchaseRefStage.parent == data.stage_parent))
     stage = stage_result.scalar_one_or_none()
     if not stage:
         raise HTTPException(status_code=404, detail="采购阶段不存在")
 
-    # Find the subgroup — by name if provided, otherwise use first subgroup
+    # 查找子分组
     sub = None
     if data.subgroup_name:
         sub_result = await db.execute(
@@ -109,9 +141,10 @@ async def add_custom_item(project_id: str, data: CustomPurchaseCreate, user: Use
         spec=data.spec or "",
         qty=data.qty,
         unit=data.unit or "个",
+        project_id=sid,  # 标记为项目专属物品
     )
     db.add(item)
-    # Auto-select
+    # 自动加入待购清单
     sp = SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=item.id)
     db.add(sp)
     await db.commit()
@@ -122,24 +155,42 @@ async def add_custom_item(project_id: str, data: CustomPurchaseCreate, user: Use
 async def delete_purchase_item(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     sid = await _ensure_project(project_id, user, db)
 
-    # Unlink any PriceCategory that references this item
+    # 验证物品存在且属于该项目
+    item_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.id == item_id))
+    item = item_result.scalar_one_or_none()
+    if not item:
+        return  # 已经不存在了
+
+    # 不允许删除公共参考物品
+    if item.project_id is None:
+        raise HTTPException(status_code=403, detail="不能删除公共参考项目")
+    # 不允许删除其他项目的物品
+    if item.project_id != sid:
+        raise HTTPException(status_code=403, detail="不能删除其他项目的物品")
+
+    # 解除 PriceCategory 关联
     await db.execute(
         update(PriceCategory).where(PriceCategory.purchase_item_id == item_id).values(purchase_item_id=None)
     )
 
-    # Remove selection
+    # 移除待购清单中的记录
     sel_result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id))
     for sp in sel_result.scalars().all():
         await db.delete(sp)
-    # Only remove custom items (not reference items)
-    item_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.id == item_id))
-    item = item_result.scalar_one_or_none()
-    if item and item.id.startswith("p_custom_"):
-        await db.delete(item)
+
+    # 移除比价清单中的记录
+    cmp_result = await db.execute(
+        select(ProjectCompareItem).where(ProjectCompareItem.project_id == sid, ProjectCompareItem.item_id == item_id)
+    )
+    for pci in cmp_result.scalars().all():
+        await db.delete(pci)
+
+    # 删除物品本身
+    await db.delete(item)
     await db.commit()
 
 
-# ── Purchased status ──
+# ── 已购状态 ──
 
 @router.get("/api/projects/{project_id}/purchase/purchased", response_model=list[str])
 async def get_purchased(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -165,41 +216,87 @@ async def toggle_purchased(project_id: str, item_id: str, user: User = Depends(g
         return {"purchased": True}
 
 
-# ── Toggle needs_compare flag on purchase item ──
+# ── 比价开关（使用 ProjectCompareItem 表）──
+
+@router.get("/api/projects/{project_id}/purchase/compare-ids", response_model=list[str])
+async def get_project_compare_ids(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """获取项目的比价物品 ID 列表。"""
+    sid = await _ensure_project(project_id, user, db)
+    result = await db.execute(
+        select(ProjectCompareItem.item_id).where(ProjectCompareItem.project_id == sid)
+    )
+    return [row[0] for row in result.fetchall()]
+
 
 @router.put("/api/projects/{project_id}/purchase/toggle-compare/{item_id}")
 async def toggle_purchase_compare(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """切换物品的比价状态（加入/移出比价清单）。"""
     sid = await _ensure_project(project_id, user, db)
 
-    item_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.id == item_id))
+    # 验证物品存在且该项目可访问
+    item_result = await db.execute(
+        select(PurchaseRefItem).where(
+            PurchaseRefItem.id == item_id,
+            or_(
+                PurchaseRefItem.project_id == None,   # 公共物品
+                PurchaseRefItem.project_id == sid,    # 该项目专属物品
+            ),
+        )
+    )
     item = item_result.scalar_one_or_none()
     if not item:
-        raise HTTPException(status_code=404, detail="物品不存在")
+        raise HTTPException(status_code=404, detail="物品不存在或无权访问")
 
-    item.needs_compare = not item.needs_compare
-    # Auto-select if turning on compare
-    if item.needs_compare:
+    # 检查是否已在比价清单中
+    cmp_result = await db.execute(
+        select(ProjectCompareItem).where(
+            ProjectCompareItem.project_id == sid,
+            ProjectCompareItem.item_id == item_id,
+        )
+    )
+    existing = cmp_result.scalar_one_or_none()
+
+    if existing:
+        await db.delete(existing)
+        needs_compare = False
+    else:
+        db.add(ProjectCompareItem(
+            id=f"pci_{uuid.uuid4().hex[:12]}",
+            project_id=sid,
+            item_id=item_id,
+        ))
+        needs_compare = True
+        # 加入比价时自动加入待购清单
         sel_result = await db.execute(
             select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id)
         )
         if not sel_result.scalar_one_or_none():
             db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=item_id))
+
     await db.commit()
-    return {"needs_compare": item.needs_compare}
+    return {"needs_compare": needs_compare}
 
 
-# ── Get comparison data for a purchase item ──
+# ── 获取物品的比价详情 ──
 
 @router.get("/api/projects/{project_id}/purchase/items/{item_id}/comparison", response_model=Optional[CompareItemOut])
 async def get_item_comparison(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     sid = await _ensure_project(project_id, user, db)
 
-    item_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.id == item_id))
+    item_result = await db.execute(
+        select(PurchaseRefItem).where(
+            PurchaseRefItem.id == item_id,
+            or_(
+                PurchaseRefItem.project_id == None,   # 公共物品
+                PurchaseRefItem.project_id == sid,    # 该项目专属物品
+            ),
+        )
+    )
     item = item_result.scalar_one_or_none()
     if not item:
         return None
 
-    # Get context
+    # 获取上下文信息
     sub_result = await db.execute(select(PurchaseRefSubgroup).where(PurchaseRefSubgroup.id == item.subgroup_id))
     subgroup = sub_result.scalar_one_or_none()
     stage_parent = subgroup_name = None
@@ -209,7 +306,7 @@ async def get_item_comparison(project_id: str, item_id: str, user: User = Depend
         stage = stage_result.scalar_one_or_none()
         if stage: stage_parent = stage.parent
 
-    # Get models
+    # 获取价格型号（已按项目隔离）
     models_result = await db.execute(
         select(PriceModel).where(PriceModel.item_id == item_id, PriceModel.project_id == sid)
     )

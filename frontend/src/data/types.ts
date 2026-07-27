@@ -217,6 +217,7 @@ export interface AppState {
   syncedModelIds: string[];
   bestQuoteIds: Record<string, string>;  // modelId -> quoteId
   compareItems: CompareItem[];           // items with needs_compare + their models
+  projectCompareItemIds: string[];       // item IDs in project compare list
   projectStates: Record<string, ProjectState>;
 }
 

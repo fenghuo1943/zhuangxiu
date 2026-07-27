@@ -3,9 +3,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from ..database import get_db
-from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, PriceModel, ChannelQuote, SyncedModel, SelectedPurchase, PurchasedItem
+from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, PriceModel, ChannelQuote, SyncedModel, SelectedPurchase, PurchasedItem, ProjectCompareItem
 from ..schemas import PriceModelCreate, PriceModelOut, ChannelQuoteCreate, ChannelQuoteOut, SetBestQuoteRequest, CompareItemOut, CustomPurchaseCreate
 from ..auth import get_current_user
 import uuid
@@ -15,13 +15,13 @@ router = APIRouter(prefix="/api/projects/{project_id}/compare", tags=["Compare"]
 
 
 def _scoped_id(raw_project_id: str, user_id: str) -> str:
-    """Scope a frontend project ID to the current user for data isolation."""
+    """将前端项目 ID 作用域化到当前用户。"""
     scope = user_id.replace("-", "")[:8]
     return f"{raw_project_id}_{scope}"
 
 
 async def _ensure_project(raw_project_id: str, user: User, db: AsyncSession) -> str:
-    """Ensure a project exists for this user. Returns the scoped project ID."""
+    """确保项目存在，返回作用域化后的项目 ID。"""
     sid = _scoped_id(raw_project_id, user.id)
     result = await db.execute(
         select(Project).where(Project.id == sid, Project.user_id == user.id)
@@ -53,21 +53,36 @@ def _build_model_out(m: PriceModel, quotes: list[ChannelQuote]) -> PriceModelOut
     )
 
 
-# ── List compare items ──
+# ── 列出比价物品（使用 ProjectCompareItem 实现项目专属隔离）──
 
 @router.get("", response_model=list[CompareItemOut])
 async def list_compare_items(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     sid = await _ensure_project(project_id, user, db)
 
-    # Get all purchase items with needs_compare=True
+    # 查询该项目的比价物品 ID
+    cmp_result = await db.execute(
+        select(ProjectCompareItem.item_id).where(ProjectCompareItem.project_id == sid)
+    )
+    compare_item_ids = [row[0] for row in cmp_result.fetchall()]
+
+    if not compare_item_ids:
+        return []
+
+    # 获取物品详情（必须是公共物品或该项目专属物品）
     items_result = await db.execute(
-        select(PurchaseRefItem).where(PurchaseRefItem.needs_compare == True)
+        select(PurchaseRefItem).where(
+            PurchaseRefItem.id.in_(compare_item_ids),
+            or_(
+                PurchaseRefItem.project_id == None,   # 公共物品
+                PurchaseRefItem.project_id == sid,    # 该项目专属物品
+            ),
+        )
     )
     items = items_result.scalars().all()
 
     out = []
     for item in items:
-        # Get subgroup and stage for context
+        # 获取分组和阶段上下文
         sub_result = await db.execute(select(PurchaseRefSubgroup).where(PurchaseRefSubgroup.id == item.subgroup_id))
         subgroup = sub_result.scalar_one_or_none()
         stage_parent = None
@@ -79,7 +94,7 @@ async def list_compare_items(project_id: str, user: User = Depends(get_current_u
             if stage:
                 stage_parent = stage.parent
 
-        # Get price models for this item (for this project)
+        # 获取该项目下该物品的价格型号
         models_result = await db.execute(
             select(PriceModel).where(PriceModel.item_id == item.id, PriceModel.project_id == sid)
         )
@@ -99,19 +114,19 @@ async def list_compare_items(project_id: str, user: User = Depends(get_current_u
     return out
 
 
-# ── Add compare item (same as purchase custom add + needs_compare flag) ──
+# ── 添加比价物品 ──
 
 @router.post("", response_model=CompareItemOut, status_code=201)
 async def add_compare_item(project_id: str, data: CustomPurchaseCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     sid = await _ensure_project(project_id, user, db)
 
-    # Find stage by parent name
+    # 查找阶段
     stage_result = await db.execute(select(PurchaseRefStage).where(PurchaseRefStage.parent == data.stage_parent))
     stage = stage_result.scalar_one_or_none()
     if not stage:
         raise HTTPException(status_code=404, detail="采购阶段不存在")
 
-    # Find subgroup
+    # 查找子分组
     sub = None
     if data.subgroup_name:
         sub_result = await db.execute(
@@ -127,6 +142,7 @@ async def add_compare_item(project_id: str, data: CustomPurchaseCreate, user: Us
     if not sub:
         raise HTTPException(status_code=404, detail="子分组不存在")
 
+    # 创建项目专属物品
     item = PurchaseRefItem(
         id=f"p_auto_{uuid.uuid4().hex[:12]}",
         subgroup_id=sub.id,
@@ -135,9 +151,18 @@ async def add_compare_item(project_id: str, data: CustomPurchaseCreate, user: Us
         qty=data.qty,
         unit=data.unit or "个",
         needs_compare=True,
+        project_id=sid,  # 项目专属
     )
     db.add(item)
-    # Auto-select
+
+    # 加入项目比价清单
+    db.add(ProjectCompareItem(
+        id=f"pci_{uuid.uuid4().hex[:12]}",
+        project_id=sid,
+        item_id=item.id,
+    ))
+
+    # 自动加入待购清单
     db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=item.id))
     await db.commit()
     await db.refresh(item)
@@ -149,21 +174,51 @@ async def add_compare_item(project_id: str, data: CustomPurchaseCreate, user: Us
     )
 
 
-# ── Toggle needs_compare (remove from compare list) ──
+# ── 切换比价状态（通过 ProjectCompareItem）──
 
 @router.put("/items/{item_id}/toggle-compare")
 async def toggle_item_compare(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
-    item_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.id == item_id))
+    sid = await _ensure_project(project_id, user, db)
+
+    # 验证物品存在且该项目可访问
+    item_result = await db.execute(
+        select(PurchaseRefItem).where(
+            PurchaseRefItem.id == item_id,
+            or_(
+                PurchaseRefItem.project_id == None,   # 公共物品
+                PurchaseRefItem.project_id == sid,    # 该项目专属物品
+            ),
+        )
+    )
     item = item_result.scalar_one_or_none()
     if not item:
-        raise HTTPException(status_code=404, detail="物品不存在")
-    item.needs_compare = not item.needs_compare
+        raise HTTPException(status_code=404, detail="物品不存在或无权访问")
+
+    # 检查是否已在比价清单中
+    cmp_result = await db.execute(
+        select(ProjectCompareItem).where(
+            ProjectCompareItem.project_id == sid,
+            ProjectCompareItem.item_id == item_id,
+        )
+    )
+    existing = cmp_result.scalar_one_or_none()
+
+    if existing:
+        await db.delete(existing)
+        needs_compare = False
+    else:
+        db.add(ProjectCompareItem(
+            id=f"pci_{uuid.uuid4().hex[:12]}",
+            project_id=sid,
+            item_id=item_id,
+        ))
+        needs_compare = True
+
     await db.commit()
-    return {"needs_compare": item.needs_compare}
+    return {"needs_compare": needs_compare}
 
 
-# ── Models CRUD ──
+# ── 价格型号 CRUD ──
 
 @router.post("/items/{item_id}/models", response_model=PriceModelOut, status_code=201)
 async def create_model(project_id: str, item_id: str, data: PriceModelCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -192,7 +247,7 @@ async def delete_model(project_id: str, model_id: str, user: User = Depends(get_
     await db.commit()
 
 
-# ── Quotes CRUD (operate on model, unchanged) ──
+# ── 渠道报价 CRUD ──
 
 @router.post("/models/{model_id}/quotes", response_model=ChannelQuoteOut, status_code=201)
 async def create_quote(project_id: str, model_id: str, data: ChannelQuoteCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -216,7 +271,7 @@ async def delete_quote(project_id: str, quote_id: str, user: User = Depends(get_
     await db.commit()
 
 
-# ── Best quote selection ──
+# ── 最优报价选择 ──
 
 @router.put("/models/{model_id}/best-quote")
 async def set_best_quote(project_id: str, model_id: str, data: SetBestQuoteRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -234,7 +289,7 @@ async def set_best_quote(project_id: str, model_id: str, data: SetBestQuoteReque
     return {"best_quote_id": data.quote_id}
 
 
-# ── Sync (mark linked purchase item as purchased) ──
+# ── 同步（标记关联物品为已购）──
 
 @router.put("/models/{model_id}/sync")
 async def toggle_model_sync(project_id: str, model_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -244,7 +299,7 @@ async def toggle_model_sync(project_id: str, model_id: str, user: User = Depends
     if not model:
         raise HTTPException(status_code=404, detail="型号不存在")
 
-    # Check SyncedModel for backward compat
+    # 检查 SyncedModel（向后兼容）
     result = await db.execute(select(SyncedModel).where(SyncedModel.project_id == sid, SyncedModel.model_id == model_id))
     existing = result.scalar_one_or_none()
     if existing:
@@ -252,10 +307,10 @@ async def toggle_model_sync(project_id: str, model_id: str, user: User = Depends
         await db.commit()
         return {"synced": False, "auto_purchased": 0}
 
-    # Create synced record
+    # 创建同步记录
     db.add(SyncedModel(id=f"sm_{uuid.uuid4().hex[:12]}", project_id=sid, model_id=model_id))
 
-    # Auto-purchase: toggle purchased on the linked purchase item
+    # 自动标记已购
     auto_purchased = 0
     if model.item_id:
         pur_result = await db.execute(
@@ -269,18 +324,33 @@ async def toggle_model_sync(project_id: str, model_id: str, user: User = Depends
     return {"synced": True, "auto_purchased": auto_purchased}
 
 
-# ── CSV export/import ──
+# ── CSV 导出/导入 ──
 
 @router.get("/export-csv")
 async def export_csv(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     sid = await _ensure_project(project_id, user, db)
-    items_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.needs_compare == True))
+
+    # 通过 ProjectCompareItem 获取该项目的比价物品
+    cmp_result = await db.execute(
+        select(ProjectCompareItem.item_id).where(ProjectCompareItem.project_id == sid)
+    )
+    compare_item_ids = [row[0] for row in cmp_result.fetchall()]
+
+    if not compare_item_ids:
+        output = io.StringIO()
+        output.write("﻿物品,规格,阶段,分组,数量,型号,型号备注,渠道,价格\n")
+        output.seek(0)
+        return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f"attachment; filename=compare_{project_id}.csv"})
+
+    items_result = await db.execute(
+        select(PurchaseRefItem).where(PurchaseRefItem.id.in_(compare_item_ids))
+    )
     items = items_result.scalars().all()
 
     output = io.StringIO()
     output.write("﻿物品,规格,阶段,分组,数量,型号,型号备注,渠道,价格\n")
     for item in items:
-        # Get context
         sub_result = await db.execute(select(PurchaseRefSubgroup).where(PurchaseRefSubgroup.id == item.subgroup_id))
         subgroup = sub_result.scalar_one_or_none()
         stage_name = subgroup_name = ""
@@ -332,13 +402,19 @@ async def import_csv(project_id: str, file: UploadFile = File(...), user: User =
 
         cache_key = f"{item_name}|{spec}"
         if cache_key not in item_cache:
-            # Find or create item with needs_compare
+            # 查找已有物品（公共的或该项目专属的）
             item_result = await db.execute(
-                select(PurchaseRefItem).where(PurchaseRefItem.name == item_name, PurchaseRefItem.needs_compare == True).limit(1)
+                select(PurchaseRefItem).where(
+                    PurchaseRefItem.name == item_name,
+                    or_(
+                        PurchaseRefItem.project_id == None,   # 公共物品
+                        PurchaseRefItem.project_id == sid,    # 该项目专属物品
+                    ),
+                ).limit(1)
             )
             item = item_result.scalar_one_or_none()
             if not item:
-                # Create new item — find default subgroup
+                # 创建新物品
                 sub = None
                 if stage_name and subgroup_name:
                     stage_result = await db.execute(select(PurchaseRefStage).where(PurchaseRefStage.parent == stage_name))
@@ -359,15 +435,28 @@ async def import_csv(project_id: str, file: UploadFile = File(...), user: User =
                     id=f"p_import_{uuid.uuid4().hex[:12]}",
                     subgroup_id=sub.id, name=item_name, spec=spec or None,
                     qty=qty, unit="个", needs_compare=True,
+                    project_id=sid,  # 导入的物品归该项目专属
                 )
                 db.add(item)
                 await db.flush()
                 db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=item.id))
+            # 确保加入比价清单
+            cmp_check = await db.execute(
+                select(ProjectCompareItem).where(
+                    ProjectCompareItem.project_id == sid,
+                    ProjectCompareItem.item_id == item.id,
+                )
+            )
+            if not cmp_check.scalar_one_or_none():
+                db.add(ProjectCompareItem(
+                    id=f"pci_{uuid.uuid4().hex[:12]}",
+                    project_id=sid,
+                    item_id=item.id,
+                ))
             item_cache[cache_key] = item.id
 
-        # Create model
+        # 创建型号
         price = float(price_str) if price_str and price_str != "--" else None
-        existing_model = False
         models_result = await db.execute(
             select(PriceModel).where(PriceModel.item_id == item_cache[cache_key], PriceModel.project_id == sid, PriceModel.name == model_name)
         )
@@ -380,10 +469,8 @@ async def import_csv(project_id: str, file: UploadFile = File(...), user: User =
             )
             db.add(model)
             await db.flush()
-        else:
-            existing_model = True
 
-        # Add quote
+        # 添加报价
         if channel:
             db.add(ChannelQuote(
                 id=f"ch_{uuid.uuid4().hex[:12]}", model_id=model.id,
