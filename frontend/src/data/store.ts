@@ -542,6 +542,18 @@ export async function loadProjectCompareIdsFromBackend(): Promise<void> {
   } catch { /* backend unreachable */ }
 }
 
+/** Load full compare items (with models & quotes) from backend */
+export async function loadCompareItemsFromBackend(): Promise<void> {
+  if (!isAuthenticated()) return;
+  try {
+    const { fetchCompareItems } = await import('../api/compare');
+    const items = await fetchCompareItems(globalState.activeProjectId);
+    globalState = { ...globalState, compareItems: items };
+    notify();
+    persist();
+  } catch { /* backend unreachable */ }
+}
+
 // ── Add purchase item to compare ──
 
 export function addPurchaseToCompare(item: {
@@ -825,10 +837,12 @@ export function removeCompareItem(itemId: string) {
   notify();
   persist();
 
-  // Sync to backend
+  // Sync to backend, then reload full compare items
   if (isAuthenticated()) {
     import('../api/purchase').then(({ toggleItemCompare }) => {
-      toggleItemCompare(globalState.activeProjectId, itemId).catch(() => {});
+      toggleItemCompare(globalState.activeProjectId, itemId)
+        .then(() => loadCompareItemsFromBackend())
+        .catch(() => {});
     });
   }
 }
@@ -1662,6 +1676,7 @@ export async function syncFromServerAfterLogin(): Promise<void> {
     await loadSelectedPurchasesFromBackend();
     await loadPurchasedFromBackend();
     await loadProjectCompareIdsFromBackend();
+    await loadCompareItemsFromBackend();
   } catch {
     // Server unreachable — keep local data
   }

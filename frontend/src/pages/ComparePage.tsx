@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AppShell from '../components/layout/AppShell';
 import {
   useStore, addCompareItem, removeCompareItem,
   addPriceModel, deletePriceModel, updatePriceModel,
   addChannelQuote, deleteChannelQuote, updateChannelQuote,
   selectBestQuote, getModelDisplayPrice, getItemDisplayPrice,
-  toggleModelSync, isModelSynced,
+  toggleModelSync, isModelSynced, loadCompareItemsFromBackend,
 } from '../data/store';
 import {
   IconCompare, IconPlus, IconTrash, IconChevronDown,
@@ -15,6 +15,11 @@ import {
 const ComparePage: React.FC = () => {
   const state = useStore();
   const [searchQuery, setSearchQuery] = useState('');
+
+  // 页面挂载时从后端加载比价数据
+  useEffect(() => {
+    loadCompareItemsFromBackend();
+  }, []);
 
   // Quick-add state (matches PurchasePage's quick-add bar)
   const [quickName, setQuickName] = useState('');
