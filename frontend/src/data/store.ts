@@ -331,7 +331,7 @@ export function togglePurchaseRef(itemId: string) {
   }
 }
 
-export function addCustomPurchaseItem(name: string, stageParent: string, qty: number, spec?: string, subgroupName?: string, unit?: string): string {
+export function addCustomPurchaseItem(name: string, stageParent: string, qty: number, spec?: string, subgroupName?: string, unit?: string, categoryId?: string, subCategoryId?: string): string {
   const id = `p_custom_${Date.now()}`;
   const purchaseReferences = globalState.purchaseReferences.map(stage => {
     if (stage.parent !== stageParent) return stage;
@@ -343,7 +343,7 @@ export function addCustomPurchaseItem(name: string, stageParent: string, qty: nu
         if (isTargetSub) {
           return {
             ...sub,
-            items: [...sub.items, { id, name, spec: spec || '', qty, unit: unit || '个', selected: true }],
+            items: [...sub.items, { id, name, spec: spec || '', qty, unit: unit || '个', selected: true, category_id: categoryId || null, sub_category_id: subCategoryId || null }],
           };
         }
         return sub;
@@ -369,6 +369,8 @@ export function addCustomPurchaseItem(name: string, stageParent: string, qty: nu
         spec: spec || '',
         qty,
         unit: unit || '个',
+        category_id: categoryId || null,
+        sub_category_id: subCategoryId || null,
       }).catch(() => {});
     });
   }
@@ -726,7 +728,7 @@ export function getCompareItems(): CompareItem[] {
 }
 
 /** 在比价页面快速添加物品——本地乐观更新 + 后端通过比价 API 同步 */
-export function addCompareItem(itemName: string, stageParent: string, subgroupName: string, qty: number, spec?: string, unit?: string): CompareItem {
+export function addCompareItem(itemName: string, stageParent: string, subgroupName: string, qty: number, spec?: string, unit?: string, categoryId?: string, subCategoryId?: string): CompareItem {
   // 生成本地临时 ID，等后端返回后再替换为真实 ID
   const tempId = `p_compare_${Date.now()}`;
 
@@ -742,6 +744,7 @@ export function addCompareItem(itemName: string, stageParent: string, subgroupNa
           items: [...sub.items, {
             id: tempId, name: itemName, spec: spec || '',
             qty, unit: unit || '个', selected: true, needs_compare: true,
+            category_id: categoryId || null, sub_category_id: subCategoryId || null,
           }],
         };
       }),
@@ -756,6 +759,8 @@ export function addCompareItem(itemName: string, stageParent: string, subgroupNa
     unit: unit || '个',
     stage_parent: stageParent,
     subgroup_name: subgroupName,
+    category_id: categoryId || null,
+    sub_category_id: subCategoryId || null,
     models: [],
   };
 
@@ -775,6 +780,7 @@ export function addCompareItem(itemName: string, stageParent: string, subgroupNa
       addCompareItemApi(globalState.activeProjectId, {
         name: itemName, stage_parent: stageParent,
         subgroup_name: subgroupName, qty, spec: spec || '', unit: unit || '个',
+        category_id: categoryId || null, sub_category_id: subCategoryId || null,
       }).then((backendItem) => {
         // 用后端返回的真实 ID 替换临时 ID
         _replaceCompareTempId(tempId, backendItem.item_id);

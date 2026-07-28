@@ -11,11 +11,16 @@ import {
   IconCompare, IconPlus, IconTrash, IconChevronDown,
   IconSearch, IconX, IconEdit, IconDownload, IconUpload,
 } from '../components/common/Icons';
-import { mapStageSubgroupToCategory } from '../utils/categoryMapping';
+import { getItemCategory } from '../utils/categoryMapping';
+
+type FilterMode = 'stage' | 'category';
 
 const ComparePage: React.FC = () => {
   const state = useStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterMode, setFilterMode] = useState<FilterMode>('stage');
+  const [filterStage, setFilterStage] = useState('');
+  const [filterSubgroup, setFilterSubgroup] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterSubCategory, setFilterSubCategory] = useState('');
 
@@ -28,6 +33,8 @@ const ComparePage: React.FC = () => {
   const [quickName, setQuickName] = useState('');
   const [quickStage, setQuickStage] = useState('0_0');
   const [quickQty, setQuickQty] = useState('1');
+  const [quickCategory, setQuickCategory] = useState('');
+  const [quickSubCategory, setQuickSubCategory] = useState('');
 
   // Build stage/subgroup dropdown options
   const quickStageOptions: { value: string; label: string }[] = [];
@@ -67,8 +74,12 @@ const ComparePage: React.FC = () => {
 
   const ci = state.compareItems;
 
-  // Category filter helpers
+  // Filter helpers
   const budgetCategories = state.budget.categories;
+  const stages = state.purchaseReferences.map(s => s.parent);
+  const filteredSubgroups = filterStage
+    ? state.purchaseReferences.find(s => s.parent === filterStage)?.subs.map(sub => sub.name) || []
+    : [];
   const filteredSubCategories = filterCategory
     ? state.expenseSubCategories.filter(s => s.categoryId === filterCategory)
     : [];
@@ -80,15 +91,24 @@ const ComparePage: React.FC = () => {
       const q = searchQuery.trim().toLowerCase();
       items = items.filter(c => c.item_name.toLowerCase().includes(q));
     }
-    // Category filter
-    if (filterCategory) {
-      items = items.filter(c => {
-        const cat = mapStageSubgroupToCategory(c.stage_parent, c.subgroup_name);
-        if (!cat) return false;
-        if (cat.categoryId !== filterCategory) return false;
-        if (filterSubCategory && cat.subCategoryId !== filterSubCategory) return false;
-        return true;
-      });
+    // Dual-mode filter
+    if (filterMode === 'stage') {
+      if (filterStage) {
+        items = items.filter(c => c.stage_parent === filterStage);
+        if (filterSubgroup) {
+          items = items.filter(c => c.subgroup_name === filterSubgroup);
+        }
+      }
+    } else {
+      if (filterCategory) {
+        items = items.filter(c => {
+          const cat = getItemCategory(c);
+          if (!cat) return false;
+          if (cat.categoryId !== filterCategory) return false;
+          if (filterSubCategory && cat.subCategoryId !== filterSubCategory) return false;
+          return true;
+        });
+      }
     }
     return items;
   })();
@@ -113,8 +133,10 @@ const ComparePage: React.FC = () => {
     if (!stage || !sub) return;
     const qty = Math.max(1, parseInt(quickQty) || 1);
     // addCompareItem 内部会同步后端（通过比价 API，一次创建物品+加入比价+加入待购）
-    addCompareItem(quickName.trim(), stage.parent, sub.name, qty, '', '个');
+    addCompareItem(quickName.trim(), stage.parent, sub.name, qty, '', '个',
+      quickCategory || undefined, quickSubCategory || undefined);
     setQuickName(''); setQuickQty('1');
+    setQuickCategory(''); setQuickSubCategory('');
   };
 
   const handleAddModel = (itemId: string) => {
@@ -302,12 +324,12 @@ const ComparePage: React.FC = () => {
             value={quickName}
             onChange={e => setQuickName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
-            style={{ flex: 1, minWidth: 200 }}
+            style={{ minWidth: 0 }}
           />
           <select
             value={quickStage}
             onChange={e => setQuickStage(e.target.value)}
-            style={{ width: '100%', fontSize: 12 }}
+            style={{ fontSize: 12 }}
           >
             {quickStageOptions.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -323,36 +345,107 @@ const ComparePage: React.FC = () => {
               style={{ width: 56, fontSize: 12 }}
             />
           </span>
+          <select
+            value={quickCategory}
+            onChange={e => { setQuickCategory(e.target.value); setQuickSubCategory(''); }}
+            style={{ fontSize: 12, maxWidth: 90 }}
+            title="预算分类（可选）"
+          >
+            <option value="">分类(可选)</option>
+            {state.budget.categories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+          {quickCategory && (
+            <select
+              value={quickSubCategory}
+              onChange={e => setQuickSubCategory(e.target.value)}
+              style={{ fontSize: 12, maxWidth: 90 }}
+              title="子分类（可选）"
+            >
+              <option value="">子分类(可选)</option>
+              {state.expenseSubCategories.filter(s => s.categoryId === quickCategory).map(sub => (
+                <option key={sub.id} value={sub.id}>{sub.name}</option>
+              ))}
+            </select>
+          )}
           <button className="btn btn-primary" type="button" onClick={handleQuickAdd} style={{ justifyContent: 'center' }}>添加</button>
         </div>
 
-        {/* Search & CSV */}
+        {/* Search & Filters */}
         <div className="compare-toolbar" style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
           <div className="compare-search">
             <IconSearch size={14} />
             <input className="input" placeholder="搜索比价物品..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: 32, width: '100%' }} />
           </div>
-          <select
-            value={filterCategory}
-            onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
-            style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 120 }}
-          >
-            <option value="">全部分类</option>
-            {budgetCategories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-          {filterCategory && (
-            <select
-              value={filterSubCategory}
-              onChange={e => setFilterSubCategory(e.target.value)}
-              style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 130 }}
-            >
-              <option value="">全部子分类</option>
-              {filteredSubCategories.map(sub => (
-                <option key={sub.id} value={sub.id}>{sub.name}</option>
-              ))}
-            </select>
+          {/* Filter mode toggle */}
+          <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--fresh-border)', fontSize: 11 }}>
+            <button
+              type="button"
+              onClick={() => setFilterMode('stage')}
+              style={{
+                padding: '4px 10px', border: 'none', cursor: 'pointer',
+                background: filterMode === 'stage' ? 'var(--fresh-accent)' : 'var(--fresh-surface)',
+                color: filterMode === 'stage' ? '#fff' : 'var(--fresh-text)',
+                fontWeight: filterMode === 'stage' ? 600 : 400,
+              }}
+            >按阶段</button>
+            <button
+              type="button"
+              onClick={() => setFilterMode('category')}
+              style={{
+                padding: '4px 10px', border: 'none', borderLeft: '1px solid var(--fresh-border)', cursor: 'pointer',
+                background: filterMode === 'category' ? 'var(--fresh-accent)' : 'var(--fresh-surface)',
+                color: filterMode === 'category' ? '#fff' : 'var(--fresh-text)',
+                fontWeight: filterMode === 'category' ? 600 : 400,
+              }}
+            >按分类</button>
+          </div>
+          {/* Stage filter */}
+          {filterMode === 'stage' && (
+            <>
+              <select
+                value={filterStage}
+                onChange={e => { setFilterStage(e.target.value); setFilterSubgroup(''); }}
+                style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 120 }}
+              >
+                <option value="">全部阶段</option>
+                {stages.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              {filterStage && (
+                <select
+                  value={filterSubgroup}
+                  onChange={e => setFilterSubgroup(e.target.value)}
+                  style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 130 }}
+                >
+                  <option value="">全部子分组</option>
+                  {filteredSubgroups.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              )}
+            </>
+          )}
+          {/* Category filter */}
+          {filterMode === 'category' && (
+            <>
+              <select
+                value={filterCategory}
+                onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
+                style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 120 }}
+              >
+                <option value="">全部分类</option>
+                {budgetCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+              </select>
+              {filterCategory && (
+                <select
+                  value={filterSubCategory}
+                  onChange={e => setFilterSubCategory(e.target.value)}
+                  style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 130 }}
+                >
+                  <option value="">全部子分类</option>
+                  {filteredSubCategories.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
+                </select>
+              )}
+            </>
           )}
           <button className="btn btn-outline btn-sm" onClick={handleExportCSV}><IconUpload size={14} /> 导出</button>
           <button className="btn btn-outline btn-sm" onClick={handleImportCSV}><IconDownload size={14} /> 导入</button>
@@ -366,10 +459,10 @@ const ComparePage: React.FC = () => {
               <div className="empty-state">
                 <div className="empty-state-icon">⚖️</div>
                 <p className="empty-state-title">
-                  {searchQuery || filterCategory ? '未找到匹配的物品' : '暂无比价物品'}
+                  {searchQuery || filterCategory || filterStage ? '未找到匹配的物品' : '暂无比价物品'}
                 </p>
                 <p className="empty-state-desc">
-                  {searchQuery || filterCategory ? '尝试调整筛选条件' : '使用上方快速添加栏，先添加物品再进行比价'}
+                  {searchQuery || filterCategory || filterStage ? '尝试调整筛选条件' : '使用上方快速添加栏，先添加物品再进行比价'}
                 </p>
               </div>
             </div>

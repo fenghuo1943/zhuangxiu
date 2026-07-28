@@ -8,7 +8,7 @@ import {
   getItemBestChannel,
 } from '../data/store';
 import type { PurchaseReferenceStage, PurchaseReferenceSubgroup, PurchaseReferenceItem } from '../data/types';
-import { mapStageSubgroupToCategory } from '../utils/categoryMapping';
+import { getItemCategory } from '../utils/categoryMapping';
 
 // ── Stage icon config ──────────────────────────────────────────────
 const STAGE_ICONS: Record<number, { id: string; tone: string }> = {
@@ -93,9 +93,14 @@ const PurchasePage: React.FC = () => {
   const [quickName, setQuickName] = useState('');
   const [quickStage, setQuickStage] = useState('0_0');
   const [quickQty, setQuickQty] = useState('1');
+  const [quickCategory, setQuickCategory] = useState('');
+  const [quickSubCategory, setQuickSubCategory] = useState('');
 
   // Shopping card
   const [shoppingListView, setShoppingListView] = useState<'pending' | 'purchased'>('pending');
+  const [filterMode, setFilterMode] = useState<'stage' | 'category'>('stage');
+  const [filterStage, setFilterStage] = useState('');
+  const [filterSubgroup, setFilterSubgroup] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterSubCategory, setFilterSubCategory] = useState('');
   const [editingShoppingId, setEditingShoppingId] = useState<string | null>(null);
@@ -175,22 +180,35 @@ const PurchasePage: React.FC = () => {
     return items;
   }, [state.purchaseReferences, state.selectedPurchaseIds]);
 
-  // Category filter helpers
+  // Filter helpers
+  const stagesForFilter = state.purchaseReferences.map(s => s.parent);
+  const filteredSubgroups = filterStage
+    ? state.purchaseReferences.find(s => s.parent === filterStage)?.subs.map(sub => sub.name) || []
+    : [];
   const filteredSubCategories = filterCategory
     ? state.expenseSubCategories.filter(s => s.categoryId === filterCategory)
     : [];
 
-  // Filter shopping items by category
+  // Filter shopping items by stage or category
   const filteredShoppingItems = useMemo(() => {
-    if (!filterCategory) return shoppingItems;
-    return shoppingItems.filter(item => {
-      const cat = mapStageSubgroupToCategory(item.stageParent, item.subgroupName);
-      if (!cat) return false;
-      if (cat.categoryId !== filterCategory) return false;
-      if (filterSubCategory && cat.subCategoryId !== filterSubCategory) return false;
-      return true;
-    });
-  }, [shoppingItems, filterCategory, filterSubCategory]);
+    if (filterMode === 'stage') {
+      if (!filterStage) return shoppingItems;
+      return shoppingItems.filter(item => {
+        if (item.stageParent !== filterStage) return false;
+        if (filterSubgroup && item.subgroupName !== filterSubgroup) return false;
+        return true;
+      });
+    } else {
+      if (!filterCategory) return shoppingItems;
+      return shoppingItems.filter(item => {
+        const cat = getItemCategory(item);
+        if (!cat) return false;
+        if (cat.categoryId !== filterCategory) return false;
+        if (filterSubCategory && cat.subCategoryId !== filterSubCategory) return false;
+        return true;
+      });
+    }
+  }, [shoppingItems, filterMode, filterStage, filterSubgroup, filterCategory, filterSubCategory]);
 
   const syncedPriceModels = useMemo(() => {
     const models: { modelId: string; modelName: string; spec?: string; catName: string; price?: number; channel?: string; note?: string; purchaseItemId?: string | null }[] = [];
@@ -372,10 +390,14 @@ const PurchasePage: React.FC = () => {
     addCustomPurchaseItem(
       quickName.trim(), stage.parent,
       Math.max(1, parseInt(quickQty) || 1),
-      '', sub.name, '个'
+      '', sub.name, '个',
+      quickCategory || undefined,
+      quickSubCategory || undefined,
     );
     setQuickName('');
     setQuickQty('1');
+    setQuickCategory('');
+    setQuickSubCategory('');
     // Auto-expand target
     setExpandedParents(prev => new Set(prev).add(pi));
     setExpandedSubs(prev => new Set(prev).add(`${pi}_${si}`));
@@ -383,9 +405,9 @@ const PurchasePage: React.FC = () => {
   };
 
   // ── Custom add within subgroup ──
-  const [customInputs, setCustomInputs] = useState<Record<string, { name: string; spec: string; qty: string }>>({});
+  const [customInputs, setCustomInputs] = useState<Record<string, { name: string; spec: string; qty: string; category: string; subCategory: string }>>({});
   const getCustomInput = (key: string) =>
-    customInputs[key] || { name: '', spec: '', qty: '1' };
+    customInputs[key] || { name: '', spec: '', qty: '1', category: '', subCategory: '' };
   const setCustomInput = (key: string, field: string, value: string) => {
     setCustomInputs(prev => ({
       ...prev,
@@ -403,11 +425,15 @@ const PurchasePage: React.FC = () => {
     addCustomPurchaseItem(
       input.name.trim(), stage.parent,
       Math.max(1, parseInt(input.qty) || 1),
-      input.spec.trim(), sub.name, '个'
+      input.spec.trim(), sub.name, '个',
+      input.category || undefined,
+      input.subCategory || undefined,
     );
     setCustomInput(key, 'name', '');
     setCustomInput(key, 'spec', '');
     setCustomInput(key, 'qty', '1');
+    setCustomInput(key, 'category', '');
+    setCustomInput(key, 'subCategory', '');
     showToast('已添加到首页待购清单');
   };
 
@@ -505,31 +531,78 @@ const PurchasePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Category filter bar */}
-          <div className="purchase-shopping-filter" style={{ display: 'flex', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--fresh-border)', flexWrap: 'wrap' }}>
-            <select
-              value={filterCategory}
-              onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
-              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
-            >
-              <option value="">全部分类</option>
-              {state.budget.categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
-            {filterCategory && (
-              <select
-                value={filterSubCategory}
-                onChange={e => setFilterSubCategory(e.target.value)}
-                style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
-              >
-                <option value="">全部子分类</option>
-                {filteredSubCategories.map(sub => (
-                  <option key={sub.id} value={sub.id}>{sub.name}</option>
-                ))}
-              </select>
+          {/* Filter bar — dual mode */}
+          <div className="purchase-shopping-filter" style={{ display: 'flex', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--fresh-border)', flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Filter mode toggle */}
+            <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--fresh-border)', fontSize: 11 }}>
+              <button
+                type="button"
+                onClick={() => setFilterMode('stage')}
+                style={{
+                  padding: '4px 10px', border: 'none', cursor: 'pointer',
+                  background: filterMode === 'stage' ? 'var(--fresh-accent)' : 'var(--fresh-surface)',
+                  color: filterMode === 'stage' ? '#fff' : 'var(--fresh-text)',
+                  fontWeight: filterMode === 'stage' ? 600 : 400,
+                }}
+              >按阶段</button>
+              <button
+                type="button"
+                onClick={() => setFilterMode('category')}
+                style={{
+                  padding: '4px 10px', border: 'none', borderLeft: '1px solid var(--fresh-border)', cursor: 'pointer',
+                  background: filterMode === 'category' ? 'var(--fresh-accent)' : 'var(--fresh-surface)',
+                  color: filterMode === 'category' ? '#fff' : 'var(--fresh-text)',
+                  fontWeight: filterMode === 'category' ? 600 : 400,
+                }}
+              >按分类</button>
+            </div>
+            {/* Stage filter */}
+            {filterMode === 'stage' && (
+              <>
+                <select
+                  value={filterStage}
+                  onChange={e => { setFilterStage(e.target.value); setFilterSubgroup(''); }}
+                  style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
+                >
+                  <option value="">全部阶段</option>
+                  {stagesForFilter.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                {filterStage && (
+                  <select
+                    value={filterSubgroup}
+                    onChange={e => setFilterSubgroup(e.target.value)}
+                    style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
+                  >
+                    <option value="">全部子分组</option>
+                    {filteredSubgroups.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                )}
+              </>
             )}
-            {filterCategory && (
+            {/* Category filter */}
+            {filterMode === 'category' && (
+              <>
+                <select
+                  value={filterCategory}
+                  onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
+                  style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
+                >
+                  <option value="">全部分类</option>
+                  {state.budget.categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                </select>
+                {filterCategory && (
+                  <select
+                    value={filterSubCategory}
+                    onChange={e => setFilterSubCategory(e.target.value)}
+                    style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
+                  >
+                    <option value="">全部子分类</option>
+                    {filteredSubCategories.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
+                  </select>
+                )}
+              </>
+            )}
+            {(filterCategory || filterStage) && (
               <span style={{ fontSize: 11, color: 'var(--fresh-muted)', display: 'flex', alignItems: 'center' }}>
                 筛选结果: {filteredShoppingItems.length} 项
               </span>
@@ -559,8 +632,8 @@ const PurchasePage: React.FC = () => {
                         grouped.set(item.stageParent, list);
                       });
                       if (displayItems.length === 0) {
-                        // Check if it's due to category filter
-                        if (filterCategory && filteredShoppingItems.length === 0) {
+                        // Check if it's due to active filter
+                        if ((filterCategory || filterStage) && filteredShoppingItems.length === 0) {
                           return (
                             <div style={{ textAlign: 'center', padding: '8px 0', fontSize: 12, color: '#999' }}>
                               📋 没有符合筛选条件的物品
@@ -820,10 +893,11 @@ const PurchasePage: React.FC = () => {
         <div className="purchase-quick-add-v2">
           <input
             type="text"
-            placeholder="直接添加待购物品，例如：浴室柜"
+            placeholder="添加待购物品，例如：浴室柜"
             value={quickName}
             onChange={e => setQuickName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
+            style={{ minWidth: 0 }}
           />
           <select value={quickStage} onChange={e => setQuickStage(e.target.value)}>
             {quickStageOptions.map(opt => (
@@ -836,7 +910,32 @@ const PurchasePage: React.FC = () => {
             value={quickQty}
             onChange={e => setQuickQty(e.target.value)}
             placeholder="数量"
+            style={{ width: 56 }}
           />
+          <select
+            value={quickCategory}
+            onChange={e => { setQuickCategory(e.target.value); setQuickSubCategory(''); }}
+            style={{ fontSize: 12, maxWidth: 90 }}
+            title="预算分类（可选）"
+          >
+            <option value="">分类(可选)</option>
+            {state.budget.categories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+          {quickCategory && (
+            <select
+              value={quickSubCategory}
+              onChange={e => setQuickSubCategory(e.target.value)}
+              style={{ fontSize: 12, maxWidth: 90 }}
+              title="子分类（可选）"
+            >
+              <option value="">子分类(可选)</option>
+              {state.expenseSubCategories.filter(s => s.categoryId === quickCategory).map(sub => (
+                <option key={sub.id} value={sub.id}>{sub.name}</option>
+              ))}
+            </select>
+          )}
           <button className="btn btn-primary" type="button" onClick={handleQuickAdd}>添加</button>
         </div>
 
@@ -985,6 +1084,17 @@ const PurchasePage: React.FC = () => {
                                       onKeyDown={e => e.key === 'Enter' && handleCustomAdd(pi, si)}
                                       style={{ width: 50 }}
                                     />
+                                    <select
+                                      value={getCustomInput(subKey).category}
+                                      onChange={e => setCustomInput(subKey, 'category', e.target.value)}
+                                      style={{ fontSize: 11, maxWidth: 100 }}
+                                      title="预算分类（可选）"
+                                    >
+                                      <option value="">分类</option>
+                                      {state.budget.categories.map(cat => (
+                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                      ))}
+                                    </select>
                                     <button className="btn btn-primary btn-sm" type="button" onClick={() => handleCustomAdd(pi, si)}>
                                       添加
                                     </button>

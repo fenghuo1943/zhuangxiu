@@ -150,6 +150,10 @@ class PurchaseRefItem(Base):
     needs_compare = Column(Boolean, default=False, index=True)  # kept for backward compat; prefer ProjectCompareItem
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
     # NULL = 公共种子数据（所有项目可见）；非NULL = 项目专属物品（仅该项目可见）
+    category_id = Column(String(50), nullable=True, index=True)
+    # 预算分类（如 hard/material/equipment/soft/service），NULL = 未分配
+    sub_category_id = Column(String(50), nullable=True)
+    # 预算子分类（如 shuidian/cizhuan/diban 等），NULL = 未分配
 
     subgroup = relationship("PurchaseRefSubgroup", back_populates="items")
     price_models = relationship("PriceModel", back_populates="purchase_item", cascade="all, delete-orphan")

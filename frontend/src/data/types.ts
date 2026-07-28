@@ -61,6 +61,8 @@ export interface PurchaseReferenceItem {
   unit?: string;
   selected?: boolean;
   needs_compare?: boolean;
+  category_id?: string | null;
+  sub_category_id?: string | null;
 }
 
 export interface PurchaseReferenceSubgroup {
@@ -189,6 +191,8 @@ export interface CompareItem {
   unit?: string | null;
   stage_parent?: string | null;
   subgroup_name?: string | null;
+  category_id?: string | null;
+  sub_category_id?: string | null;
   models: PriceModel[];
 }
 

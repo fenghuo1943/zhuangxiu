@@ -1,7 +1,13 @@
 /**
- * 根据装修阶段(stage_parent)和子分组(subgroup_name)推断对应的预算分类和子分类。
+ * 双分类系统辅助工具。
  *
- * 用于比价、待购、已购页面的分类筛选功能。
+ * 采购物品同时拥有两套分类：
+ * 1. 采购阶段（stage_parent + subgroup_name）—— 物品「什么时候买」
+ * 2. 预算分类（category_id + sub_category_id）—— 物品「花在哪个科目」
+ *
+ * 本模块提供：
+ * - 从 stage/subgroup 推算预算分类的映射表（用于离线/回退场景）
+ * - 统一的分类提取函数（优先使用物品自身的 category_id，回退到映射）
  */
 
 export interface CategoryResult {
@@ -50,9 +56,6 @@ const STAGE_SUBGROUP_MAP: Record<string, CategoryResult> = {
   '软装阶段||窗帘布艺':     { categoryId: 'soft',      subCategoryId: 'chuanglian' },
 };
 
-/**
- * Stage-level fallback mapping (used when exact subgroup match is not found).
- */
 const STAGE_DEFAULTS: Record<string, CategoryResult> = {
   '开工前准备': { categoryId: 'service',   subCategoryId: null },
   '水电阶段':   { categoryId: 'hard',      subCategoryId: 'shuidian' },
@@ -64,8 +67,8 @@ const STAGE_DEFAULTS: Record<string, CategoryResult> = {
 };
 
 /**
- * Map a purchase item's stage_parent + subgroup_name to its budget category.
- * Returns null if the item cannot be mapped (e.g., custom items with unknown stages).
+ * 根据 stage/subgroup 推算预算分类（不回退到 item 自身字段）。
+ * 用于离线场景或 seed 数据尚未包含 category 字段时。
  */
 export function mapStageSubgroupToCategory(
   stageParent: string | null | undefined,
@@ -74,12 +77,34 @@ export function mapStageSubgroupToCategory(
   if (!stageParent) return null;
 
   const key = `${stageParent}||${subgroupName || ''}`;
-
-  // 1. Exact match
-  if (STAGE_SUBGROUP_MAP[key]) {
-    return STAGE_SUBGROUP_MAP[key];
-  }
-
-  // 2. Fallback: try just the stage
+  if (STAGE_SUBGROUP_MAP[key]) return STAGE_SUBGROUP_MAP[key];
   return STAGE_DEFAULTS[stageParent] || null;
+}
+
+/**
+ * 获取物品的预算分类信息。
+ * 优先使用物品自身的 category_id（来自后端），
+ * 如果没有则回退到 stage/subgroup 推算。
+ */
+export function getItemCategory(
+  item: {
+    category_id?: string | null;
+    sub_category_id?: string | null;
+    stage_parent?: string | null;
+    subgroup_name?: string | null;
+    stageParent?: string;
+    subgroupName?: string;
+  },
+): CategoryResult | null {
+  // 1. 优先使用物品自带的 category_id（来自数据库）
+  if (item.category_id) {
+    return {
+      categoryId: item.category_id,
+      subCategoryId: item.sub_category_id || null,
+    };
+  }
+  // 2. 回退：通过 stage + subgroup 推算
+  const sp = item.stage_parent ?? item.stageParent ?? null;
+  const sn = item.subgroup_name ?? item.subgroupName ?? null;
+  return mapStageSubgroupToCategory(sp, sn);
 }

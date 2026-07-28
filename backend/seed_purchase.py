@@ -21,6 +21,8 @@ PURCHASE_DATA = [
         "subs": [
             {
                 "name": "临时设施",
+                "category_id": "service",
+                "sub_category_id": "fucai",
                 "items": [
                     {"name": "临时马桶", "spec": "", "qty": 1, "unit": "个"},
                     {"name": "临时水龙头", "spec": "", "qty": 1, "unit": "个"},
@@ -30,6 +32,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "前置准备",
+                "category_id": "equipment",
+                "sub_category_id": "jingshui",
                 "items": [
                     {"name": "强电箱装饰画", "spec": "", "qty": 1, "unit": "个"},
                     {"name": "前置过滤器", "spec": "", "qty": 1, "unit": "个"},
@@ -42,6 +46,8 @@ PURCHASE_DATA = [
         "subs": [
             {
                 "name": "电线",
+                "category_id": "hard",
+                "sub_category_id": "shuidian",
                 "items": [
                     {"name": "BV铜线", "spec": "1.5mm² 照明用", "qty": 2, "unit": "卷"},
                     {"name": "BV铜线", "spec": "2.5mm² 插座用", "qty": 3, "unit": "卷"},
@@ -52,6 +58,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "线管配件",
+                "category_id": "hard",
+                "sub_category_id": "shuidian",
                 "items": [
                     {"name": "PVC线管", "spec": "20mm 中型壁厚2.0", "qty": 30, "unit": "根"},
                     {"name": "弯头", "spec": "20mm", "qty": 30, "unit": "个"},
@@ -66,6 +74,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "配电箱",
+                "category_id": "hard",
+                "sub_category_id": "shuidian",
                 "items": [
                     {"name": "配电箱体", "spec": "12-13回路", "qty": 1, "unit": "个"},
                     {"name": "空开", "spec": "C63 总开", "qty": 1, "unit": "个"},
@@ -82,6 +92,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "水管配件",
+                "category_id": "hard",
+                "sub_category_id": "shuidian",
                 "items": [
                     {"name": "PPR热水管", "spec": "DN25 壁厚3.5+", "qty": 5, "unit": "根"},
                     {"name": "PPR热水管", "spec": "DN20", "qty": 10, "unit": "根"},
@@ -99,6 +111,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "开关插座",
+                "category_id": "hard",
+                "sub_category_id": "shuidian",
                 "items": [
                     {"name": "86底盒", "spec": "", "qty": 30, "unit": "个"},
                     {"name": "五孔插座", "spec": "", "qty": 20, "unit": "个"},
@@ -118,6 +132,8 @@ PURCHASE_DATA = [
         "subs": [
             {
                 "name": "水泥沙砖",
+                "category_id": "hard",
+                "sub_category_id": "wagong",
                 "items": [
                     {"name": "水泥", "spec": "32.5号", "qty": 10, "unit": "袋"},
                     {"name": "河沙", "spec": "", "qty": 5, "unit": "方"},
@@ -126,6 +142,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "瓷砖辅料",
+                "category_id": "hard",
+                "sub_category_id": "wagong",
                 "items": [
                     {"name": "瓷砖胶", "spec": "JC/T547 C2", "qty": 10, "unit": "袋"},
                     {"name": "背胶", "spec": "双组份", "qty": 2, "unit": "桶"},
@@ -135,6 +153,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "防水材料",
+                "category_id": "hard",
+                "sub_category_id": "fangshui",
                 "items": [
                     {"name": "防水涂料", "spec": "刚性+柔性", "qty": 3, "unit": "桶"},
                     {"name": "堵漏王", "spec": "", "qty": 3, "unit": "袋"},
@@ -142,6 +162,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "其他配件",
+                "category_id": "hard",
+                "sub_category_id": "wagong",
                 "items": [
                     {"name": "地漏", "spec": "回字形", "qty": 3, "unit": "个"},
                     {"name": "烟道止逆阀", "spec": "", "qty": 1, "unit": "个"},
@@ -158,6 +180,8 @@ PURCHASE_DATA = [
         "subs": [
             {
                 "name": "龙骨",
+                "category_id": "hard",
+                "sub_category_id": "mugong",
                 "items": [
                     {"name": "轻钢龙骨", "spec": "主龙骨0.8mm", "qty": 20, "unit": "根"},
                     {"name": "轻钢龙骨", "spec": "副龙骨0.5mm", "qty": 40, "unit": "根"},
@@ -165,6 +189,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "板材",
+                "category_id": "hard",
+                "sub_category_id": "mugong",
                 "items": [
                     {"name": "石膏板", "spec": "ENF级 9.5mm+", "qty": 20, "unit": "张"},
                     {"name": "防潮石膏板", "spec": "厨卫用", "qty": 5, "unit": "张"},
@@ -173,6 +199,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "辅料",
+                "category_id": "hard",
+                "sub_category_id": "mugong",
                 "items": [
                     {"name": "白乳胶", "spec": "", "qty": 1, "unit": "桶"},
                     {"name": "铆钉", "spec": "", "qty": 2, "unit": "包"},
@@ -186,6 +214,8 @@ PURCHASE_DATA = [
         "subs": [
             {
                 "name": "基层处理",
+                "category_id": "hard",
+                "sub_category_id": "youqi",
                 "items": [
                     {"name": "墙固/界面剂", "spec": "", "qty": 2, "unit": "桶"},
                     {"name": "粉刷石膏", "spec": "底层找平", "qty": 5, "unit": "袋"},
@@ -194,6 +224,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "腻子",
+                "category_id": "hard",
+                "sub_category_id": "youqi",
                 "items": [
                     {"name": "腻子粉", "spec": "耐水型N", "qty": 15, "unit": "袋"},
                     {"name": "网格布", "spec": "挂网用", "qty": 5, "unit": "卷"},
@@ -202,6 +234,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "面漆",
+                "category_id": "hard",
+                "sub_category_id": "youqi",
                 "items": [
                     {"name": "防锈漆", "spec": "钉眼用", "qty": 1, "unit": "罐"},
                     {"name": "底漆", "spec": "", "qty": 2, "unit": "桶"},
@@ -216,6 +250,8 @@ PURCHASE_DATA = [
         "subs": [
             {
                 "name": "门窗",
+                "category_id": "material",
+                "sub_category_id": "menchuang",
                 "items": [
                     {"name": "室内门", "spec": "", "qty": 0, "unit": "扇"},
                     {"name": "门套", "spec": "", "qty": 0, "unit": "套"},
@@ -228,6 +264,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "卫浴",
+                "category_id": "material",
+                "sub_category_id": "weiyu",
                 "items": [
                     {"name": "马桶", "spec": "", "qty": 1, "unit": "个"},
                     {"name": "花洒", "spec": "恒温款", "qty": 1, "unit": "套"},
@@ -242,6 +280,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "灯具五金",
+                "category_id": "soft",
+                "sub_category_id": "dengju",
                 "items": [
                     {"name": "客厅主灯", "spec": "", "qty": 1, "unit": "个"},
                     {"name": "卧室灯", "spec": "", "qty": 0, "unit": "个"},
@@ -256,6 +296,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "家电",
+                "category_id": "soft",
+                "sub_category_id": "jiadian",
                 "items": [
                     {"name": "空调挂机", "spec": "", "qty": 0, "unit": "台"},
                     {"name": "空调柜机", "spec": "", "qty": 0, "unit": "台"},
@@ -270,6 +312,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "全屋定制",
+                "category_id": "material",
+                "sub_category_id": "quanwudingzhi",
                 "items": [
                     {"name": "橱柜", "spec": "", "qty": 0, "unit": "延米"},
                     {"name": "衣柜", "spec": "", "qty": 0, "unit": "投影平方"},
@@ -286,6 +330,8 @@ PURCHASE_DATA = [
         "subs": [
             {
                 "name": "家具",
+                "category_id": "soft",
+                "sub_category_id": "jiaju",
                 "items": [
                     {"name": "沙发", "spec": "", "qty": 1, "unit": "套"},
                     {"name": "床", "spec": "", "qty": 0, "unit": "张"},
@@ -296,6 +342,8 @@ PURCHASE_DATA = [
             },
             {
                 "name": "窗帘布艺",
+                "category_id": "soft",
+                "sub_category_id": "chuanglian",
                 "items": [
                     {"name": "窗帘", "spec": "褶皱2倍", "qty": 0, "unit": "套"},
                 ],
@@ -342,6 +390,8 @@ async def seed_purchase_references(db: AsyncSession) -> int:
                     spec=item_data.get("spec", ""),
                     qty=item_data.get("qty", 1),
                     unit=item_data.get("unit", "个"),
+                    category_id=sub_data.get("category_id"),
+                    sub_category_id=sub_data.get("sub_category_id"),
                 )
                 db.add(item)
 

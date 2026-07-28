@@ -108,6 +108,8 @@ async def list_compare_items(project_id: str, user: User = Depends(get_current_u
             item_id=item.id, item_name=item.name, spec=item.spec,
             qty=item.qty, unit=item.unit,
             stage_parent=stage_parent, subgroup_name=subgroup_name,
+            category_id=item.category_id,
+            sub_category_id=item.sub_category_id,
             models=models_out,
         ))
 
@@ -170,6 +172,8 @@ async def add_compare_item(project_id: str, data: CustomPurchaseCreate, user: Us
         item_id=item.id, item_name=item.name, spec=item.spec,
         qty=item.qty, unit=item.unit,
         stage_parent=data.stage_parent, subgroup_name=data.subgroup_name,
+        category_id=item.category_id,
+        sub_category_id=item.sub_category_id,
         models=[],
     )
 

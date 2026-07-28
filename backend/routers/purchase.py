@@ -75,6 +75,8 @@ async def get_references(
                     id=it.id, name=it.name, spec=it.spec,
                     qty=it.qty, unit=it.unit,
                     needs_compare=it.id in compare_item_ids,
+                    category_id=it.category_id,
+                    sub_category_id=it.sub_category_id,
                 )
                 items.append(item_out)
             if items:
@@ -142,6 +144,8 @@ async def add_custom_item(project_id: str, data: CustomPurchaseCreate, user: Use
         qty=data.qty,
         unit=data.unit or "个",
         project_id=sid,  # 标记为项目专属物品
+        category_id=data.category_id,
+        sub_category_id=data.sub_category_id,
     )
     db.add(item)
     # 自动加入待购清单
@@ -324,5 +328,7 @@ async def get_item_comparison(project_id: str, item_id: str, user: User = Depend
         item_id=item.id, item_name=item.name, spec=item.spec,
         qty=item.qty, unit=item.unit,
         stage_parent=stage_parent, subgroup_name=subgroup_name,
+        category_id=item.category_id,
+        sub_category_id=item.sub_category_id,
         models=models_out,
     )

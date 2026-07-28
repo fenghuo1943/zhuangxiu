@@ -164,6 +164,8 @@ class PurchaseRefItemOut(BaseModel):
     qty: int
     unit: Optional[str]
     needs_compare: bool = False
+    category_id: Optional[str] = None
+    sub_category_id: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -182,6 +184,8 @@ class CustomPurchaseCreate(BaseModel):
     spec: Optional[str] = None
     unit: str = "个"
     qty: int = 1
+    category_id: Optional[str] = None
+    sub_category_id: Optional[str] = None
 
 
 # ── Add to compare (just sets needs_compare flag) ──
@@ -233,6 +237,8 @@ class CompareItemOut(BaseModel):
     unit: Optional[str] = None
     stage_parent: Optional[str] = None
     subgroup_name: Optional[str] = None
+    category_id: Optional[str] = None
+    sub_category_id: Optional[str] = None
     models: List[PriceModelOut] = []
 
 class SetBestQuoteRequest(BaseModel):

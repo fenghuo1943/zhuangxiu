@@ -130,6 +130,24 @@ async def _migrate_integration(conn):
     except (sqlite3.OperationalError, Exception):
         pass
 
+    # --- v4: add budget category/subcategory to purchase items ---
+    try:
+        await conn.run_sync(
+            lambda c: c.exec_driver_sql(
+                "ALTER TABLE purchase_ref_items ADD COLUMN category_id VARCHAR(50)"
+            )
+        )
+    except (sqlite3.OperationalError, Exception):
+        pass
+    try:
+        await conn.run_sync(
+            lambda c: c.exec_driver_sql(
+                "ALTER TABLE purchase_ref_items ADD COLUMN sub_category_id VARCHAR(50)"
+            )
+        )
+    except (sqlite3.OperationalError, Exception):
+        pass
+
     # Migrate: for items with needs_compare=True, create ProjectCompareItem entries
     # for each project that has selected or purchased those items.
     # Done in Python for database-agnostic compatibility.
