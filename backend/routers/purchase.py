@@ -332,3 +332,50 @@ async def get_item_comparison(project_id: str, item_id: str, user: User = Depend
         sub_category_id=item.sub_category_id,
         models=models_out,
     )
+
+
+# ── 批量修改采购物品分类 ──
+
+from ..schemas import BatchCategoryUpdate
+
+@router.put("/api/purchase/items/batch-category")
+async def batch_update_category(
+    data: BatchCategoryUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """批量更新采购物品的预算分类。
+    管理员可修改所有物品（含种子数据），普通用户仅可修改自己添加的物品。"""
+    # Get the user's project for scoped ID matching
+    project_result = await db.execute(
+        select(Project).where(Project.user_id == user.id).limit(1)
+    )
+    user_project = project_result.scalar_one_or_none()
+
+    updated = 0
+    skipped = 0
+
+    for item_data in data.items:
+        item_result = await db.execute(
+            select(PurchaseRefItem).where(PurchaseRefItem.id == item_data.item_id)
+        )
+        item = item_result.scalar_one_or_none()
+        if not item:
+            skipped += 1
+            continue
+
+        # Permission: admin can modify all; non-admin only their own custom items
+        if not user.is_admin:
+            if item.project_id is None:
+                skipped += 1
+                continue
+            if user_project and item.project_id != user_project.id:
+                skipped += 1
+                continue
+
+        item.category_id = item_data.category_id
+        item.sub_category_id = item_data.sub_category_id
+        updated += 1
+
+    await db.commit()
+    return {"updated": updated, "skipped": skipped}

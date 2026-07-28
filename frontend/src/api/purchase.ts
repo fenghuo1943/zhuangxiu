@@ -62,3 +62,16 @@ export async function fetchItemComparison(projectId: string, itemId: string): Pr
 export async function fetchProjectCompareIds(projectId: string): Promise<string[]> {
   return apiGet(`/api/projects/${projectId}/purchase/compare-ids`);
 }
+
+/** Batch update purchase item categories */
+export interface BatchCategoryItem {
+  item_id: string;
+  category_id: string | null;
+  sub_category_id: string | null;
+}
+
+export async function batchUpdateCategories(
+  items: BatchCategoryItem[],
+): Promise<{ updated: number; skipped: number }> {
+  return apiPut(`/api/purchase/items/batch-category`, { items });
+}

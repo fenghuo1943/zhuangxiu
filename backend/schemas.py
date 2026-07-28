@@ -188,6 +188,17 @@ class CustomPurchaseCreate(BaseModel):
     sub_category_id: Optional[str] = None
 
 
+# ── Batch category update ──
+
+class BatchCategoryItem(BaseModel):
+    item_id: str
+    category_id: Optional[str] = None
+    sub_category_id: Optional[str] = None
+
+class BatchCategoryUpdate(BaseModel):
+    items: list[BatchCategoryItem]
+
+
 # ── Add to compare (just sets needs_compare flag) ──
 
 class ToggleCompareRequest(BaseModel):
