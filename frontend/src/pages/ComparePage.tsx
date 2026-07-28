@@ -11,10 +11,13 @@ import {
   IconCompare, IconPlus, IconTrash, IconChevronDown,
   IconSearch, IconX, IconEdit, IconDownload, IconUpload,
 } from '../components/common/Icons';
+import { mapStageSubgroupToCategory } from '../utils/categoryMapping';
 
 const ComparePage: React.FC = () => {
   const state = useStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterSubCategory, setFilterSubCategory] = useState('');
 
   // 页面挂载时从后端加载比价数据
   useEffect(() => {
@@ -63,9 +66,32 @@ const ComparePage: React.FC = () => {
   const [editQuoteNote, setEditQuoteNote] = useState('');
 
   const ci = state.compareItems;
-  const filteredItems = searchQuery.trim()
-    ? ci.filter(c => c.item_name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
-    : ci;
+
+  // Category filter helpers
+  const budgetCategories = state.budget.categories;
+  const filteredSubCategories = filterCategory
+    ? state.expenseSubCategories.filter(s => s.categoryId === filterCategory)
+    : [];
+
+  const filteredItems = (() => {
+    let items = ci;
+    // Text search
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      items = items.filter(c => c.item_name.toLowerCase().includes(q));
+    }
+    // Category filter
+    if (filterCategory) {
+      items = items.filter(c => {
+        const cat = mapStageSubgroupToCategory(c.stage_parent, c.subgroup_name);
+        if (!cat) return false;
+        if (cat.categoryId !== filterCategory) return false;
+        if (filterSubCategory && cat.subCategoryId !== filterSubCategory) return false;
+        return true;
+      });
+    }
+    return items;
+  })();
 
   const totalModels = ci.reduce((sum, c) => sum + c.models.length, 0);
   const syncedCount = state.syncedModelIds.length;
@@ -306,6 +332,28 @@ const ComparePage: React.FC = () => {
             <IconSearch size={14} />
             <input className="input" placeholder="搜索比价物品..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: 32, width: '100%' }} />
           </div>
+          <select
+            value={filterCategory}
+            onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
+            style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 120 }}
+          >
+            <option value="">全部分类</option>
+            {budgetCategories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+          {filterCategory && (
+            <select
+              value={filterSubCategory}
+              onChange={e => setFilterSubCategory(e.target.value)}
+              style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 130 }}
+            >
+              <option value="">全部子分类</option>
+              {filteredSubCategories.map(sub => (
+                <option key={sub.id} value={sub.id}>{sub.name}</option>
+              ))}
+            </select>
+          )}
           <button className="btn btn-outline btn-sm" onClick={handleExportCSV}><IconUpload size={14} /> 导出</button>
           <button className="btn btn-outline btn-sm" onClick={handleImportCSV}><IconDownload size={14} /> 导入</button>
           {importMsg && <span className={`backup-msg ${importMsg.type}`} style={{ padding: '4px 10px', fontSize: 12 }}>{importMsg.text}</span>}
@@ -318,10 +366,10 @@ const ComparePage: React.FC = () => {
               <div className="empty-state">
                 <div className="empty-state-icon">⚖️</div>
                 <p className="empty-state-title">
-                  {searchQuery ? '未找到匹配的物品' : '暂无比价物品'}
+                  {searchQuery || filterCategory ? '未找到匹配的物品' : '暂无比价物品'}
                 </p>
                 <p className="empty-state-desc">
-                  {searchQuery ? '尝试其他关键词' : '使用上方快速添加栏，先添加物品再进行比价'}
+                  {searchQuery || filterCategory ? '尝试调整筛选条件' : '使用上方快速添加栏，先添加物品再进行比价'}
                 </p>
               </div>
             </div>

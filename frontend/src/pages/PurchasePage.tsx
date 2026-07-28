@@ -8,6 +8,7 @@ import {
   getItemBestChannel,
 } from '../data/store';
 import type { PurchaseReferenceStage, PurchaseReferenceSubgroup, PurchaseReferenceItem } from '../data/types';
+import { mapStageSubgroupToCategory } from '../utils/categoryMapping';
 
 // ── Stage icon config ──────────────────────────────────────────────
 const STAGE_ICONS: Record<number, { id: string; tone: string }> = {
@@ -95,6 +96,8 @@ const PurchasePage: React.FC = () => {
 
   // Shopping card
   const [shoppingListView, setShoppingListView] = useState<'pending' | 'purchased'>('pending');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterSubCategory, setFilterSubCategory] = useState('');
   const [editingShoppingId, setEditingShoppingId] = useState<string | null>(null);
   const [editShoppingName, setEditShoppingName] = useState('');
   const [editShoppingSpec, setEditShoppingSpec] = useState('');
@@ -151,7 +154,7 @@ const PurchasePage: React.FC = () => {
 
   // ── Shopping list data ──
   const shoppingItems = useMemo(() => {
-    const items: { itemId: string; name: string; spec?: string; qty: number; unit?: string; stageParent: string }[] = [];
+    const items: { itemId: string; name: string; spec?: string; qty: number; unit?: string; stageParent: string; subgroupName?: string }[] = [];
     state.purchaseReferences.forEach(stage => {
       stage.subs.forEach(sub => {
         sub.items.forEach(item => {
@@ -163,6 +166,7 @@ const PurchasePage: React.FC = () => {
               qty: item.qty,
               unit: item.unit,
               stageParent: stage.parent,
+              subgroupName: sub.name,
             });
           }
         });
@@ -170,6 +174,23 @@ const PurchasePage: React.FC = () => {
     });
     return items;
   }, [state.purchaseReferences, state.selectedPurchaseIds]);
+
+  // Category filter helpers
+  const filteredSubCategories = filterCategory
+    ? state.expenseSubCategories.filter(s => s.categoryId === filterCategory)
+    : [];
+
+  // Filter shopping items by category
+  const filteredShoppingItems = useMemo(() => {
+    if (!filterCategory) return shoppingItems;
+    return shoppingItems.filter(item => {
+      const cat = mapStageSubgroupToCategory(item.stageParent, item.subgroupName);
+      if (!cat) return false;
+      if (cat.categoryId !== filterCategory) return false;
+      if (filterSubCategory && cat.subCategoryId !== filterSubCategory) return false;
+      return true;
+    });
+  }, [shoppingItems, filterCategory, filterSubCategory]);
 
   const syncedPriceModels = useMemo(() => {
     const models: { modelId: string; modelName: string; spec?: string; catName: string; price?: number; channel?: string; note?: string; purchaseItemId?: string | null }[] = [];
@@ -197,7 +218,7 @@ const PurchasePage: React.FC = () => {
 
   // Match compare items to shopping items by FK (primary) or name (fallback)
   const shoppingItemsWithPrice = useMemo(() => {
-    return shoppingItems.map(item => {
+    return filteredShoppingItems.map(item => {
       // First try FK-based lookup via compareItems
       const ci = state.compareItems.find(c => c.item_id === item.itemId);
       // Fallback: try name matching against all compareItems
@@ -232,22 +253,22 @@ const PurchasePage: React.FC = () => {
       );
       return { ...item, matchedPrice: match?.price, matchedChannel: match?.channel, matchedModelId: match?.modelId, hasComparison: false };
     });
-  }, [shoppingItems, state.compareItems, state.syncedModelIds, state.bestQuoteIds, syncedPriceModels]);
+  }, [filteredShoppingItems, state.compareItems, state.syncedModelIds, state.bestQuoteIds, syncedPriceModels]);
 
   // Unmatched synced models — only those without FK link
   const unmatchedSyncedModels = useMemo(() => {
     return syncedPriceModels.filter(m => {
       // If the model's category has a purchase_item_id linked to a shopping item, it's matched
-      if (m.purchaseItemId && shoppingItems.some(item => item.itemId === m.purchaseItemId)) return false;
+      if (m.purchaseItemId && filteredShoppingItems.some(item => item.itemId === m.purchaseItemId)) return false;
       // Also check fuzzy name match
-      return !shoppingItems.some(item =>
+      return !filteredShoppingItems.some(item =>
         m.modelName === item.name ||
         m.catName === item.name ||
         m.modelName.includes(item.name) ||
         item.name.includes(m.modelName)
       );
     });
-  }, [syncedPriceModels, shoppingItems]);
+  }, [syncedPriceModels, filteredShoppingItems]);
 
   const totalEstimatedCost = useMemo(() => {
     let total = 0;
@@ -484,6 +505,37 @@ const PurchasePage: React.FC = () => {
             </div>
           </div>
 
+          {/* Category filter bar */}
+          <div className="purchase-shopping-filter" style={{ display: 'flex', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--fresh-border)', flexWrap: 'wrap' }}>
+            <select
+              value={filterCategory}
+              onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
+            >
+              <option value="">全部分类</option>
+              {state.budget.categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+            {filterCategory && (
+              <select
+                value={filterSubCategory}
+                onChange={e => setFilterSubCategory(e.target.value)}
+                style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
+              >
+                <option value="">全部子分类</option>
+                {filteredSubCategories.map(sub => (
+                  <option key={sub.id} value={sub.id}>{sub.name}</option>
+                ))}
+              </select>
+            )}
+            {filterCategory && (
+              <span style={{ fontSize: 11, color: 'var(--fresh-muted)', display: 'flex', alignItems: 'center' }}>
+                筛选结果: {filteredShoppingItems.length} 项
+              </span>
+            )}
+          </div>
+
           <div className="purchase-shopping-bd">
             {totalShoppingCount === 0 ? (
               <div style={{ textAlign: 'center', color: '#999', padding: '20px 0' }}>
@@ -507,6 +559,20 @@ const PurchasePage: React.FC = () => {
                         grouped.set(item.stageParent, list);
                       });
                       if (displayItems.length === 0) {
+                        // Check if it's due to category filter
+                        if (filterCategory && filteredShoppingItems.length === 0) {
+                          return (
+                            <div style={{ textAlign: 'center', padding: '8px 0', fontSize: 12, color: '#999' }}>
+                              📋 没有符合筛选条件的物品
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                style={{ marginLeft: 8 }}
+                                onClick={() => { setFilterCategory(''); setFilterSubCategory(''); }}
+                              >清除筛选</button>
+                            </div>
+                          );
+                        }
                         return (
                           <div style={{ textAlign: 'center', padding: '8px 0', fontSize: 12, color: '#999' }}>
                             {shoppingListView === 'pending' ? (
