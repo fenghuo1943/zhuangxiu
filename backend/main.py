@@ -25,16 +25,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow Vite dev servers (port 5173–5180) and localhost aliases
-_vite_ports = [5173, 5174, 5175, 5176, 5177, 5178, 5179, 5180]
-_origins = []
-for p in _vite_ports:
-    _origins.append(f"http://localhost:{p}")
-    _origins.append(f"http://127.0.0.1:{p}")
+# CORS — allow Vite dev servers on localhost and any LAN device
+# Matches localhost, 127.0.0.1, and all RFC 1918 private IPs (10.x, 172.16-31.x, 192.168.x)
+_private_ip_regex = (
+    r"http://("
+    r"localhost|127\.0\.0\.1|"          # loopback
+    r"10\.\d+\.\d+\.\d+|"               # 10.0.0.0/8
+    r"172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|"  # 172.16.0.0/12
+    r"192\.168\.\d+\.\d+"               # 192.168.0.0/16
+    r"):\d+"
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_origins,
+    allow_origin_regex=_private_ip_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

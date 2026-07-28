@@ -1,7 +1,5 @@
-import { apiGet, apiPost, apiPut, apiDelete, getAuthHeaders } from './client';
+import { apiGet, apiPost, apiPut, apiDelete, getAuthHeaders, API_BASE } from './client';
 import type { KnowledgeArticle } from '../data/types';
-
-const API_BASE = 'http://localhost:8003';
 
 export async function fetchArticle(resourceId: number): Promise<KnowledgeArticle> {
   return apiGet<KnowledgeArticle>(`/api/knowledge/${resourceId}`);
