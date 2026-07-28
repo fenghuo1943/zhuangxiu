@@ -35,7 +35,7 @@ PURCHASE_DATA = [
                 "category_id": "equipment",
                 "sub_category_id": "jingshui",
                 "items": [
-                    {"name": "强电箱装饰画", "spec": "", "qty": 1, "unit": "个"},
+                    {"name": "强电箱装饰画", "spec": "", "qty": 1, "unit": "个", "category_id": "soft", "sub_category_id": "ruanzhuang"},
                     {"name": "前置过滤器", "spec": "", "qty": 1, "unit": "个"},
                 ],
             },
@@ -290,8 +290,8 @@ PURCHASE_DATA = [
                     {"name": "筒灯", "spec": "", "qty": 0, "unit": "个"},
                     {"name": "阳台灯", "spec": "", "qty": 1, "unit": "个"},
                     {"name": "厨卫灯", "spec": "", "qty": 2, "unit": "个"},
-                    {"name": "电动窗帘", "spec": "", "qty": 0, "unit": "套"},
-                    {"name": "升降晾衣架", "spec": "", "qty": 1, "unit": "个"},
+                    {"name": "电动窗帘", "spec": "", "qty": 0, "unit": "套", "category_id": "soft", "sub_category_id": "chuanglian"},
+                    {"name": "升降晾衣架", "spec": "", "qty": 1, "unit": "个", "category_id": "service", "sub_category_id": "wujin"},
                 ],
             },
             {
@@ -319,8 +319,8 @@ PURCHASE_DATA = [
                     {"name": "衣柜", "spec": "", "qty": 0, "unit": "投影平方"},
                     {"name": "鞋柜", "spec": "", "qty": 1, "unit": "个"},
                     {"name": "餐边柜", "spec": "", "qty": 1, "unit": "个"},
-                    {"name": "铝扣板吊顶", "spec": "厨卫阳台", "qty": 0, "unit": "平方"},
-                    {"name": "地板", "spec": "", "qty": 0, "unit": "平方"},
+                    {"name": "铝扣板吊顶", "spec": "厨卫阳台", "qty": 0, "unit": "平方", "category_id": "material", "sub_category_id": "jichengdiaoding"},
+                    {"name": "地板", "spec": "", "qty": 0, "unit": "平方", "category_id": "material", "sub_category_id": "diban"},
                 ],
             },
         ],
@@ -390,8 +390,8 @@ async def seed_purchase_references(db: AsyncSession) -> int:
                     spec=item_data.get("spec", ""),
                     qty=item_data.get("qty", 1),
                     unit=item_data.get("unit", "个"),
-                    category_id=sub_data.get("category_id"),
-                    sub_category_id=sub_data.get("sub_category_id"),
+                    category_id=item_data.get("category_id", sub_data.get("category_id")),
+                    sub_category_id=item_data.get("sub_category_id", sub_data.get("sub_category_id")),
                 )
                 db.add(item)
 
