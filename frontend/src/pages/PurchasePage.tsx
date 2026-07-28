@@ -98,7 +98,6 @@ const PurchasePage: React.FC = () => {
 
   // Shopping card
   const [shoppingListView, setShoppingListView] = useState<'pending' | 'purchased'>('pending');
-  const [filterMode, setFilterMode] = useState<'stage' | 'category'>('stage');
   const [filterStage, setFilterStage] = useState('');
   const [filterSubgroup, setFilterSubgroup] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -189,18 +188,20 @@ const PurchasePage: React.FC = () => {
     ? state.expenseSubCategories.filter(s => s.categoryId === filterCategory)
     : [];
 
-  // Filter shopping items by stage or category
+  // Filter shopping items by stage AND category
   const filteredShoppingItems = useMemo(() => {
-    if (filterMode === 'stage') {
-      if (!filterStage) return shoppingItems;
-      return shoppingItems.filter(item => {
+    let items = shoppingItems;
+    // Stage filter
+    if (filterStage) {
+      items = items.filter(item => {
         if (item.stageParent !== filterStage) return false;
         if (filterSubgroup && item.subgroupName !== filterSubgroup) return false;
         return true;
       });
-    } else {
-      if (!filterCategory) return shoppingItems;
-      return shoppingItems.filter(item => {
+    }
+    // Category filter
+    if (filterCategory) {
+      items = items.filter(item => {
         const cat = getItemCategory(item);
         if (!cat) return false;
         if (cat.categoryId !== filterCategory) return false;
@@ -208,7 +209,8 @@ const PurchasePage: React.FC = () => {
         return true;
       });
     }
-  }, [shoppingItems, filterMode, filterStage, filterSubgroup, filterCategory, filterSubCategory]);
+    return items;
+  }, [shoppingItems, filterStage, filterSubgroup, filterCategory, filterSubCategory]);
 
   const syncedPriceModels = useMemo(() => {
     const models: { modelId: string; modelName: string; spec?: string; catName: string; price?: number; channel?: string; note?: string; purchaseItemId?: string | null }[] = [];
@@ -531,76 +533,45 @@ const PurchasePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Filter bar — dual mode */}
+          {/* Filter bar — stage + category combined */}
           <div className="purchase-shopping-filter" style={{ display: 'flex', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--fresh-border)', flexWrap: 'wrap', alignItems: 'center' }}>
-            {/* Filter mode toggle */}
-            <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--fresh-border)', fontSize: 11 }}>
-              <button
-                type="button"
-                onClick={() => setFilterMode('stage')}
-                style={{
-                  padding: '4px 10px', border: 'none', cursor: 'pointer',
-                  background: filterMode === 'stage' ? 'var(--fresh-accent)' : 'var(--fresh-surface)',
-                  color: filterMode === 'stage' ? '#fff' : 'var(--fresh-text)',
-                  fontWeight: filterMode === 'stage' ? 600 : 400,
-                }}
-              >按阶段</button>
-              <button
-                type="button"
-                onClick={() => setFilterMode('category')}
-                style={{
-                  padding: '4px 10px', border: 'none', borderLeft: '1px solid var(--fresh-border)', cursor: 'pointer',
-                  background: filterMode === 'category' ? 'var(--fresh-accent)' : 'var(--fresh-surface)',
-                  color: filterMode === 'category' ? '#fff' : 'var(--fresh-text)',
-                  fontWeight: filterMode === 'category' ? 600 : 400,
-                }}
-              >按分类</button>
-            </div>
             {/* Stage filter */}
-            {filterMode === 'stage' && (
-              <>
-                <select
-                  value={filterStage}
-                  onChange={e => { setFilterStage(e.target.value); setFilterSubgroup(''); }}
-                  style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
-                >
-                  <option value="">全部阶段</option>
-                  {stagesForFilter.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                {filterStage && (
-                  <select
-                    value={filterSubgroup}
-                    onChange={e => setFilterSubgroup(e.target.value)}
-                    style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
-                  >
-                    <option value="">全部子分组</option>
-                    {filteredSubgroups.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                )}
-              </>
+            <select
+              value={filterStage}
+              onChange={e => { setFilterStage(e.target.value); setFilterSubgroup(''); }}
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
+            >
+              <option value="">全部阶段</option>
+              {stagesForFilter.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            {filterStage && (
+              <select
+                value={filterSubgroup}
+                onChange={e => setFilterSubgroup(e.target.value)}
+                style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
+              >
+                <option value="">全部子分组</option>
+                {filteredSubgroups.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             )}
             {/* Category filter */}
-            {filterMode === 'category' && (
-              <>
-                <select
-                  value={filterCategory}
-                  onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
-                  style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
-                >
-                  <option value="">全部分类</option>
-                  {state.budget.categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                </select>
-                {filterCategory && (
-                  <select
-                    value={filterSubCategory}
-                    onChange={e => setFilterSubCategory(e.target.value)}
-                    style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
-                  >
-                    <option value="">全部子分类</option>
-                    {filteredSubCategories.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
-                  </select>
-                )}
-              </>
+            <select
+              value={filterCategory}
+              onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
+            >
+              <option value="">全部分类</option>
+              {state.budget.categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+            </select>
+            {filterCategory && (
+              <select
+                value={filterSubCategory}
+                onChange={e => setFilterSubCategory(e.target.value)}
+                style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
+              >
+                <option value="">全部子分类</option>
+                {filteredSubCategories.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
+              </select>
             )}
             {(filterCategory || filterStage) && (
               <span style={{ fontSize: 11, color: 'var(--fresh-muted)', display: 'flex', alignItems: 'center' }}>

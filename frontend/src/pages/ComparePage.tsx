@@ -13,12 +13,9 @@ import {
 } from '../components/common/Icons';
 import { getItemCategory } from '../utils/categoryMapping';
 
-type FilterMode = 'stage' | 'category';
-
 const ComparePage: React.FC = () => {
   const state = useStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterMode, setFilterMode] = useState<FilterMode>('stage');
   const [filterStage, setFilterStage] = useState('');
   const [filterSubgroup, setFilterSubgroup] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -91,24 +88,22 @@ const ComparePage: React.FC = () => {
       const q = searchQuery.trim().toLowerCase();
       items = items.filter(c => c.item_name.toLowerCase().includes(q));
     }
-    // Dual-mode filter
-    if (filterMode === 'stage') {
-      if (filterStage) {
-        items = items.filter(c => c.stage_parent === filterStage);
-        if (filterSubgroup) {
-          items = items.filter(c => c.subgroup_name === filterSubgroup);
-        }
+    // Stage filter
+    if (filterStage) {
+      items = items.filter(c => c.stage_parent === filterStage);
+      if (filterSubgroup) {
+        items = items.filter(c => c.subgroup_name === filterSubgroup);
       }
-    } else {
-      if (filterCategory) {
-        items = items.filter(c => {
-          const cat = getItemCategory(c);
-          if (!cat) return false;
-          if (cat.categoryId !== filterCategory) return false;
-          if (filterSubCategory && cat.subCategoryId !== filterSubCategory) return false;
-          return true;
-        });
-      }
+    }
+    // Category filter (combined with stage via AND)
+    if (filterCategory) {
+      items = items.filter(c => {
+        const cat = getItemCategory(c);
+        if (!cat) return false;
+        if (cat.categoryId !== filterCategory) return false;
+        if (filterSubCategory && cat.subCategoryId !== filterSubCategory) return false;
+        return true;
+      });
     }
     return items;
   })();
@@ -378,74 +373,43 @@ const ComparePage: React.FC = () => {
             <IconSearch size={14} />
             <input className="input" placeholder="搜索比价物品..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: 32, width: '100%' }} />
           </div>
-          {/* Filter mode toggle */}
-          <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--fresh-border)', fontSize: 11 }}>
-            <button
-              type="button"
-              onClick={() => setFilterMode('stage')}
-              style={{
-                padding: '4px 10px', border: 'none', cursor: 'pointer',
-                background: filterMode === 'stage' ? 'var(--fresh-accent)' : 'var(--fresh-surface)',
-                color: filterMode === 'stage' ? '#fff' : 'var(--fresh-text)',
-                fontWeight: filterMode === 'stage' ? 600 : 400,
-              }}
-            >按阶段</button>
-            <button
-              type="button"
-              onClick={() => setFilterMode('category')}
-              style={{
-                padding: '4px 10px', border: 'none', borderLeft: '1px solid var(--fresh-border)', cursor: 'pointer',
-                background: filterMode === 'category' ? 'var(--fresh-accent)' : 'var(--fresh-surface)',
-                color: filterMode === 'category' ? '#fff' : 'var(--fresh-text)',
-                fontWeight: filterMode === 'category' ? 600 : 400,
-              }}
-            >按分类</button>
-          </div>
           {/* Stage filter */}
-          {filterMode === 'stage' && (
-            <>
-              <select
-                value={filterStage}
-                onChange={e => { setFilterStage(e.target.value); setFilterSubgroup(''); }}
-                style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 120 }}
-              >
-                <option value="">全部阶段</option>
-                {stages.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              {filterStage && (
-                <select
-                  value={filterSubgroup}
-                  onChange={e => setFilterSubgroup(e.target.value)}
-                  style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 130 }}
-                >
-                  <option value="">全部子分组</option>
-                  {filteredSubgroups.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              )}
-            </>
+          <select
+            value={filterStage}
+            onChange={e => { setFilterStage(e.target.value); setFilterSubgroup(''); }}
+            style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 120 }}
+          >
+            <option value="">全部阶段</option>
+            {stages.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          {filterStage && (
+            <select
+              value={filterSubgroup}
+              onChange={e => setFilterSubgroup(e.target.value)}
+              style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 130 }}
+            >
+              <option value="">全部子分组</option>
+              {filteredSubgroups.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
           )}
           {/* Category filter */}
-          {filterMode === 'category' && (
-            <>
-              <select
-                value={filterCategory}
-                onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
-                style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 120 }}
-              >
-                <option value="">全部分类</option>
-                {budgetCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-              </select>
-              {filterCategory && (
-                <select
-                  value={filterSubCategory}
-                  onChange={e => setFilterSubCategory(e.target.value)}
-                  style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 130 }}
-                >
-                  <option value="">全部子分类</option>
-                  {filteredSubCategories.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
-                </select>
-              )}
-            </>
+          <select
+            value={filterCategory}
+            onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
+            style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 120 }}
+          >
+            <option value="">全部分类</option>
+            {budgetCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+          </select>
+          {filterCategory && (
+            <select
+              value={filterSubCategory}
+              onChange={e => setFilterSubCategory(e.target.value)}
+              style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 130 }}
+            >
+              <option value="">全部子分类</option>
+              {filteredSubCategories.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
+            </select>
           )}
           <button className="btn btn-outline btn-sm" onClick={handleExportCSV}><IconUpload size={14} /> 导出</button>
           <button className="btn btn-outline btn-sm" onClick={handleImportCSV}><IconDownload size={14} /> 导入</button>
