@@ -172,12 +172,13 @@ async def delete_purchase_item(project_id: str, item_id: str, user: User = Depen
     if not item:
         return  # 已经不存在了
 
-    # 不允许删除公共参考物品
-    if item.project_id is None:
-        raise HTTPException(status_code=403, detail="不能删除公共参考项目")
     # 不允许删除其他项目的物品
-    if item.project_id != sid:
+    if item.project_id is not None and item.project_id != sid:
         raise HTTPException(status_code=403, detail="不能删除其他项目的物品")
+
+    # 公共种子物品 (project_id is None): 只解除关联（取消待购、比价），不删除物品本身
+    # 自定义物品 (project_id == sid): 完全删除
+    is_seed = item.project_id is None
 
     # 解除 PriceCategory 关联
     await db.execute(
@@ -196,8 +197,10 @@ async def delete_purchase_item(project_id: str, item_id: str, user: User = Depen
     for pci in cmp_result.scalars().all():
         await db.delete(pci)
 
-    # 删除物品本身
-    await db.delete(item)
+    # 删除物品本身（仅自定义物品；公共种子物品保留）
+    if not is_seed:
+        await db.delete(item)
+
     await db.commit()
 
 

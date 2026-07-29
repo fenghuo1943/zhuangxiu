@@ -284,6 +284,13 @@ export function deleteTodo(todoId: string) {
   globalState = { ...globalState, todos };
   notify();
   persist();
+
+  // Sync to backend if authenticated
+  if (isAuthenticated()) {
+    import('../api/client').then(({ apiDelete }) => {
+      apiDelete(`/api/projects/${globalState.activeProjectId}/todos/${todoId}`).catch(() => {});
+    });
+  }
 }
 
 export function updateTodo(todoId: string, updates: Partial<Todo>) {
@@ -441,31 +448,38 @@ export async function loadSelectedPurchasesFromBackend(): Promise<void> {
   try {
     const { fetchSelectedPurchases } = await import('../api/purchase');
     const selectedIds = await fetchSelectedPurchases(globalState.activeProjectId);
-    if (selectedIds.length > 0) {
-      // Merge with local: backend is authoritative for existing items
-      const localOnlyIds = globalState.selectedPurchaseIds.filter(
-        id => id.startsWith('p_custom_')
-      );
-      const merged = [...new Set([...selectedIds, ...localOnlyIds])];
-      // Also mark items as selected in references
-      const purchaseReferences = globalState.purchaseReferences.map(stage => ({
-        ...stage,
-        subs: stage.subs.map(sub => ({
-          ...sub,
-          items: sub.items.map(item => ({
-            ...item,
-            selected: merged.includes(item.id),
-          })),
-        })),
-      }));
-      globalState = {
-        ...globalState,
-        selectedPurchaseIds: merged,
-        purchaseReferences,
-      };
-      notify();
-      persist();
+    // Merge with local: keep custom items that still exist in purchaseReferences
+    // (already synced from server above) — this excludes items deleted on other devices.
+    const existingRefIds = new Set<string>();
+    for (const stage of globalState.purchaseReferences) {
+      for (const sub of stage.subs) {
+        for (const item of sub.items) {
+          existingRefIds.add(item.id);
+        }
+      }
     }
+    const localOnlyIds = globalState.selectedPurchaseIds.filter(
+      id => id.startsWith('p_custom_') && existingRefIds.has(id)
+    );
+    const merged = [...new Set([...selectedIds, ...localOnlyIds])];
+    // Also mark items as selected in references
+    const purchaseReferences = globalState.purchaseReferences.map(stage => ({
+      ...stage,
+      subs: stage.subs.map(sub => ({
+        ...sub,
+        items: sub.items.map(item => ({
+          ...item,
+          selected: merged.includes(item.id),
+        })),
+      })),
+    }));
+    globalState = {
+      ...globalState,
+      selectedPurchaseIds: merged,
+      purchaseReferences,
+    };
+    notify();
+    persist();
   } catch {
     // Backend unreachable, keep local data
   }
@@ -477,7 +491,7 @@ export async function loadPurchaseReferencesFromBackend(): Promise<void> {
   try {
     const { fetchPurchaseReferences } = await import('../api/purchase');
     const remoteRefs = await fetchPurchaseReferences(globalState.activeProjectId);
-    if (remoteRefs && remoteRefs.length > 0) {
+    if (remoteRefs) {
       // Add selected state from local selectedPurchaseIds
       const selectedSet = new Set(globalState.selectedPurchaseIds);
       const enriched = remoteRefs.map(stage => ({
@@ -879,6 +893,13 @@ export function deletePriceModel(itemId: string, modelId: string) {
   globalState = { ...globalState, compareItems };
   notify();
   persist();
+
+  // Sync to backend if authenticated
+  if (isAuthenticated()) {
+    import('../api/client').then(({ apiDelete }) => {
+      apiDelete(`/api/projects/${globalState.activeProjectId}/compare/models/${modelId}`).catch(() => {});
+    });
+  }
 }
 
 export function updatePriceModel(modelId: string, updates: { name?: string; spec?: string; note?: string }) {
@@ -926,6 +947,13 @@ export function deleteChannelQuote(modelId: string, quoteId: string) {
   globalState = { ...globalState, compareItems, bestQuoteIds };
   notify();
   persist();
+
+  // Sync to backend if authenticated
+  if (isAuthenticated()) {
+    import('../api/client').then(({ apiDelete }) => {
+      apiDelete(`/api/projects/${globalState.activeProjectId}/compare/quotes/${quoteId}`).catch(() => {});
+    });
+  }
 }
 
 export function updateChannelQuote(quoteId: string, updates: { channel?: string; price?: number; note?: string }) {
@@ -1233,24 +1261,24 @@ export async function loadBudgetAndExpensesFromBackend(): Promise<void> {
   }
 
   try {
-    // Load expenses
+    // Load expenses — backend is authoritative (handles deletions from other devices)
     const remoteExpenses = await fetchExpenses(pid);
-    if (remoteExpenses.length > 0) {
-      // Merge: backend data is authoritative, but keep local-only items
-      const remoteIds = new Set(remoteExpenses.map(e => e.id));
-      const localOnly = globalState.expenses.filter(e => !remoteIds.has(e.id) && !e.id.startsWith('exp_'));
-      const merged = [...remoteExpenses, ...localOnly];
-      merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      globalState = {
-        ...globalState,
-        expenses: merged,
-        recentExpenses: merged.slice(0, 5),
-      };
-      // Recalculate budget spent from backend data
-      _recalcSpentFromExpenses();
-      notify();
-      persist();
-    }
+    // Merge: keep local-only items that don't have the standard exp_ prefix
+    // (old-format items or items created while offline).
+    // Items with exp_ prefix that are absent from remote were deleted elsewhere.
+    const remoteIds = new Set(remoteExpenses.map(e => e.id));
+    const localOnly = globalState.expenses.filter(e => !remoteIds.has(e.id) && !e.id.startsWith('exp_'));
+    const merged = [...remoteExpenses, ...localOnly];
+    merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    globalState = {
+      ...globalState,
+      expenses: merged,
+      recentExpenses: merged.slice(0, 5),
+    };
+    // Recalculate budget spent from backend data
+    _recalcSpentFromExpenses();
+    notify();
+    persist();
   } catch {
     // Backend unreachable, keep local data
   }
