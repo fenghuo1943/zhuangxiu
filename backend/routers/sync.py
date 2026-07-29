@@ -9,8 +9,16 @@ router = APIRouter(prefix="/api/projects/{project_id}/sync", tags=["Sync"])
 
 
 def _scoped_project_id(raw_project_id: str, user_id: str) -> str:
-    """Scope a frontend project ID (like 'p1') to the current user."""
+    """Scope a frontend project ID (like 'p1') to the current user.
+
+    Idempotent: if the ID already ends with the user's scope suffix it is
+    returned unchanged to avoid double-scoping (e.g. p1_b3c9f40b → p1_b3c9f40b
+    rather than p1_b3c9f40b_b3c9f40b).
+    """
     scope = user_id.replace("-", "")[:8]
+    suffix = f"_{scope}"
+    if raw_project_id.endswith(suffix):
+        return raw_project_id
     return f"{raw_project_id}_{scope}"
 
 

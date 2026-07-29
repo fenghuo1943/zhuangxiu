@@ -6,6 +6,7 @@ from ..models import User, Project, Budget, BudgetCategory, FlowProgress
 from ..schemas import ProjectCreate, ProjectUpdate, ProjectOut
 from ..auth import get_current_user
 import uuid
+import re
 
 router = APIRouter(prefix="/api/projects", tags=["Projects"])
 
@@ -16,6 +17,11 @@ DEFAULT_CATEGORIES = [
     ("soft", "软装家电", "#be7b2f"),
     ("service", "服务杂项", "#9b928b"),
 ]
+
+
+def _descope(project_id: str) -> str:
+    """Strip one scope suffix (_XXXXXXXX, 8 hex chars) from a project ID."""
+    return re.sub(r'_[0-9a-f]{8}$', '', project_id)
 
 
 async def _init_project_data(db: AsyncSession, project: Project):
@@ -29,7 +35,28 @@ async def _init_project_data(db: AsyncSession, project: Project):
 @router.get("", response_model=list[ProjectOut])
 async def list_projects(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Project).where(Project.user_id == user.id))
-    return result.scalars().all()
+    projects = list(result.scalars().all())
+
+    # Clean up garbage re-scoped projects created by the old double-scoping bug.
+    # A project is garbage when stripping one scope suffix from its ID yields
+    # the ID of *another* project already owned by the same user — that means
+    # it was created by scoping an already-scoped ID.
+    ids = {p.id for p in projects}
+    garbage_ids = set()
+    for p in projects:
+        descoped = _descope(p.id)
+        if descoped != p.id and descoped in ids:
+            garbage_ids.add(p.id)
+
+    if garbage_ids:
+        for gid in garbage_ids:
+            g = next((p for p in projects if p.id == gid), None)
+            if g:
+                await db.delete(g)
+        await db.commit()
+        projects = [p for p in projects if p.id not in garbage_ids]
+
+    return projects
 
 
 @router.post("", response_model=ProjectOut, status_code=201)

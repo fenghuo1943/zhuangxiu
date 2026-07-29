@@ -15,8 +15,15 @@ router = APIRouter(prefix="/api/projects/{project_id}/compare", tags=["Compare"]
 
 
 def _scoped_id(raw_project_id: str, user_id: str) -> str:
-    """将前端项目 ID 作用域化到当前用户。"""
+    """将前端项目 ID 作用域化到当前用户。
+
+    幂等：如果 ID 已经包含当前用户的 scope 后缀则直接返回，
+    避免重复追加（如 p1_b3c9f40b → p1_b3c9f40b 而非 p1_b3c9f40b_b3c9f40b）。
+    """
     scope = user_id.replace("-", "")[:8]
+    suffix = f"_{scope}"
+    if raw_project_id.endswith(suffix):
+        return raw_project_id
     return f"{raw_project_id}_{scope}"
 
 

@@ -25,7 +25,7 @@ import {
   fetchBudget, updateBudgetWithCategories as apiUpdateBudgetWithCategories,
   updateCategoryAllocation as apiUpdateCategoryAllocation,
 } from '../api/budget';
-import { pushState } from '../api/sync';
+import { pushState, listProjects } from '../api/sync';
 
 const STORAGE_KEY = 'xiaozhuangjia_state_v1';
 
@@ -1671,11 +1671,111 @@ export async function migrateLocalDataToServer(userId?: string): Promise<void> {
   }
 }
 
+/** Strip ONE per-user scope suffix from a server project ID.
+ *  The backend scopes IDs as "p1_b3c9f40b" (rawId + _ + 8 hex chars). */
+function descopeProjectId(serverId: string): string {
+  return serverId.replace(/_[0-9a-f]{8}$/, '');
+}
+
+/** Recursively strip scope suffixes until we reach the root (original) ID.
+ *  E.g. p1_b3c9f40b_b3c9f40b → p1_b3c9f40b → p1 */
+function getRootId(id: string): string {
+  let prev = id;
+  let next = descopeProjectId(prev);
+  while (next !== prev) {
+    prev = next;
+    next = descopeProjectId(next);
+  }
+  return prev;
+}
+
+/** Sync project list from server — removes locally-cached projects that were deleted
+ *  elsewhere, and adds projects created on other clients.  Server project IDs are
+ *  descoped before comparison/storage so the local state always holds clean IDs.
+ *
+ *  Garbage multi-scoped IDs (e.g. p1_b3c9f40b_b3c9f40b created by the old bug) are
+ *  collapsed: when several server projects share the same recursive-root ID, only the
+ *  one with the shortest ID is kept. */
+async function syncProjectsFromBackend(): Promise<void> {
+  try {
+    const serverProjects = await listProjects();
+    const localProjects = globalState.projects;
+
+    // Step 1 — dedup server projects by root ID.
+    //   Several projects may be re-scoped copies of the same original (old bug).
+    //   Keep only the shortest-ID entry for each root.
+    const byRoot = new Map<string, typeof serverProjects[0]>();
+    for (const sp of serverProjects) {
+      const root = getRootId(sp.id);
+      const existing = byRoot.get(root);
+      if (!existing || sp.id.length < existing.id.length) {
+        byRoot.set(root, sp);
+      }
+    }
+
+    // Step 2 — normalise to descoped (single-strip) IDs for comparison
+    const serverByBaseId = new Map<string, typeof serverProjects[0]>();
+    for (const [, sp] of byRoot) {
+      const baseId = descopeProjectId(sp.id);
+      if (!serverByBaseId.has(baseId)) serverByBaseId.set(baseId, sp);
+    }
+    const localBaseIds = new Set(localProjects.map(p => descopeProjectId(p.id)));
+
+    // Projects deleted on server
+    const deletedBaseIds = new Set(
+      [...localBaseIds].filter(id => !serverByBaseId.has(id))
+    );
+
+    // Projects created elsewhere
+    const newBaseIds = new Set(
+      [...serverByBaseId.keys()].filter(id => !localBaseIds.has(id))
+    );
+
+    if (deletedBaseIds.size === 0 && newBaseIds.size === 0) return;
+
+    let projects = localProjects.filter(
+      p => !deletedBaseIds.has(descopeProjectId(p.id))
+    );
+
+    for (const baseId of newBaseIds) {
+      const sp = serverByBaseId.get(baseId)!;
+      projects.push({
+        id: baseId,
+        name: sp.name,
+        ownerName: '我',
+        createdAt: new Date().toISOString(),
+        currentStageId: 'stage_prepare',
+      });
+    }
+
+    if (projects.length === 0) {
+      projects = [{
+        id: 'p1',
+        name: '新家装修',
+        ownerName: '我',
+        createdAt: new Date().toISOString(),
+        currentStageId: 'stage_prepare',
+      }];
+    }
+
+    let activeProjectId = descopeProjectId(globalState.activeProjectId);
+    if (deletedBaseIds.has(activeProjectId) || !projects.some(p => p.id === activeProjectId)) {
+      activeProjectId = projects[0].id;
+    }
+
+    globalState = { ...globalState, projects, activeProjectId };
+    persist();
+  } catch {
+    // Server unreachable — keep local data
+  }
+}
+
 /** Call after login to pull server data and merge with local */
 export async function syncFromServerAfterLogin(): Promise<void> {
   if (!isAuthenticated()) return;
 
   try {
+    await syncProjectsFromBackend();
     await loadBudgetAndExpensesFromBackend();
     await loadFlowFromBackend();
     await loadPurchaseReferencesFromBackend();

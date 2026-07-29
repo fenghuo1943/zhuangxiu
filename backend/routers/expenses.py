@@ -20,8 +20,14 @@ LABEL_TO_STATUS = {v: k for k, v in STATUS_LABELS.items()}
 
 
 def _scoped_id(raw_project_id: str, user_id: str) -> str:
-    """Scope a frontend project ID to the current user for data isolation."""
+    """Scope a frontend project ID to the current user for data isolation.
+
+    Idempotent: returns unchanged if already scoped for this user.
+    """
     scope = user_id.replace("-", "")[:8]
+    suffix = f"_{scope}"
+    if raw_project_id.endswith(suffix):
+        return raw_project_id
     return f"{raw_project_id}_{scope}"
 
 
