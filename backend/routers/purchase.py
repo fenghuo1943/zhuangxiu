@@ -345,6 +345,12 @@ async def toggle_purchased(project_id: str, item_id: str, data: TogglePurchasedR
         return TogglePurchasedResponse(purchased=False)
 
     else:
+        # ── PurchasedItem 不存在 ──
+        # 如果没有提供 price（即调用方意图是"取消已购"而非"添加已购"），
+        # 说明 PurchasedItem 已经被删除过了，直接返回 purchased=False
+        if data.price is None and data.category_id is None:
+            return TogglePurchasedResponse(purchased=False)
+
         # ── 添加至已购清单 ──
         # 获取物品信息
         item_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.id == item_id))

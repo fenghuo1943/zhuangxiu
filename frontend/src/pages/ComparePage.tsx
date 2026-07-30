@@ -7,6 +7,7 @@ import {
   selectBestQuote, getModelDisplayPrice, getItemDisplayPrice,
   toggleModelSync, isModelSynced, loadCompareItemsFromBackend,
   isItemPurchased, addCompareToSelected, unpurchaseItem,
+  purchaseItem, getBestQuotePrice,
 } from '../data/store';
 import {
   IconCompare, IconPlus, IconTrash, IconChevronDown,
@@ -553,11 +554,27 @@ const ComparePage: React.FC = () => {
                         // Item is in 待购: show "标记已购" / "✓ 已购"
                         const bestModelId = item.models.find(m => state.bestQuoteIds[m.id])?.id;
                         const synced = bestModelId ? isModelSynced(bestModelId) : false;
+                        const bestPrice = bestModelId ? getBestQuotePrice(bestModelId) : null;
+                        const category = item.category_id || 'hard';
                         return (
                           <button
                             className={`btn btn-sm ${synced ? 'btn-green' : 'btn-outline'}`}
-                            onClick={(e) => { e.stopPropagation(); if (bestModelId) toggleModelSync(bestModelId); }}
-                            title={synced ? '已标记已购，点击取消' : bestModelId ? '标记此物品为已购' : '请先选中最优报价'}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!bestModelId) return;
+                              if (synced) {
+                                // 取消已购：取消同步 + 移回待购（账单改为未支付）
+                                toggleModelSync(bestModelId);
+                                unpurchaseItem(item.item_id, false);
+                              } else {
+                                // 标记已购：创建/更新已支付账单，同步到已购
+                                if (bestPrice) {
+                                  purchaseItem(item.item_id, bestPrice, category);
+                                  toggleModelSync(bestModelId);
+                                }
+                              }
+                            }}
+                            title={synced ? '已标记已购，点击移回待购' : bestModelId ? '标记此物品为已购（将创建已支付账单）' : '请先选中最优报价'}
                             style={{ fontSize: 10 }}
                             disabled={!bestModelId}
                           >

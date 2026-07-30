@@ -374,17 +374,23 @@ async def set_best_quote(project_id: str, model_id: str, data: SetBestQuoteReque
     return {"best_quote_id": data.quote_id}
 
 
-# ── 同步（标记关联物品为已购）──
+# ── 同步（仅管理 SyncedModel 记录，PurchasedItem 由 purchase 路由管理）──
 
 @router.put("/models/{model_id}/sync")
 async def toggle_model_sync(project_id: str, model_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """切换比价型号的同步状态。
+
+    仅管理 SyncedModel 记录（标记哪些型号已从比价同步）。
+    已购物品 (PurchasedItem) 和账单 (Expense) 的创建/修改由
+    /api/projects/{project_id}/purchase/purchased/{item_id} 负责。
+    """
     sid = await _ensure_project(project_id, user, db)
     model_result = await db.execute(select(PriceModel).where(PriceModel.id == model_id, PriceModel.project_id == sid))
     model = model_result.scalar_one_or_none()
     if not model:
         raise HTTPException(status_code=404, detail="型号不存在")
 
-    # 检查 SyncedModel（向后兼容）
+    # 检查 SyncedModel
     result = await db.execute(select(SyncedModel).where(SyncedModel.project_id == sid, SyncedModel.model_id == model_id))
     existing = result.scalar_one_or_none()
     if existing:
@@ -394,19 +400,8 @@ async def toggle_model_sync(project_id: str, model_id: str, user: User = Depends
 
     # 创建同步记录
     db.add(SyncedModel(id=f"sm_{uuid.uuid4().hex[:12]}", project_id=sid, model_id=model_id))
-
-    # 自动标记已购
-    auto_purchased = 0
-    if model.item_id:
-        pur_result = await db.execute(
-            select(PurchasedItem).where(PurchasedItem.project_id == sid, PurchasedItem.item_id == model.item_id)
-        )
-        if not pur_result.scalar_one_or_none():
-            db.add(PurchasedItem(id=f"pi_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=model.item_id))
-            auto_purchased = 1
-
     await db.commit()
-    return {"synced": True, "auto_purchased": auto_purchased}
+    return {"synced": True, "auto_purchased": 0}
 
 
 # ── CSV 导出/导入 ──

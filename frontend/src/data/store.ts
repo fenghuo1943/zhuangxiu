@@ -895,6 +895,18 @@ export function purchaseItem(itemId: string, price: number, categoryId: string):
  *  deleteExpense=false → 移回待购：账单状态改为 unpaid，保留到 selectedExpenseMap
  */
 export function unpurchaseItem(itemId: string, deleteExpense: boolean) {
+  // 检查物品是否确实在已购清单中
+  const wasPurchased = globalState.purchasedItemIds.includes(itemId);
+  if (!wasPurchased) {
+    // 不在已购清单中 —— 只做本地清理，不调后端（避免触发后端的"添加已购"路径）
+    const purchasedExpenseMap = { ...globalState.purchasedExpenseMap };
+    delete purchasedExpenseMap[itemId];
+    globalState = { ...globalState, purchasedExpenseMap };
+    notify();
+    persist();
+    return;
+  }
+
   // Remove from purchasedItemIds
   const purchasedItemIds = globalState.purchasedItemIds.filter(id => id !== itemId);
 
@@ -1693,39 +1705,10 @@ export function toggleModelSync(modelId: string) {
   else set.delete(modelId);
   globalState = { ...globalState, syncedModelIds: Array.from(set) };
 
-  // Find linked purchase item
-  let purchaseItemId: string | null = null;
-  for (const ci of globalState.compareItems) {
-    if (ci.models.some(m => m.id === modelId)) {
-      purchaseItemId = ci.item_id;
-      break;
-    }
-  }
-
-  if (isSyncing) {
-    // Add to purchased
-    if (purchaseItemId) {
-      const purSet = new Set(globalState.purchasedItemIds);
-      purSet.add(purchaseItemId);
-      globalState = { ...globalState, purchasedItemIds: Array.from(purSet) };
-    }
-  } else {
-    // Remove from purchased when unsyncing (only if no other synced models for this item)
-    if (purchaseItemId) {
-      let hasOtherSynced = false;
-      for (const ci of globalState.compareItems) {
-        if (ci.item_id === purchaseItemId) {
-          hasOtherSynced = ci.models.some(m => m.id !== modelId && set.has(m.id));
-          break;
-        }
-      }
-      if (!hasOtherSynced) {
-        const purSet = new Set(globalState.purchasedItemIds);
-        purSet.delete(purchaseItemId);
-        globalState = { ...globalState, purchasedItemIds: Array.from(purSet) };
-      }
-    }
-  }
+  // Note: toggleModelSync 只管理 syncedModelIds（同步标记）和 SyncedModel 表。
+  // PurchasedItem 和 Expense（账单）的创建/修改由 purchaseItem / unpurchaseItem 负责，
+  // 通过 /api/projects/{id}/purchase/purchased/{item_id} 端点处理。
+  // 这避免了两个后端端点同时操作 PurchasedItem 导致的竞态条件。
 
   notify();
   persist();
@@ -1733,11 +1716,6 @@ export function toggleModelSync(modelId: string) {
   if (isAuthenticated()) {
     import('../api/compare').then(({ toggleModelSyncApi }) => {
       toggleModelSyncApi(globalState.activeProjectId, modelId)
-        .then((res) => {
-          if (res.auto_purchased > 0) {
-            loadPurchasedFromBackend();
-          }
-        })
         .catch(() => {});
     });
   }
