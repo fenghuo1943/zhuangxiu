@@ -3,10 +3,12 @@ import AppShell from '../components/layout/AppShell';
 import {
   useStore, togglePurchaseRef, addCustomPurchaseItem,
   deletePurchaseRefItem, updatePurchaseRefQty, isItemPurchased,
-  togglePurchased, toggleModelSync, getBestQuotePrice, updatePurchaseRefItem,
+  toggleModelSync, getBestQuotePrice, updatePurchaseRefItem,
   addPurchaseToCompare, isItemInComparison, getItemBestPrice,
   getItemBestChannel,
+  checkPurchaseReadiness, purchaseItem, getPurchasedExpenseId, unpurchaseItem,
 } from '../data/store';
+import { DEFAULT_BUDGET_CATEGORIES } from '../data/mockData';
 import type { PurchaseReferenceStage, PurchaseReferenceSubgroup, PurchaseReferenceItem } from '../data/types';
 import { getItemCategory } from '../utils/categoryMapping';
 
@@ -106,6 +108,34 @@ const PurchasePage: React.FC = () => {
   const [editShoppingName, setEditShoppingName] = useState('');
   const [editShoppingSpec, setEditShoppingSpec] = useState('');
   const [editShoppingQty, setEditShoppingQty] = useState('');
+
+  // ── Purchase-with-expense modal state ──
+  const [purchaseModal, setPurchaseModal] = useState<{
+    itemId: string;
+    itemName: string;
+    itemSpec: string;
+    needsPrice: boolean;
+    needsCategory: boolean;
+    existingPrice: number | null;
+    existingCategoryId: string | null;
+  } | null>(null);
+  const [purchaseModalPrice, setPurchaseModalPrice] = useState('');
+  const [purchaseModalCategory, setPurchaseModalCategory] = useState('');
+
+  // ── Unpurchase confirmation modal ──
+  const [unpurchaseModal, setUnpurchaseModal] = useState<{
+    itemId: string;
+    itemName: string;
+    hasExpense: boolean;
+  } | null>(null);
+
+  // ── Remove-from-list modal (for purchased items with expense) ──
+  const [removeModal, setRemoveModal] = useState<{
+    itemId: string;
+    itemName: string;
+    isPurchased: boolean;
+    hasExpense: boolean;
+  } | null>(null);
 
   // Toast
   const [toastMsg, setToastMsg] = useState('');
@@ -761,8 +791,23 @@ const PurchasePage: React.FC = () => {
                                           className="fresh-icon-btn"
                                           title="标记已购买"
                                           onClick={() => {
-                                            togglePurchased(item.itemId);
-                                            showToast('已标记为购买');
+                                            const readiness = checkPurchaseReadiness(item.itemId);
+                                            if (readiness.needsPrice || readiness.needsCategory) {
+                                              setPurchaseModal({
+                                                itemId: item.itemId,
+                                                itemName: readiness.itemName,
+                                                itemSpec: readiness.itemSpec,
+                                                needsPrice: readiness.needsPrice,
+                                                needsCategory: readiness.needsCategory,
+                                                existingPrice: readiness.existingPrice,
+                                                existingCategoryId: readiness.existingCategoryId,
+                                              });
+                                              setPurchaseModalPrice(readiness.existingPrice != null ? String(readiness.existingPrice) : '');
+                                              setPurchaseModalCategory(readiness.existingCategoryId || 'hard');
+                                            } else {
+                                              purchaseItem(item.itemId, readiness.existingPrice!, readiness.existingCategoryId!);
+                                              showToast(`已标记购买：${readiness.itemName}`);
+                                            }
                                           }}
                                         >
                                           <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
@@ -773,8 +818,12 @@ const PurchasePage: React.FC = () => {
                                           title="取消已购"
                                           style={{ color: '#e45b3f' }}
                                           onClick={() => {
-                                            togglePurchased(item.itemId);
-                                            showToast('已取消已购标记');
+                                            const expenseId = getPurchasedExpenseId(item.itemId);
+                                            setUnpurchaseModal({
+                                              itemId: item.itemId,
+                                              itemName: item.name,
+                                              hasExpense: !!expenseId,
+                                            });
                                           }}
                                         >
                                           <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10z"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
@@ -783,7 +832,22 @@ const PurchasePage: React.FC = () => {
                                       <button
                                         className="fresh-icon-btn"
                                         title="移出清单"
-                                        onClick={() => handleToggle(item.itemId)}
+                                        onClick={() => {
+                                          const isPur = isItemPurchased(item.itemId);
+                                          const expId = isPur ? getPurchasedExpenseId(item.itemId) : null;
+                                          if (isPur) {
+                                            // Purchased item: ask about expense deletion
+                                            setRemoveModal({
+                                              itemId: item.itemId,
+                                              itemName: item.name,
+                                              isPurchased: true,
+                                              hasExpense: !!expId,
+                                            });
+                                          } else {
+                                            // Not purchased: just remove from list
+                                            handleToggle(item.itemId);
+                                          }
+                                        }}
                                   >
                                     <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>
                                   </button>
@@ -1084,6 +1148,179 @@ const PurchasePage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* ── Purchase Modal (price + category input) ── */}
+      {purchaseModal && (
+        <div className="modal-overlay" onClick={() => setPurchaseModal(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(420px, 100%)' }}>
+            <div className="modal-header">
+              <h3>确认购买信息</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setPurchaseModal(null)} style={{ padding: '2px 8px', fontSize: 16 }}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
+                将 <strong>{purchaseModal.itemName}</strong>
+                {purchaseModal.itemSpec ? `（${purchaseModal.itemSpec}）` : ''} 添加至已购清单
+              </p>
+              {purchaseModal.needsPrice && (
+                <div className="form-group">
+                  <label>请输入价格 (¥)</label>
+                  <input
+                    className="input"
+                    type="number"
+                    placeholder="0.00"
+                    value={purchaseModalPrice}
+                    onChange={e => setPurchaseModalPrice(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') {
+                      const price = parseFloat(purchaseModalPrice);
+                      const category = purchaseModalCategory || 'hard';
+                      if (price > 0) {
+                        purchaseItem(purchaseModal.itemId, price, category);
+                        showToast(`已标记购买：${purchaseModal.itemName}`);
+                        setPurchaseModal(null);
+                      }
+                    }}}
+                    autoFocus
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              )}
+              {purchaseModal.needsCategory && (
+                <div className="form-group">
+                  <label>请选择预算分类</label>
+                  <select
+                    className="input"
+                    value={purchaseModalCategory}
+                    onChange={e => setPurchaseModalCategory(e.target.value)}
+                    style={{ width: '100%' }}
+                  >
+                    {DEFAULT_BUDGET_CATEGORIES.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setPurchaseModal(null)}>取消</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  const price = parseFloat(purchaseModalPrice);
+                  if (!price || price <= 0) {
+                    showToast('请输入有效价格');
+                    return;
+                  }
+                  const category = purchaseModal.needsCategory ? purchaseModalCategory : (purchaseModal.existingCategoryId || 'hard');
+                  purchaseItem(purchaseModal.itemId, price, category);
+                  showToast(`已标记购买：${purchaseModal.itemName}`);
+                  setPurchaseModal(null);
+                }}
+              >
+                确认购买
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Unpurchase Confirmation Modal ── */}
+      {unpurchaseModal && (
+        <div className="modal-overlay" onClick={() => setUnpurchaseModal(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(400px, 100%)' }}>
+            <div className="modal-header">
+              <h3>取消已购标记</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setUnpurchaseModal(null)} style={{ padding: '2px 8px', fontSize: 16 }}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+                确定要取消 <strong>{unpurchaseModal.itemName}</strong> 的已购标记吗？
+              </p>
+              {unpurchaseModal.hasExpense && (
+                <p style={{ fontSize: 13, color: '#e45b3f', marginBottom: 12 }}>
+                  该物品有关联的记账记录，是否同步删除账单？
+                </p>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setUnpurchaseModal(null)}>取消</button>
+              {unpurchaseModal.hasExpense && (
+                <button
+                  className="btn btn-primary"
+                  style={{ background: '#e45b3f', borderColor: '#e45b3f' }}
+                  onClick={() => {
+                    unpurchaseItem(unpurchaseModal.itemId, true);
+                    showToast(`已取消已购并删除账单：${unpurchaseModal.itemName}`);
+                    setUnpurchaseModal(null);
+                  }}
+                >
+                  是，删除账单
+                </button>
+              )}
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  unpurchaseItem(unpurchaseModal.itemId, false);
+                  showToast(`已取消已购标记：${unpurchaseModal.itemName}`);
+                  setUnpurchaseModal(null);
+                }}
+              >
+                {unpurchaseModal.hasExpense ? '否，仅取消标记' : '确认取消'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Remove from List Modal (purchased items) ── */}
+      {removeModal && (
+        <div className="modal-overlay" onClick={() => setRemoveModal(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(400px, 100%)' }}>
+            <div className="modal-header">
+              <h3>移出清单</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setRemoveModal(null)} style={{ padding: '2px 8px', fontSize: 16 }}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>
+                将 <strong>{removeModal.itemName}</strong> 移出清单将同时取消已购标记。
+              </p>
+              {removeModal.hasExpense && (
+                <p style={{ fontSize: 13, color: '#e45b3f', marginBottom: 8 }}>
+                  该物品有关联的记账记录，是否同步删除账单？
+                </p>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setRemoveModal(null)}>取消</button>
+              {removeModal.hasExpense && (
+                <button
+                  className="btn btn-primary"
+                  style={{ background: '#e45b3f', borderColor: '#e45b3f' }}
+                  onClick={() => {
+                    unpurchaseItem(removeModal.itemId, true);
+                    togglePurchaseRef(removeModal.itemId);
+                    showToast(`已移出并删除账单：${removeModal.itemName}`);
+                    setRemoveModal(null);
+                  }}
+                >
+                  是，删除账单
+                </button>
+              )}
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  unpurchaseItem(removeModal.itemId, false);
+                  togglePurchaseRef(removeModal.itemId);
+                  showToast(`已移出清单：${removeModal.itemName}`);
+                  setRemoveModal(null);
+                }}
+              >
+                {removeModal.hasExpense ? '否，仅移出' : '确认移出'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Toast ── */}
       <div

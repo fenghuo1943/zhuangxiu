@@ -154,6 +154,8 @@ class PurchaseRefItem(Base):
     # 预算分类（如 hard/material/equipment/soft/service），NULL = 未分配
     sub_category_id = Column(String(50), nullable=True)
     # 预算子分类（如 shuidian/cizhuan/diban 等），NULL = 未分配
+    price = Column(Float, nullable=True)
+    # 物品价格，在从待购添加至已购时由用户输入并保存
 
     subgroup = relationship("PurchaseRefSubgroup", back_populates="items")
     price_models = relationship("PriceModel", back_populates="purchase_item", cascade="all, delete-orphan")
@@ -175,6 +177,8 @@ class PurchasedItem(Base):
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     item_id = Column(String(36), nullable=False)
+    expense_id = Column(String(36), nullable=True)
+    # 关联的记账记录 ID，从待购添加至已购时自动创建
 
     project = relationship("Project", back_populates="purchased_items")
 

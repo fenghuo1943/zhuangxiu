@@ -130,6 +130,24 @@ async def _migrate_integration(conn):
     except (sqlite3.OperationalError, Exception):
         pass
 
+    # --- v5: add price to purchase_ref_items and expense_id to purchased_items ---
+    try:
+        await conn.run_sync(
+            lambda c: c.exec_driver_sql(
+                "ALTER TABLE purchase_ref_items ADD COLUMN price FLOAT"
+            )
+        )
+    except (sqlite3.OperationalError, Exception):
+        pass
+    try:
+        await conn.run_sync(
+            lambda c: c.exec_driver_sql(
+                "ALTER TABLE purchased_items ADD COLUMN expense_id VARCHAR(36)"
+            )
+        )
+    except (sqlite3.OperationalError, Exception):
+        pass
+
     # --- v4: add budget category/subcategory to purchase items ---
     try:
         await conn.run_sync(

@@ -63,6 +63,7 @@ export interface PurchaseReferenceItem {
   needs_compare?: boolean;
   category_id?: string | null;
   sub_category_id?: string | null;
+  price?: number | null;
 }
 
 export interface PurchaseReferenceSubgroup {
@@ -208,6 +209,7 @@ export interface AppState {
   purchaseReferences: PurchaseReferenceStage[];
   selectedPurchaseIds: string[];
   purchasedItemIds: string[];
+  purchasedExpenseMap: Record<string, string>;  // itemId -> expenseId 关联映射
   expenses: Expense[];
   recentExpenses: Expense[];
   expenseSubCategories: ExpenseSubCategory[];

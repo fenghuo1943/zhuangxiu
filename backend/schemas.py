@@ -166,8 +166,27 @@ class PurchaseRefItemOut(BaseModel):
     needs_compare: bool = False
     category_id: Optional[str] = None
     sub_category_id: Optional[str] = None
+    price: Optional[float] = None
 
     model_config = {"from_attributes": True}
+
+
+class TogglePurchasedRequest(BaseModel):
+    """请求体：切换已购状态时可附带价格和分类"""
+    price: Optional[float] = None
+    category_id: Optional[str] = None
+    delete_expense: Optional[bool] = None  # 取消已购时是否同步删除关联账单
+
+
+class PurchasedItemOut(BaseModel):
+    item_id: str
+    expense_id: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+class TogglePurchasedResponse(BaseModel):
+    purchased: bool
+    expense_id: Optional[str] = None  # 添加至已购时返回关联的账单 ID
 
 class PurchaseRefSubgroupOut(BaseModel):
     name: str

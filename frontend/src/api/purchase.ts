@@ -32,17 +32,23 @@ export async function deletePurchaseItem(projectId: string, itemId: string): Pro
   return apiDelete(`/api/projects/${projectId}/purchase/items/${itemId}`);
 }
 
-/** Get purchased item IDs for a project */
-export async function fetchPurchasedItems(projectId: string): Promise<string[]> {
+/** Get purchased items with expense mapping for a project */
+export async function fetchPurchasedItems(projectId: string): Promise<{ item_id: string; expense_id: string | null }[]> {
   return apiGet(`/api/projects/${projectId}/purchase/purchased`);
 }
 
-/** Toggle an item's purchased status */
+/** Toggle an item's purchased status.
+ *  When adding to purchased, optionally pass price and category_id
+ *  (auto-creates an expense record on the backend).
+ *  When removing from purchased, optionally pass delete_expense to
+ *  also delete the associated expense record.
+ */
 export async function togglePurchasedItem(
   projectId: string,
   itemId: string,
-): Promise<{ purchased: boolean }> {
-  return apiPut(`/api/projects/${projectId}/purchase/purchased/${itemId}`);
+  body?: { price?: number; category_id?: string | null; delete_expense?: boolean },
+): Promise<{ purchased: boolean; expense_id?: string }> {
+  return apiPut(`/api/projects/${projectId}/purchase/purchased/${itemId}`, body || {});
 }
 
 /** Toggle needs_compare flag on a purchase item */

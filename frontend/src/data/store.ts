@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { AppState, Todo, BudgetCategory, Expense, PurchaseItem, CompareItem, PriceModel, ChannelQuote, FlowStep, StageNote, CustomFlowStep, ExpenseSubCategory, ExpenseGroup } from './types';
+import type { AppState, Todo, BudgetCategory, Expense, PurchaseItem, CompareItem, PriceModel, ChannelQuote, FlowStep, StageNote, CustomFlowStep, ExpenseSubCategory, ExpenseGroup, PurchaseReferenceItem } from './types';
 import {
   DEFAULT_STAGES,
   DEFAULT_BUDGET_CATEGORIES,
@@ -45,6 +45,7 @@ function getInitialState(): AppState {
         purchaseReferences: parsed.purchaseReferences || PURCHASE_REFERENCES,
         selectedPurchaseIds: parsed.selectedPurchaseIds || [],
         purchasedItemIds: parsed.purchasedItemIds || [],
+        purchasedExpenseMap: parsed.purchasedExpenseMap || {},
         expenses: parsed.expenses || [],
         recentExpenses: parsed.recentExpenses || [],
         flowType: parsed.flowType || 'new',
@@ -76,6 +77,7 @@ function getInitialState(): AppState {
     purchaseReferences: PURCHASE_REFERENCES,
     selectedPurchaseIds: [],
     purchasedItemIds: [],
+    purchasedExpenseMap: {},
     expenses: [],
     recentExpenses: [],
     flowType: 'new',
@@ -515,6 +517,168 @@ export async function loadPurchaseReferencesFromBackend(): Promise<void> {
 
 // ── Purchased status ──
 
+/** Get item info from purchaseReferences by item ID */
+export function getPurchaseRefItem(itemId: string): PurchaseReferenceItem | undefined {
+  for (const stage of globalState.purchaseReferences) {
+    for (const sub of stage.subs) {
+      const found = sub.items.find(it => it.id === itemId);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+/** Check if an item is ready to be purchased (has price and category).
+ *  Returns what's missing so the UI can prompt the user. */
+export function checkPurchaseReadiness(itemId: string): {
+  needsPrice: boolean;
+  needsCategory: boolean;
+  itemName: string;
+  itemSpec: string;
+  existingPrice: number | null;
+  existingCategoryId: string | null;
+} {
+  const item = getPurchaseRefItem(itemId);
+  const existingPrice = item?.price ?? null;
+  const existingCategoryId = item?.category_id ?? null;
+  return {
+    needsPrice: existingPrice == null,
+    needsCategory: !existingCategoryId,
+    itemName: item?.name || '',
+    itemSpec: item?.spec || '',
+    existingPrice,
+    existingCategoryId,
+  };
+}
+
+/** Get the expense ID associated with a purchased item (if any) */
+export function getPurchasedExpenseId(itemId: string): string | null {
+  return globalState.purchasedExpenseMap[itemId] || null;
+}
+
+/** Purchase an item with price and category — auto-creates an expense record.
+ *  Call this AFTER resolving any missing price/category via UI modals. */
+export function purchaseItem(itemId: string, price: number, categoryId: string): string {
+  const item = getPurchaseRefItem(itemId);
+
+  // 1. Update purchaseReferences with price and category_id
+  const purchaseReferences = globalState.purchaseReferences.map(stage => ({
+    ...stage,
+    subs: stage.subs.map(sub => ({
+      ...sub,
+      items: sub.items.map(it =>
+        it.id === itemId ? { ...it, price, category_id: categoryId } : it
+      ),
+    })),
+  }));
+
+  // 2. Add to purchasedItemIds
+  const purchasedItemIds = [...globalState.purchasedItemIds, itemId];
+
+  // 3. Create expense record locally
+  const today = new Date().toISOString().slice(0, 10);
+  const expenseId = `exp_${Date.now()}`;
+  const noteParts: string[] = [];
+  if (item?.spec) noteParts.push(item.spec);
+  if (item?.qty && item?.unit) noteParts.push(`${item.qty}${item.unit}`);
+  else if (item?.qty) noteParts.push(String(item.qty));
+  const newExpense: Expense = {
+    id: expenseId,
+    projectId: globalState.activeProjectId,
+    title: item?.name || '',
+    amount: price,
+    categoryId: categoryId,
+    subCategoryId: item?.sub_category_id || undefined,
+    date: today,
+    status: 'paid',
+    note: noteParts.join('，') || '',
+    createdAt: new Date().toISOString(),
+  };
+  const expenses = [newExpense, ...globalState.expenses];
+  const recentExpenses = expenses.slice(0, 5);
+
+  // 4. Update budget category spent
+  const categories = globalState.budget.categories.map(c =>
+    c.id === categoryId ? { ...c, spent: c.spent + price } : c
+  );
+
+  // 5. Track expense mapping
+  const purchasedExpenseMap = { ...globalState.purchasedExpenseMap, [itemId]: expenseId };
+
+  globalState = {
+    ...globalState,
+    purchaseReferences,
+    purchasedItemIds,
+    purchasedExpenseMap,
+    expenses,
+    recentExpenses,
+    budget: { ...globalState.budget, categories },
+  };
+  recalculateBudget();
+  notify();
+  persist();
+
+  // 6. Sync to backend
+  if (isAuthenticated()) {
+    import('../api/purchase').then(({ togglePurchasedItem }) => {
+      togglePurchasedItem(globalState.activeProjectId, itemId, {
+        price,
+        category_id: categoryId,
+      }).catch(() => {});
+    });
+  }
+
+  return expenseId;
+}
+
+/** Unpurchase an item, optionally deleting the associated expense record.
+ *  Call this AFTER asking the user about expense deletion via UI modal. */
+export function unpurchaseItem(itemId: string, deleteExpense: boolean) {
+  // Remove from purchasedItemIds
+  const purchasedItemIds = globalState.purchasedItemIds.filter(id => id !== itemId);
+
+  // Handle expense
+  let expenses = globalState.expenses;
+  let categories = globalState.budget.categories;
+  const expenseId = globalState.purchasedExpenseMap[itemId];
+
+  if (deleteExpense && expenseId) {
+    const expense = globalState.expenses.find(e => e.id === expenseId);
+    if (expense) {
+      expenses = expenses.filter(e => e.id !== expenseId);
+      categories = categories.map(c =>
+        c.id === expense.categoryId ? { ...c, spent: Math.max(0, c.spent - expense.amount) } : c
+      );
+    }
+  }
+
+  // Remove from expense map
+  const purchasedExpenseMap = { ...globalState.purchasedExpenseMap };
+  delete purchasedExpenseMap[itemId];
+
+  globalState = {
+    ...globalState,
+    purchasedItemIds,
+    purchasedExpenseMap,
+    expenses,
+    recentExpenses: expenses.slice(0, 5),
+    budget: { ...globalState.budget, categories },
+  };
+  recalculateBudget();
+  notify();
+  persist();
+
+  // Sync to backend
+  if (isAuthenticated()) {
+    import('../api/purchase').then(({ togglePurchasedItem }) => {
+      togglePurchasedItem(globalState.activeProjectId, itemId, {
+        delete_expense: deleteExpense,
+      }).catch(() => {});
+    });
+  }
+}
+
+/** Simple toggle (backward compat — for marking purchased without expense flow) */
 export function togglePurchased(itemId: string) {
   const set = new Set(globalState.purchasedItemIds);
   if (set.has(itemId)) set.delete(itemId);
@@ -539,8 +703,17 @@ export async function loadPurchasedFromBackend(): Promise<void> {
   if (!isAuthenticated()) return;
   try {
     const { fetchPurchasedItems } = await import('../api/purchase');
-    const purIds = await fetchPurchasedItems(globalState.activeProjectId);
-    globalState = { ...globalState, purchasedItemIds: purIds };
+    const items = await fetchPurchasedItems(globalState.activeProjectId);
+    const purchasedItemIds = items.map(it => it.item_id);
+    const purchasedExpenseMap: Record<string, string> = {};
+    for (const it of items) {
+      if (it.expense_id) {
+        purchasedExpenseMap[it.item_id] = it.expense_id;
+      }
+    }
+    // Merge with existing local map (keep local-only entries)
+    const mergedMap = { ...globalState.purchasedExpenseMap, ...purchasedExpenseMap };
+    globalState = { ...globalState, purchasedItemIds, purchasedExpenseMap: mergedMap };
     notify();
     persist();
   } catch { /* backend unreachable */ }

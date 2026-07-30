@@ -3,11 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from ..database import get_db
-from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, SelectedPurchase, PurchasedItem, PriceModel, ChannelQuote, PriceCategory, ProjectCompareItem
-from ..schemas import PurchaseRefStageOut, PurchaseRefSubgroupOut, PurchaseRefItemOut, CustomPurchaseCreate, CompareItemOut, PriceModelOut, ChannelQuoteOut
+from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, SelectedPurchase, PurchasedItem, PriceModel, ChannelQuote, PriceCategory, ProjectCompareItem, Expense, BudgetCategory
+from ..schemas import PurchaseRefStageOut, PurchaseRefSubgroupOut, PurchaseRefItemOut, CustomPurchaseCreate, CompareItemOut, PriceModelOut, ChannelQuoteOut, TogglePurchasedRequest, TogglePurchasedResponse, PurchasedItemOut
 from ..auth import get_current_user
 from sqlalchemy import update
 import uuid
+from datetime import date
 
 router = APIRouter(tags=["Purchase"])
 
@@ -84,6 +85,7 @@ async def get_references(
                     needs_compare=it.id in compare_item_ids,
                     category_id=it.category_id,
                     sub_category_id=it.sub_category_id,
+                    price=it.price,
                 )
                 items.append(item_out)
             if items:
@@ -206,28 +208,112 @@ async def delete_purchase_item(project_id: str, item_id: str, user: User = Depen
 
 # ── 已购状态 ──
 
-@router.get("/api/projects/{project_id}/purchase/purchased", response_model=list[str])
+@router.get("/api/projects/{project_id}/purchase/purchased", response_model=list[PurchasedItemOut])
 async def get_purchased(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     sid = await _ensure_project(project_id, user, db)
     result = await db.execute(select(PurchasedItem).where(PurchasedItem.project_id == sid))
-    return [pi.item_id for pi in result.scalars().all()]
+    return [PurchasedItemOut(item_id=pi.item_id, expense_id=pi.expense_id) for pi in result.scalars().all()]
 
 
-@router.put("/api/projects/{project_id}/purchase/purchased/{item_id}")
-async def toggle_purchased(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+@router.put("/api/projects/{project_id}/purchase/purchased/{item_id}", response_model=TogglePurchasedResponse)
+async def toggle_purchased(project_id: str, item_id: str, data: TogglePurchasedRequest = TogglePurchasedRequest(), user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """切换已购状态。
+
+    添加至已购时：
+    - 如果提供了 price，同步保存到采购参考物品
+    - 如果提供了 category_id，同步保存到采购参考物品
+    - 自动创建一条记账记录（标题=物品名称，日期=今天，备注=物品规格）
+    - 账单分类使用物品的 category_id（优先使用传入的值）
+
+    移出已购时：
+    - 如果 delete_expense=True，同步删除关联的记账记录
+    - 如果 delete_expense=False 或未提供，仅移除已购标记（账单保留）"""
     sid = await _ensure_project(project_id, user, db)
 
     result = await db.execute(select(PurchasedItem).where(PurchasedItem.project_id == sid, PurchasedItem.item_id == item_id))
     existing = result.scalar_one_or_none()
+
     if existing:
+        # ── 移出已购清单 ──
+        expense_id = existing.expense_id
+        if data.delete_expense and expense_id:
+            # 同步删除关联的记账记录
+            exp_result = await db.execute(select(Expense).where(Expense.id == expense_id, Expense.project_id == sid))
+            expense = exp_result.scalar_one_or_none()
+            if expense:
+                if expense.status in ("paid", "prepaid"):
+                    cat_result = await db.execute(select(BudgetCategory).where(BudgetCategory.id == f"{sid}_{expense.category_id}"))
+                    cat = cat_result.scalar_one_or_none()
+                    if cat:
+                        cat.spent = max(0, cat.spent - expense.amount)
+                await db.delete(expense)
+
         await db.delete(existing)
         await db.commit()
-        return {"purchased": False}
+        return TogglePurchasedResponse(purchased=False)
+
     else:
-        pi = PurchasedItem(id=f"pi_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=item_id)
+        # ── 添加至已购清单 ──
+        # 获取物品信息
+        item_result = await db.execute(select(PurchaseRefItem).where(PurchaseRefItem.id == item_id))
+        item = item_result.scalar_one_or_none()
+        if not item:
+            raise HTTPException(status_code=404, detail="物品不存在")
+
+        # 如果传入了 price，保存到物品
+        if data.price is not None:
+            item.price = data.price
+
+        # 如果传入了 category_id，保存到物品
+        if data.category_id is not None:
+            item.category_id = data.category_id
+
+        # 确定账单分类：优先使用传入的，其次使用物品已有的
+        expense_category_id = data.category_id or item.category_id or "hard"
+
+        # 构建备注：规格 + 数量
+        note_parts = []
+        if item.spec:
+            note_parts.append(item.spec)
+        if item.qty and item.unit:
+            note_parts.append(f"{item.qty}{item.unit}")
+        elif item.qty:
+            note_parts.append(str(item.qty))
+
+        # 创建记账记录
+        expense_id = f"exp_{uuid.uuid4().hex[:12]}"
+        expense = Expense(
+            id=expense_id,
+            project_id=sid,
+            title=item.name,
+            amount=data.price or item.price or 0,
+            category_id=expense_category_id,
+            sub_category_id=item.sub_category_id,
+            stage_id=None,
+            date=date.today(),
+            status="paid",
+            payer=None,
+            note="，".join(note_parts) if note_parts else "",
+        )
+        db.add(expense)
+
+        # 更新预算已花费
+        if expense.status in ("paid", "prepaid") and expense.amount > 0:
+            cat_result = await db.execute(select(BudgetCategory).where(BudgetCategory.id == f"{sid}_{expense_category_id}"))
+            cat = cat_result.scalar_one_or_none()
+            if cat:
+                cat.spent += expense.amount
+
+        # 创建已购记录
+        pi = PurchasedItem(
+            id=f"pi_{uuid.uuid4().hex[:12]}",
+            project_id=sid,
+            item_id=item_id,
+            expense_id=expense_id,
+        )
         db.add(pi)
         await db.commit()
-        return {"purchased": True}
+        return TogglePurchasedResponse(purchased=True, expense_id=expense_id)
 
 
 # ── 比价开关（使用 ProjectCompareItem 表）──
