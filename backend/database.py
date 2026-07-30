@@ -158,6 +158,16 @@ async def _migrate_integration(conn):
     except (sqlite3.OperationalError, Exception):
         pass
 
+    # --- v7: add best_quote_id to price_models (persist best quote selection) ---
+    try:
+        await conn.run_sync(
+            lambda c: c.exec_driver_sql(
+                "ALTER TABLE price_models ADD COLUMN best_quote_id VARCHAR(36)"
+            )
+        )
+    except (sqlite3.OperationalError, Exception):
+        pass
+
     # --- v4: add budget category/subcategory to purchase items ---
     try:
         await conn.run_sync(

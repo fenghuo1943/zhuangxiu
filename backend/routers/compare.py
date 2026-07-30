@@ -5,11 +5,11 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from ..database import get_db
-from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, PriceModel, ChannelQuote, SyncedModel, SelectedPurchase, PurchasedItem, ProjectCompareItem
+from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, PriceModel, ChannelQuote, SyncedModel, SelectedPurchase, PurchasedItem, ProjectCompareItem, Expense, BudgetCategory
 from ..schemas import PriceModelCreate, PriceModelOut, ChannelQuoteCreate, ChannelQuoteOut, SetBestQuoteRequest, CompareItemOut, CustomPurchaseCreate
 from ..auth import get_current_user
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 router = APIRouter(prefix="/api/projects/{project_id}/compare", tags=["Compare"])
 
@@ -56,7 +56,7 @@ def _build_model_out(m: PriceModel, quotes: list[ChannelQuote]) -> PriceModelOut
     return PriceModelOut(
         id=m.id, item_id=m.item_id, project_id=m.project_id,
         name=m.name, spec=m.spec, note=m.note, quantity=m.quantity,
-        best_quote_id=None, quotes=[ChannelQuoteOut.model_validate(q) for q in quotes],
+        best_quote_id=m.best_quote_id, quotes=[ChannelQuoteOut.model_validate(q) for q in quotes],
     )
 
 
@@ -294,9 +294,83 @@ async def set_best_quote(project_id: str, model_id: str, data: SetBestQuoteReque
 
     if data.quote_id:
         quote_result = await db.execute(select(ChannelQuote).where(ChannelQuote.id == data.quote_id, ChannelQuote.model_id == model_id))
-        if not quote_result.scalar_one_or_none():
+        quote = quote_result.scalar_one_or_none()
+        if not quote:
             raise HTTPException(status_code=404, detail="报价不存在")
 
+        # 保存最优报价到型号（持久化，跨客户端同步）
+        model.best_quote_id = data.quote_id
+
+        # 清除同一物品下其他型号的最优报价（一个物品只有一个最优报价）
+        if model.item_id:
+            other_models_result = await db.execute(
+                select(PriceModel).where(
+                    PriceModel.item_id == model.item_id,
+                    PriceModel.project_id == sid,
+                    PriceModel.id != model_id,
+                    PriceModel.best_quote_id != None,
+                )
+            )
+            for other in other_models_result.scalars().all():
+                other.best_quote_id = None
+
+        # 若该物品已在待购清单中且有报价价格，创建/更新未支付账单
+        # 这样待购流程通过 SelectedPurchase.expense_id 即可判断是否需要输入价格
+        if model.item_id and quote.price is not None:
+            sel_result = await db.execute(
+                select(SelectedPurchase).where(
+                    SelectedPurchase.project_id == sid,
+                    SelectedPurchase.item_id == model.item_id,
+                )
+            )
+            sel = sel_result.scalar_one_or_none()
+            if sel:
+                # 获取物品信息用于构建账单备注
+                item_result = await db.execute(
+                    select(PurchaseRefItem).where(PurchaseRefItem.id == model.item_id)
+                )
+                item = item_result.scalar_one_or_none()
+
+                if sel.expense_id:
+                    # 已有待购账单 → 更新金额
+                    exp_result = await db.execute(
+                        select(Expense).where(Expense.id == sel.expense_id, Expense.project_id == sid)
+                    )
+                    existing_expense = exp_result.scalar_one_or_none()
+                    if existing_expense:
+                        existing_expense.amount = quote.price
+                else:
+                    # 没有待购账单 → 创建新的未支付账单
+                    note_parts = []
+                    if item:
+                        if item.spec:
+                            note_parts.append(item.spec)
+                        if item.qty and item.unit:
+                            note_parts.append(f"{item.qty}{item.unit}")
+                        elif item.qty:
+                            note_parts.append(str(item.qty))
+
+                    expense_id = f"exp_{uuid.uuid4().hex[:12]}"
+                    expense = Expense(
+                        id=expense_id,
+                        project_id=sid,
+                        title=item.name if item else "",
+                        amount=quote.price,
+                        category_id=item.category_id if item and item.category_id else "hard",
+                        sub_category_id=item.sub_category_id if item else None,
+                        stage_id=None,
+                        date=date.today(),
+                        status="unpaid",  # 待购状态，未支付
+                        payer=None,
+                        note="，".join(note_parts) if note_parts else "",
+                    )
+                    db.add(expense)
+                    sel.expense_id = expense_id
+    else:
+        # 取消最优报价 → 不清除已创建的账单（账单可能已被用户手动管理）
+        model.best_quote_id = None
+
+    await db.commit()
     return {"best_quote_id": data.quote_id}
 
 

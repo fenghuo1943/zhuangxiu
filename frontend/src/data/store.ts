@@ -701,7 +701,13 @@ export function getPurchaseRefItem(itemId: string): PurchaseReferenceItem | unde
 }
 
 /** Check if an item is ready to be purchased (has price and category).
- *  Returns what's missing so the UI can prompt the user. */
+ *  Returns what's missing so the UI can prompt the user.
+ *
+ *  价格检测优先级：
+ *  1. SelectedPurchase.expense_id → 待购时自动创建的未支付账单金额
+ *  2. bestQuoteIds + compareItems → 比价页面选中的最优报价
+ *  3. PurchaseRefItem.price → 项目专属物品手动设置的价格（向后兼容）
+ */
 export function checkPurchaseReadiness(itemId: string): {
   needsPrice: boolean;
   needsCategory: boolean;
@@ -711,7 +717,30 @@ export function checkPurchaseReadiness(itemId: string): {
   existingCategoryId: string | null;
 } {
   const item = getPurchaseRefItem(itemId);
-  const existingPrice = item?.price ?? null;
+
+  // 1. 检查是否有待购账单（通过 SelectedPurchase.expense_id）
+  const expenseId = globalState.selectedExpenseMap[itemId];
+  let existingPrice: number | null = null;
+  if (expenseId) {
+    const expense = globalState.expenses.find(e => e.id === expenseId);
+    if (expense) {
+      existingPrice = expense.amount;
+    }
+  }
+
+  // 2. 若没有待购账单，检查比价最优报价
+  if (existingPrice == null) {
+    const bestPrice = getItemBestPrice(itemId);
+    if (bestPrice !== null) {
+      existingPrice = bestPrice;
+    }
+  }
+
+  // 3. 向后兼容：检查物品自带价格（项目专属物品）
+  if (existingPrice == null) {
+    existingPrice = item?.price ?? null;
+  }
+
   const existingCategoryId = item?.category_id ?? null;
   return {
     needsPrice: existingPrice == null,
@@ -861,7 +890,10 @@ export function purchaseItem(itemId: string, price: number, categoryId: string):
 }
 
 /** Unpurchase an item, optionally deleting the associated expense record.
- *  Call this AFTER asking the user about expense deletion via UI modal. */
+ *
+ *  deleteExpense=true  → 删除关联账单（用于"移出清单"）
+ *  deleteExpense=false → 移回待购：账单状态改为 unpaid，保留到 selectedExpenseMap
+ */
 export function unpurchaseItem(itemId: string, deleteExpense: boolean) {
   // Remove from purchasedItemIds
   const purchasedItemIds = globalState.purchasedItemIds.filter(id => id !== itemId);
@@ -870,8 +902,10 @@ export function unpurchaseItem(itemId: string, deleteExpense: boolean) {
   let expenses = globalState.expenses;
   let categories = globalState.budget.categories;
   const expenseId = globalState.purchasedExpenseMap[itemId];
+  let selectedExpenseMap = { ...globalState.selectedExpenseMap };
 
   if (deleteExpense && expenseId) {
+    // ── 删除账单 ──
     const expense = globalState.expenses.find(e => e.id === expenseId);
     if (expense) {
       expenses = expenses.filter(e => e.id !== expenseId);
@@ -879,9 +913,26 @@ export function unpurchaseItem(itemId: string, deleteExpense: boolean) {
         c.id === expense.categoryId ? { ...c, spent: Math.max(0, c.spent - expense.amount) } : c
       );
     }
+  } else if (!deleteExpense && expenseId) {
+    // ── 移回待购：账单状态改为未支付，保留到 selectedExpenseMap ──
+    const expense = globalState.expenses.find(e => e.id === expenseId);
+    if (expense) {
+      // 从预算中减去（已支付 → 未支付）
+      if (expense.status === 'paid' || expense.status === 'prepaid') {
+        categories = categories.map(c =>
+          c.id === expense.categoryId ? { ...c, spent: Math.max(0, c.spent - expense.amount) } : c
+        );
+      }
+      // 更新账单状态
+      expenses = expenses.map(e =>
+        e.id === expenseId ? { ...e, status: 'unpaid' as const } : e
+      );
+      // 移到待购账单映射
+      selectedExpenseMap = { ...selectedExpenseMap, [itemId]: expenseId };
+    }
   }
 
-  // Remove from expense map
+  // Remove from purchased expense map
   const purchasedExpenseMap = { ...globalState.purchasedExpenseMap };
   delete purchasedExpenseMap[itemId];
 
@@ -889,6 +940,7 @@ export function unpurchaseItem(itemId: string, deleteExpense: boolean) {
     ...globalState,
     purchasedItemIds,
     purchasedExpenseMap,
+    selectedExpenseMap,
     expenses,
     recentExpenses: expenses.slice(0, 5),
     budget: { ...globalState.budget, categories },
@@ -966,7 +1018,23 @@ export async function loadCompareItemsFromBackend(): Promise<void> {
   try {
     const { fetchCompareItems } = await import('../api/compare');
     const items = await fetchCompareItems(globalState.activeProjectId);
-    globalState = { ...globalState, compareItems: items.map(_normalizeStoredCompareItem) };
+    const normalizedItems = items.map(_normalizeStoredCompareItem);
+
+    // 从后端数据重建 bestQuoteIds（持久化的最优报价选择，跨客户端同步）
+    const bestQuoteIds: Record<string, string> = { ...globalState.bestQuoteIds };
+    for (const ci of normalizedItems) {
+      for (const model of ci.models) {
+        if (model.best_quote_id) {
+          bestQuoteIds[model.id] = model.best_quote_id;
+        }
+      }
+    }
+
+    globalState = {
+      ...globalState,
+      compareItems: normalizedItems,
+      bestQuoteIds,
+    };
     notify();
     persist();
   } catch { /* backend unreachable */ }
@@ -1448,17 +1516,32 @@ export function updateChannelQuote(quoteId: string, updates: { channel?: string;
 
 export function selectBestQuote(modelId: string, quoteId: string | null) {
   const bestQuoteIds = { ...globalState.bestQuoteIds };
+  let expenses = globalState.expenses;
+  let selectedExpenseMap = { ...globalState.selectedExpenseMap };
+
   if (quoteId === null) {
     delete bestQuoteIds[modelId];
   } else {
-    // Clear best quotes from all other models in the same item (one-best-per-item)
+    // Find the item ID and quote price for this model
     let itemId: string | null = null;
+    let quotePrice: number | null = null;
+    let quoteChannel: string | undefined;
     for (const ci of globalState.compareItems) {
-      if (ci.models.some(m => m.id === modelId)) {
-        itemId = ci.item_id;
-        break;
+      for (const m of ci.models) {
+        if (m.id === modelId) {
+          itemId = ci.item_id;
+          const quote = m.channelQuotes.find(q => q.id === quoteId);
+          if (quote && quote.price !== undefined && quote.price !== null) {
+            quotePrice = quote.price;
+            quoteChannel = quote.channel;
+          }
+          break;
+        }
       }
+      if (itemId) break;
     }
+
+    // Clear best quotes from all other models in the same item (one-best-per-item)
     if (itemId) {
       for (const ci of globalState.compareItems) {
         if (ci.item_id === itemId) {
@@ -1470,8 +1553,50 @@ export function selectBestQuote(modelId: string, quoteId: string | null) {
       }
     }
     bestQuoteIds[modelId] = quoteId;
+
+    // ── 若物品在待购清单中且有报价价格，创建/更新未支付账单 ──
+    // 通过 SelectedPurchase.expense_id 关联，checkPurchaseReadiness 据此判断是否需要输入价格
+    if (itemId && quotePrice !== null && globalState.selectedPurchaseIds.includes(itemId)) {
+      const existingExpenseId = selectedExpenseMap[itemId];
+      if (existingExpenseId) {
+        // 已有待购账单 → 更新金额
+        expenses = expenses.map(e =>
+          e.id === existingExpenseId ? { ...e, amount: quotePrice } : e
+        );
+      } else {
+        // 没有待购账单 → 创建新的未支付账单
+        const item = getPurchaseRefItem(itemId);
+        const today = new Date().toISOString().slice(0, 10);
+        const expenseId = `exp_${Date.now()}`;
+        const noteParts: string[] = [];
+        if (item?.spec) noteParts.push(item.spec);
+        if (item?.qty && item?.unit) noteParts.push(`${item.qty}${item.unit}`);
+        else if (item?.qty) noteParts.push(String(item.qty));
+        const newExpense: Expense = {
+          id: expenseId,
+          projectId: globalState.activeProjectId,
+          title: item?.name || '',
+          amount: quotePrice,
+          categoryId: item?.category_id || 'hard',
+          subCategoryId: item?.sub_category_id || undefined,
+          date: today,
+          status: 'unpaid',
+          note: noteParts.join('，') || '',
+          createdAt: new Date().toISOString(),
+        };
+        expenses = [newExpense, ...expenses];
+        selectedExpenseMap = { ...selectedExpenseMap, [itemId]: expenseId };
+      }
+    }
   }
-  globalState = { ...globalState, bestQuoteIds };
+
+  globalState = {
+    ...globalState,
+    bestQuoteIds,
+    expenses,
+    recentExpenses: expenses.slice(0, 5),
+    selectedExpenseMap,
+  };
   notify();
   persist();
 

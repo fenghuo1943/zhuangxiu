@@ -1277,43 +1277,30 @@ const PurchasePage: React.FC = () => {
         <div className="modal-overlay" onClick={() => setUnpurchaseModal(null)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(400px, 100%)' }}>
             <div className="modal-header">
-              <h3>取消已购标记</h3>
+              <h3>移回待购</h3>
               <button className="btn btn-ghost btn-sm" onClick={() => setUnpurchaseModal(null)} style={{ padding: '2px 8px', fontSize: 16 }}>✕</button>
             </div>
             <div className="modal-body">
               <p style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
-                确定要取消 <strong>{unpurchaseModal.itemName}</strong> 的已购标记吗？
+                确定要将 <strong>{unpurchaseModal.itemName}</strong> 移回待购清单吗？
               </p>
               {unpurchaseModal.hasExpense && (
-                <p style={{ fontSize: 13, color: '#e45b3f', marginBottom: 12 }}>
-                  该物品有关联的记账记录，是否同步删除账单？
+                <p style={{ fontSize: 13, color: '#5c7fa8', marginBottom: 12 }}>
+                  ℹ 关联账单将自动改为<strong>未付款</strong>状态，账单不会被删除。
                 </p>
               )}
             </div>
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setUnpurchaseModal(null)}>取消</button>
-              {unpurchaseModal.hasExpense && (
-                <button
-                  className="btn btn-primary"
-                  style={{ background: '#e45b3f', borderColor: '#e45b3f' }}
-                  onClick={() => {
-                    unpurchaseItem(unpurchaseModal.itemId, true);
-                    showToast(`已取消已购并删除账单：${unpurchaseModal.itemName}`);
-                    setUnpurchaseModal(null);
-                  }}
-                >
-                  是，删除账单
-                </button>
-              )}
               <button
-                className="btn btn-ghost"
+                className="btn btn-primary"
                 onClick={() => {
                   unpurchaseItem(unpurchaseModal.itemId, false);
-                  showToast(`已取消已购标记：${unpurchaseModal.itemName}`);
+                  showToast(`已移回待购：${unpurchaseModal.itemName}`);
                   setUnpurchaseModal(null);
                 }}
               >
-                {unpurchaseModal.hasExpense ? '否，仅取消标记' : '确认取消'}
+                确认移回待购
               </button>
             </div>
           </div>

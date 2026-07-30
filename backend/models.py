@@ -228,6 +228,8 @@ class PriceModel(Base):
     spec = Column(String(100), nullable=True)
     note = Column(String(200), nullable=True)
     quantity = Column(Integer, default=1)
+    best_quote_id = Column(String(36), nullable=True)
+    # 最优报价 ID，在比价页面选中某个报价后持久化
 
     category = relationship("PriceCategory", back_populates="models", foreign_keys=[category_id])
     purchase_item = relationship("PurchaseRefItem", back_populates="price_models", foreign_keys=[item_id])

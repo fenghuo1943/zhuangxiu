@@ -312,6 +312,33 @@ async def toggle_purchased(project_id: str, item_id: str, data: TogglePurchasedR
                     if cat:
                         cat.spent = max(0, cat.spent - expense.amount)
                 await db.delete(expense)
+        elif expense_id:
+            # ── 移回待购：账单状态改为未支付，保留账单 ──
+            exp_result = await db.execute(select(Expense).where(Expense.id == expense_id, Expense.project_id == sid))
+            expense = exp_result.scalar_one_or_none()
+            if expense:
+                # 从已支付改为未支付，调整预算（减少已花费）
+                if expense.status in ("paid", "prepaid"):
+                    cat_result = await db.execute(select(BudgetCategory).where(BudgetCategory.id == f"{sid}_{expense.category_id}"))
+                    cat = cat_result.scalar_one_or_none()
+                    if cat:
+                        cat.spent = max(0, cat.spent - expense.amount)
+                expense.status = "unpaid"
+            # 重建 SelectedPurchase.expense_id 关联（移回待购后通过此字段识别已有价格）
+            sel_result = await db.execute(
+                select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id)
+            )
+            sel = sel_result.scalar_one_or_none()
+            if sel:
+                sel.expense_id = expense_id
+            elif expense:
+                # 待购记录不存在（可能被手动删除），重新创建
+                db.add(SelectedPurchase(
+                    id=f"sp_{uuid.uuid4().hex[:12]}",
+                    project_id=sid,
+                    item_id=item_id,
+                    expense_id=expense_id,
+                ))
 
         await db.delete(existing)
         await db.commit()
