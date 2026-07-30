@@ -264,7 +264,7 @@ async def delete_model(project_id: str, model_id: str, user: User = Depends(get_
 async def create_quote(project_id: str, model_id: str, data: ChannelQuoteCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await _verify_owner(project_id, user, db)
     quote = ChannelQuote(id=f"ch_{uuid.uuid4().hex[:12]}", model_id=model_id,
-        channel=data.channel, price=data.price, url=data.url, updated_at=datetime.now(timezone.utc))
+        channel=data.channel, price=data.price, url=data.url, note=data.note, updated_at=datetime.now(timezone.utc))
     db.add(quote)
     await db.commit()
     await db.refresh(quote)

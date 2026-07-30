@@ -199,10 +199,10 @@ const ComparePage: React.FC = () => {
         rows.push(`"${item.item_name}","${item.spec || ''}","${item.stage_parent || ''}","${item.subgroup_name || ''}",${item.qty},,,--,`);
       }
       item.models.forEach(m => {
-        if (m.channelQuotes.length === 0) {
+        if ((m.channelQuotes || []).length === 0) {
           rows.push(`"${item.item_name}","${item.spec || ''}","${item.stage_parent || ''}","${item.subgroup_name || ''}",${item.qty},"${m.name}","${m.note || ''}",,--`);
         } else {
-          m.channelQuotes.forEach(q => {
+          (m.channelQuotes || []).forEach(q => {
             rows.push(`"${item.item_name}","${item.spec || ''}","${item.stage_parent || ''}","${item.subgroup_name || ''}",${item.qty},"${m.name}","${m.note || ''}","${q.channel}",${q.price ?? ''}`);
           });
         }
@@ -531,7 +531,7 @@ const ComparePage: React.FC = () => {
                             )}
                             <div className="compare-prod-actions">
                               {displayPrice && <span className="compare-prod-lowest">{displayPrice}</span>}
-                              <span className="badge badge-default" style={{ fontSize: 10 }}>{model.channelQuotes.length} 报价</span>
+                              <span className="badge badge-default" style={{ fontSize: 10 }}>{(model.channelQuotes || []).length} 报价</span>
                               <button className="fresh-icon-btn" onClick={() => startEditModel(model)} title="编辑" style={{ width: 22, height: 22 }}>
                                 <IconEdit size={12} />
                               </button>
@@ -546,7 +546,7 @@ const ComparePage: React.FC = () => {
 
                           {quotesOpen && (
                             <div className="compare-prod-bd">
-                              {model.channelQuotes.map(quote => {
+                              {(model.channelQuotes || []).map(quote => {
                                 const isBest = state.bestQuoteIds[model.id] === quote.id;
                                 return (
                                 <div key={quote.id} className={`compare-quote-row${isBest ? ' best' : ''}`}>
@@ -595,7 +595,7 @@ const ComparePage: React.FC = () => {
                                   </div>
                                 </div>
                               );})}
-                              {model.channelQuotes.length === 0 && (
+                              {(model.channelQuotes || []).length === 0 && (
                                 <div style={{ fontSize: 11, color: 'var(--fresh-muted)', padding: '4px 0' }}>暂无报价，点击下方添加</div>
                               )}
                               <div className="compare-add-quote-row">

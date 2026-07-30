@@ -22,6 +22,24 @@ export async function toggleModelSyncApi(
   return apiPut(`/api/projects/${projectId}/compare/models/${modelId}/sync`);
 }
 
+/** Create a price model for an item */
+export async function createModelApi(
+  projectId: string,
+  itemId: string,
+  data: { name: string; spec?: string; note?: string; quantity?: number },
+): Promise<import('../data/types').PriceModel> {
+  return apiPost(`/api/projects/${projectId}/compare/items/${itemId}/models`, data);
+}
+
+/** Create a channel quote for a model */
+export async function createQuoteApi(
+  projectId: string,
+  modelId: string,
+  data: { channel: string; price?: number; url?: string; note?: string },
+): Promise<import('../data/types').ChannelQuote> {
+  return apiPost(`/api/projects/${projectId}/compare/models/${modelId}/quotes`, data);
+}
+
 /** Set best quote for a model (persisted to backend) */
 export async function setBestQuoteApi(
   projectId: string,

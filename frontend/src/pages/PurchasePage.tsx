@@ -251,7 +251,7 @@ const PurchasePage: React.FC = () => {
         if (state.syncedModelIds.includes(model.id)) {
           const bestPrice = getBestQuotePrice(model.id);
           const bestQuoteId = state.bestQuoteIds[model.id];
-          const bestQuote = bestQuoteId ? model.channelQuotes.find(q => q.id === bestQuoteId) : null;
+          const bestQuote = bestQuoteId ? (model.channelQuotes || []).find(q => q.id === bestQuoteId) : null;
           models.push({
             modelId: model.id,
             modelName: model.name,
@@ -289,7 +289,7 @@ const PurchasePage: React.FC = () => {
             bestPrice = bp;
             const bestQuoteId = state.bestQuoteIds[model.id];
             if (bestQuoteId) {
-              bestChannel = model.channelQuotes.find(q => q.id === bestQuoteId)?.channel;
+              bestChannel = (model.channelQuotes || []).find(q => q.id === bestQuoteId)?.channel;
             }
             bestModelId = model.id;
           }

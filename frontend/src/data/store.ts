@@ -29,6 +29,39 @@ import { pushState, listProjects } from '../api/sync';
 
 const STORAGE_KEY = 'xiaozhuangjia_state_v1';
 
+/** Normalize a single compare item from storage (handles both backend "quotes" and frontend "channelQuotes" formats) */
+function _normalizeStoredCompareItem(item: any): CompareItem {
+  return {
+    item_id: item.item_id,
+    item_name: item.item_name,
+    spec: item.spec,
+    qty: item.qty,
+    unit: item.unit,
+    stage_parent: item.stage_parent,
+    subgroup_name: item.subgroup_name,
+    category_id: item.category_id,
+    sub_category_id: item.sub_category_id,
+    models: (item.models || []).map((m: any) => ({
+      id: m.id,
+      item_id: m.item_id,
+      project_id: m.project_id,
+      name: m.name,
+      spec: m.spec,
+      note: m.note,
+      quantity: m.quantity,
+      best_quote_id: m.best_quote_id,
+      channelQuotes: (m.channelQuotes || m.quotes || []).map((q: any) => ({
+        id: q.id,
+        channel: q.channel,
+        price: q.price,
+        url: q.url,
+        note: q.note,
+        updatedAt: q.updatedAt || q.updated_at,
+      })),
+    })),
+  };
+}
+
 function getInitialState(): AppState {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -57,7 +90,7 @@ function getInitialState(): AppState {
         flowStepsFromBackend: parsed.flowStepsFromBackend || {},
         syncedModelIds: parsed.syncedModelIds || [],
         bestQuoteIds: parsed.bestQuoteIds || {},
-        compareItems: parsed.compareItems || [],
+        compareItems: (parsed.compareItems || []).map(_normalizeStoredCompareItem),
         projectCompareItemIds: parsed.projectCompareItemIds || [],
         projectStates: parsed.projectStates || {},
         expenseSubCategories: parsed.expenseSubCategories || DEFAULT_SUB_CATEGORIES,
@@ -933,7 +966,7 @@ export async function loadCompareItemsFromBackend(): Promise<void> {
   try {
     const { fetchCompareItems } = await import('../api/compare');
     const items = await fetchCompareItems(globalState.activeProjectId);
-    globalState = { ...globalState, compareItems: items };
+    globalState = { ...globalState, compareItems: items.map(_normalizeStoredCompareItem) };
     notify();
     persist();
   } catch { /* backend unreachable */ }
@@ -1237,8 +1270,9 @@ export function removeCompareItem(itemId: string) {
 }
 
 export function addPriceModel(itemId: string, name: string, spec?: string, note?: string, quantity?: number) {
+  const tempId = `pm_${Date.now()}`;
   const model: PriceModel = {
-    id: `pm_${Date.now()}`,
+    id: tempId,
     item_id: itemId,
     name,
     spec: spec || '',
@@ -1252,6 +1286,44 @@ export function addPriceModel(itemId: string, name: string, spec?: string, note?
   globalState = { ...globalState, compareItems };
   notify();
   persist();
+
+  // Sync to backend if authenticated
+  if (isAuthenticated()) {
+    import('../api/compare').then(({ createModelApi }) => {
+      createModelApi(globalState.activeProjectId, itemId, {
+        name, spec: spec || '', note: note || '', quantity: quantity || 1,
+      }).then((backendModel) => {
+        // Replace temp model with backend-returned model (real ID)
+        const updatedCompareItems = globalState.compareItems.map(c => ({
+          ...c,
+          models: c.models.map(m =>
+            m.id === tempId ? {
+              id: backendModel.id,
+              item_id: backendModel.item_id || itemId,
+              project_id: backendModel.project_id,
+              name: backendModel.name,
+              spec: backendModel.spec || '',
+              note: backendModel.note || '',
+              quantity: backendModel.quantity || 1,
+              best_quote_id: backendModel.best_quote_id,
+              channelQuotes: (backendModel.quotes || []).map((q: any) => ({
+                id: q.id,
+                channel: q.channel,
+                price: q.price,
+                url: q.url,
+                note: q.note,
+                updatedAt: q.updated_at,
+              })),
+            } : m
+          ),
+        }));
+        globalState = { ...globalState, compareItems: updatedCompareItems };
+        notify();
+        persist();
+      }).catch(() => {});
+    });
+  }
+
   return model;
 }
 
@@ -1284,8 +1356,9 @@ export function updatePriceModel(modelId: string, updates: { name?: string; spec
 }
 
 export function addChannelQuote(modelId: string, channel: string, price?: number, note?: string, url?: string) {
+  const tempId = `ch_${Date.now()}`;
   const quote: ChannelQuote = {
-    id: `ch_${Date.now()}`,
+    id: tempId,
     channel,
     price,
     note,
@@ -1295,12 +1368,45 @@ export function addChannelQuote(modelId: string, channel: string, price?: number
   const compareItems = globalState.compareItems.map(c => ({
     ...c,
     models: c.models.map(m =>
-      m.id === modelId ? { ...m, channelQuotes: [...m.channelQuotes, quote] } : m
+      m.id === modelId ? { ...m, channelQuotes: [...(m.channelQuotes || []), quote] } : m
     ),
   }));
   globalState = { ...globalState, compareItems };
   notify();
   persist();
+
+  // Sync to backend if authenticated
+  if (isAuthenticated()) {
+    import('../api/compare').then(({ createQuoteApi }) => {
+      createQuoteApi(globalState.activeProjectId, modelId, {
+        channel, price, url, note,
+      }).then((backendQuote) => {
+        // Replace temp quote with backend-returned quote (real ID)
+        const updatedCompareItems = globalState.compareItems.map(c => ({
+          ...c,
+          models: c.models.map(m =>
+            m.id === modelId ? {
+              ...m,
+              channelQuotes: (m.channelQuotes || []).map(q =>
+                q.id === tempId ? {
+                  id: backendQuote.id,
+                  channel: backendQuote.channel,
+                  price: backendQuote.price,
+                  url: backendQuote.url,
+                  note: backendQuote.note,
+                  updatedAt: backendQuote.updated_at || backendQuote.updatedAt,
+                } : q
+              ),
+            } : m
+          ),
+        }));
+        globalState = { ...globalState, compareItems: updatedCompareItems };
+        notify();
+        persist();
+      }).catch(() => {});
+    });
+  }
+
   return quote;
 }
 
@@ -1308,7 +1414,7 @@ export function deleteChannelQuote(modelId: string, quoteId: string) {
   const compareItems = globalState.compareItems.map(c => ({
     ...c,
     models: c.models.map(m =>
-      m.id === modelId ? { ...m, channelQuotes: m.channelQuotes.filter(q => q.id !== quoteId) } : m
+      m.id === modelId ? { ...m, channelQuotes: (m.channelQuotes || []).filter(q => q.id !== quoteId) } : m
     ),
   }));
   const bestQuoteIds = { ...globalState.bestQuoteIds };
@@ -1330,7 +1436,7 @@ export function updateChannelQuote(quoteId: string, updates: { channel?: string;
     ...c,
     models: c.models.map(m => ({
       ...m,
-      channelQuotes: m.channelQuotes.map(q =>
+      channelQuotes: (m.channelQuotes || []).map(q =>
         q.id === quoteId ? { ...q, ...updates } : q
       ),
     })),
@@ -1382,7 +1488,7 @@ export function getBestQuotePrice(modelId: string): number | null {
   for (const ci of globalState.compareItems) {
     for (const m of ci.models) {
       if (m.id === modelId) {
-        const quote = m.channelQuotes.find(q => q.id === quoteId);
+        const quote = (m.channelQuotes || []).find(q => q.id === quoteId);
         return quote?.price ?? null;
       }
     }
@@ -1395,7 +1501,7 @@ export function getModelPriceRange(modelId: string): { min: number; max: number 
   for (const ci of globalState.compareItems) {
     for (const m of ci.models) {
       if (m.id === modelId) {
-        for (const q of m.channelQuotes) {
+        for (const q of (m.channelQuotes || [])) {
           if (q.price !== undefined && q.price !== null) prices.push(q.price);
         }
       }
@@ -1425,7 +1531,7 @@ export function getItemDisplayPrice(itemId: string): string | null {
     if (bp !== null) {
       if (bestPrice === null || bp < bestPrice) bestPrice = bp;
     }
-    for (const q of m.channelQuotes) {
+    for (const q of (m.channelQuotes || [])) {
       if (q.price !== undefined && q.price !== null) allPrices.push(q.price);
     }
   }
@@ -1512,7 +1618,7 @@ export function getItemBestChannel(itemId: string): string | undefined {
   for (const model of ci.models) {
     const quoteId = globalState.bestQuoteIds[model.id];
     if (quoteId) {
-      const quote = model.channelQuotes.find(q => q.id === quoteId);
+      const quote = (model.channelQuotes || []).find(q => q.id === quoteId);
       if (quote) return quote.channel;
     }
   }
@@ -1523,7 +1629,7 @@ export function getTotalChannelCount(): number {
   let count = 0;
   globalState.compareItems.forEach(ci => {
     ci.models.forEach(m => {
-      count += m.channelQuotes.length;
+      count += (m.channelQuotes || []).length;
     });
   });
   return count;

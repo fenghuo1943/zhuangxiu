@@ -239,12 +239,14 @@ class ChannelQuoteCreate(BaseModel):
     channel: str = Field(..., max_length=100)
     price: Optional[float] = None
     url: Optional[str] = None
+    note: Optional[str] = None
 
 class ChannelQuoteOut(BaseModel):
     id: str
     channel: str
     price: Optional[float]
     url: Optional[str]
+    note: Optional[str] = None
     updated_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
