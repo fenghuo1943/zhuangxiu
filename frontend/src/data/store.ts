@@ -46,6 +46,7 @@ function getInitialState(): AppState {
         selectedPurchaseIds: parsed.selectedPurchaseIds || [],
         purchasedItemIds: parsed.purchasedItemIds || [],
         purchasedExpenseMap: parsed.purchasedExpenseMap || {},
+        selectedExpenseMap: parsed.selectedExpenseMap || {},
         expenses: parsed.expenses || [],
         recentExpenses: parsed.recentExpenses || [],
         flowType: parsed.flowType || 'new',
@@ -78,6 +79,7 @@ function getInitialState(): AppState {
     selectedPurchaseIds: [],
     purchasedItemIds: [],
     purchasedExpenseMap: {},
+    selectedExpenseMap: {},
     expenses: [],
     recentExpenses: [],
     flowType: 'new',
@@ -306,7 +308,7 @@ export function updateTodo(todoId: string, updates: Partial<Todo>) {
 
 // ==================== Purchase Actions ====================
 
-export function togglePurchaseRef(itemId: string) {
+export function togglePurchaseRef(itemId: string, deleteExpense: boolean = false) {
   const purchaseReferences = globalState.purchaseReferences.map(stage => ({
     ...stage,
     subs: stage.subs.map(sub => ({
@@ -318,8 +320,40 @@ export function togglePurchaseRef(itemId: string) {
   }));
 
   const selectedIds = new Set(globalState.selectedPurchaseIds);
-  if (selectedIds.has(itemId)) {
+  const isRemoving = selectedIds.has(itemId);
+  if (isRemoving) {
     selectedIds.delete(itemId);
+    // 处理关联的待购账单
+    const expenseId = globalState.selectedExpenseMap[itemId];
+    if (deleteExpense && expenseId) {
+      // 删除关联的未支付账单
+      const expense = globalState.expenses.find(e => e.id === expenseId);
+      if (expense) {
+        const expenses = globalState.expenses.filter(e => e.id !== expenseId);
+        const categories = globalState.budget.categories.map(c =>
+          c.id === expense.categoryId ? { ...c, spent: Math.max(0, c.spent - expense.amount) } : c
+        );
+        globalState = {
+          ...globalState,
+          expenses,
+          recentExpenses: expenses.slice(0, 5),
+          budget: { ...globalState.budget, categories },
+        };
+        recalculateBudget();
+        // Sync expense deletion to backend
+        if (isAuthenticated()) {
+          import('../api/expenses').then(({ deleteExpenseApi }) => {
+            deleteExpenseApi(globalState.activeProjectId, expenseId).catch(() => {});
+          });
+        }
+      }
+    }
+    // 清理映射
+    if (expenseId) {
+      const selectedExpenseMap = { ...globalState.selectedExpenseMap };
+      delete selectedExpenseMap[itemId];
+      globalState = { ...globalState, selectedExpenseMap };
+    }
   } else {
     selectedIds.add(itemId);
   }
@@ -335,12 +369,12 @@ export function togglePurchaseRef(itemId: string) {
   // Sync to backend if authenticated
   if (isAuthenticated()) {
     import('../api/purchase').then(({ togglePurchaseSelection }) => {
-      togglePurchaseSelection(globalState.activeProjectId, itemId).catch(() => {});
+      togglePurchaseSelection(globalState.activeProjectId, itemId, deleteExpense).catch(() => {});
     });
   }
 }
 
-export function addCustomPurchaseItem(name: string, stageParent: string, qty: number, spec?: string, subgroupName?: string, unit?: string, categoryId?: string, subCategoryId?: string): string {
+export function addCustomPurchaseItem(name: string, stageParent: string, qty: number, spec?: string, subgroupName?: string, unit?: string, categoryId?: string, subCategoryId?: string, price?: number): string {
   const id = `p_custom_${Date.now()}`;
   const purchaseReferences = globalState.purchaseReferences.map(stage => {
     if (stage.parent !== stageParent) return stage;
@@ -352,7 +386,7 @@ export function addCustomPurchaseItem(name: string, stageParent: string, qty: nu
         if (isTargetSub) {
           return {
             ...sub,
-            items: [...sub.items, { id, name, spec: spec || '', qty, unit: unit || '个', selected: true, category_id: categoryId || null, sub_category_id: subCategoryId || null }],
+            items: [...sub.items, { id, name, spec: spec || '', qty, unit: unit || '个', selected: true, category_id: categoryId || null, sub_category_id: subCategoryId || null, price: price ?? null }],
           };
         }
         return sub;
@@ -360,10 +394,43 @@ export function addCustomPurchaseItem(name: string, stageParent: string, qty: nu
     };
   });
 
+  // 若设置了价格，自动创建一笔未支付账单
+  let expenseId: string | null = null;
+  let expenses = globalState.expenses;
+  if (price !== undefined && price > 0) {
+    const today = new Date().toISOString().slice(0, 10);
+    expenseId = `exp_${Date.now()}`;
+    const noteParts: string[] = [];
+    if (spec) noteParts.push(spec);
+    if (qty && unit) noteParts.push(`${qty}${unit}`);
+    else if (qty) noteParts.push(String(qty));
+    const newExpense: Expense = {
+      id: expenseId,
+      projectId: globalState.activeProjectId,
+      title: name,
+      amount: price,
+      categoryId: categoryId || 'hard',
+      subCategoryId: subCategoryId || undefined,
+      date: today,
+      status: 'unpaid',
+      note: noteParts.join('，') || '',
+      createdAt: new Date().toISOString(),
+    };
+    expenses = [newExpense, ...globalState.expenses];
+  }
+
+  const selectedExpenseMap = { ...globalState.selectedExpenseMap };
+  if (expenseId) {
+    selectedExpenseMap[id] = expenseId;
+  }
+
   globalState = {
     ...globalState,
     purchaseReferences,
     selectedPurchaseIds: [...globalState.selectedPurchaseIds, id],
+    selectedExpenseMap,
+    expenses,
+    recentExpenses: expenses.slice(0, 5),
   };
   notify();
   persist();
@@ -380,13 +447,38 @@ export function addCustomPurchaseItem(name: string, stageParent: string, qty: nu
         unit: unit || '个',
         category_id: categoryId || null,
         sub_category_id: subCategoryId || null,
+        price,
+      }).then((result) => {
+        // 用后端返回的 expense_id 更新本地映射和账单 ID
+        if (result.expense_id && expenseId && result.expense_id !== expenseId) {
+          const map = { ...globalState.selectedExpenseMap };
+          map[id] = result.expense_id;
+          // 同步更新账单列表中的 ID
+          const updatedExpenses = globalState.expenses.map(e =>
+            e.id === expenseId ? { ...e, id: result.expense_id } : e
+          );
+          globalState = {
+            ...globalState,
+            selectedExpenseMap: map,
+            expenses: updatedExpenses,
+            recentExpenses: updatedExpenses.slice(0, 5),
+          };
+          notify();
+          persist();
+        } else if (result.expense_id) {
+          const map = { ...globalState.selectedExpenseMap };
+          map[id] = result.expense_id;
+          globalState = { ...globalState, selectedExpenseMap: map };
+          notify();
+          persist();
+        }
       }).catch(() => {});
     });
   }
   return id;
 }
 
-export function deletePurchaseRefItem(itemId: string) {
+export function deletePurchaseRefItem(itemId: string, deleteExpense: boolean = false) {
   // Find the item to get its stage parent (for possible backend sync)
   let stageParent = '';
   const purchaseReferences = globalState.purchaseReferences.map(stage => {
@@ -402,14 +494,51 @@ export function deletePurchaseRefItem(itemId: string) {
   });
   const selectedPurchaseIds = globalState.selectedPurchaseIds.filter(id => id !== itemId);
 
-  globalState = { ...globalState, purchaseReferences, selectedPurchaseIds };
+  // 处理关联的待购账单
+  const expenseId = globalState.selectedExpenseMap[itemId];
+  let expenses = globalState.expenses;
+  let categories = globalState.budget.categories;
+  const selectedExpenseMap = { ...globalState.selectedExpenseMap };
+
+  if (deleteExpense && expenseId) {
+    const expense = globalState.expenses.find(e => e.id === expenseId);
+    if (expense) {
+      expenses = expenses.filter(e => e.id !== expenseId);
+      if (expense.status === 'paid' || expense.status === 'prepaid') {
+        categories = categories.map(c =>
+          c.id === expense.categoryId ? { ...c, spent: Math.max(0, c.spent - expense.amount) } : c
+        );
+      }
+    }
+  }
+  if (expenseId) {
+    delete selectedExpenseMap[itemId];
+  }
+
+  // Also clean up purchasedExpenseMap if present
+  const purchasedExpenseMap = { ...globalState.purchasedExpenseMap };
+  if (purchasedExpenseMap[itemId]) {
+    delete purchasedExpenseMap[itemId];
+  }
+
+  globalState = {
+    ...globalState,
+    purchaseReferences,
+    selectedPurchaseIds,
+    selectedExpenseMap,
+    purchasedExpenseMap,
+    expenses,
+    recentExpenses: expenses.slice(0, 5),
+    budget: { ...globalState.budget, categories },
+  };
+  recalculateBudget();
   notify();
   persist();
 
   // Sync to backend if authenticated
   if (isAuthenticated()) {
     import('../api/purchase').then(({ deletePurchaseItem: apiDelete }) => {
-      apiDelete(globalState.activeProjectId, itemId).catch(() => {});
+      apiDelete(globalState.activeProjectId, itemId, deleteExpense).catch(() => {});
     });
   }
 }
@@ -449,9 +578,16 @@ export async function loadSelectedPurchasesFromBackend(): Promise<void> {
   if (!isAuthenticated()) return;
   try {
     const { fetchSelectedPurchases } = await import('../api/purchase');
-    const selectedIds = await fetchSelectedPurchases(globalState.activeProjectId);
+    const items = await fetchSelectedPurchases(globalState.activeProjectId);
+    const selectedIds = items.map(it => it.item_id);
+    // Build selectedExpenseMap from backend data
+    const selectedExpenseMap: Record<string, string> = {};
+    for (const it of items) {
+      if (it.expense_id) {
+        selectedExpenseMap[it.item_id] = it.expense_id;
+      }
+    }
     // Merge with local: keep custom items that still exist in purchaseReferences
-    // (already synced from server above) — this excludes items deleted on other devices.
     const existingRefIds = new Set<string>();
     for (const stage of globalState.purchaseReferences) {
       for (const sub of stage.subs) {
@@ -463,7 +599,9 @@ export async function loadSelectedPurchasesFromBackend(): Promise<void> {
     const localOnlyIds = globalState.selectedPurchaseIds.filter(
       id => id.startsWith('p_custom_') && existingRefIds.has(id)
     );
-    const merged = [...new Set([...selectedIds, ...localOnlyIds])];
+    const mergedIds = [...new Set([...selectedIds, ...localOnlyIds])];
+    // Merge expense maps (backend is authoritative for items it knows about)
+    const mergedExpenseMap = { ...globalState.selectedExpenseMap, ...selectedExpenseMap };
     // Also mark items as selected in references
     const purchaseReferences = globalState.purchaseReferences.map(stage => ({
       ...stage,
@@ -471,13 +609,14 @@ export async function loadSelectedPurchasesFromBackend(): Promise<void> {
         ...sub,
         items: sub.items.map(item => ({
           ...item,
-          selected: merged.includes(item.id),
+          selected: mergedIds.includes(item.id),
         })),
       })),
     }));
     globalState = {
       ...globalState,
-      selectedPurchaseIds: merged,
+      selectedPurchaseIds: mergedIds,
+      selectedExpenseMap: mergedExpenseMap,
       purchaseReferences,
     };
     notify();
@@ -556,7 +695,14 @@ export function getPurchasedExpenseId(itemId: string): string | null {
   return globalState.purchasedExpenseMap[itemId] || null;
 }
 
+/** Get the expense ID associated with a selected (待购) item (if any — only when price was set) */
+export function getSelectedExpenseId(itemId: string): string | null {
+  return globalState.selectedExpenseMap[itemId] || null;
+}
+
 /** Purchase an item with price and category — auto-creates an expense record.
+ *  If the item already has an unpaid expense (from 待购 with price),
+ *  that expense is updated to "paid" status instead of creating a new one.
  *  Call this AFTER resolving any missing price/category via UI modals. */
 export function purchaseItem(itemId: string, price: number, categoryId: string): string {
   const item = getPurchaseRefItem(itemId);
@@ -575,34 +721,84 @@ export function purchaseItem(itemId: string, price: number, categoryId: string):
   // 2. Add to purchasedItemIds
   const purchasedItemIds = [...globalState.purchasedItemIds, itemId];
 
-  // 3. Create expense record locally
-  const today = new Date().toISOString().slice(0, 10);
-  const expenseId = `exp_${Date.now()}`;
-  const noteParts: string[] = [];
-  if (item?.spec) noteParts.push(item.spec);
-  if (item?.qty && item?.unit) noteParts.push(`${item.qty}${item.unit}`);
-  else if (item?.qty) noteParts.push(String(item.qty));
-  const newExpense: Expense = {
-    id: expenseId,
-    projectId: globalState.activeProjectId,
-    title: item?.name || '',
-    amount: price,
-    categoryId: categoryId,
-    subCategoryId: item?.sub_category_id || undefined,
-    date: today,
-    status: 'paid',
-    note: noteParts.join('，') || '',
-    createdAt: new Date().toISOString(),
-  };
-  const expenses = [newExpense, ...globalState.expenses];
+  // 3. Check if there's already an unpaid expense from 待购
+  const existingExpenseId = globalState.selectedExpenseMap[itemId];
+  let expenseId: string;
+  let expenses = globalState.expenses;
+  let categories = globalState.budget.categories;
+
+  if (existingExpenseId) {
+    // ── 已有待购账单：更新状态为已支付 ──
+    expenseId = existingExpenseId;
+    const oldExpense = globalState.expenses.find(e => e.id === expenseId);
+    expenses = globalState.expenses.map(e => {
+      if (e.id === expenseId) {
+        const noteParts: string[] = [];
+        if (item?.spec) noteParts.push(item.spec);
+        if (item?.qty && item?.unit) noteParts.push(`${item.qty}${item.unit}`);
+        else if (item?.qty) noteParts.push(String(item.qty));
+        return {
+          ...e,
+          status: 'paid' as const,
+          amount: price,
+          categoryId: categoryId,
+          subCategoryId: item?.sub_category_id || e.subCategoryId,
+          note: noteParts.join('，') || e.note,
+        };
+      }
+      return e;
+    });
+
+    // 更新预算：之前是 unpaid（未计入），现在计入
+    if (oldExpense && oldExpense.status === 'unpaid') {
+      categories = categories.map(c =>
+        c.id === categoryId ? { ...c, spent: c.spent + price } : c
+      );
+    } else if (oldExpense) {
+      // 之前已计入，调整金额和分类
+      categories = categories.map(c => {
+        let spent = c.spent;
+        if (c.id === oldExpense.categoryId) spent = Math.max(0, spent - oldExpense.amount);
+        if (c.id === categoryId) spent += price;
+        return { ...c, spent };
+      });
+    }
+
+    // 清理 selectedExpenseMap
+    const selectedExpenseMap = { ...globalState.selectedExpenseMap };
+    delete selectedExpenseMap[itemId];
+    globalState = { ...globalState, selectedExpenseMap };
+  } else {
+    // ── 没有待购账单：创建新账单（原有逻辑）──
+    const today = new Date().toISOString().slice(0, 10);
+    expenseId = `exp_${Date.now()}`;
+    const noteParts: string[] = [];
+    if (item?.spec) noteParts.push(item.spec);
+    if (item?.qty && item?.unit) noteParts.push(`${item.qty}${item.unit}`);
+    else if (item?.qty) noteParts.push(String(item.qty));
+    const newExpense: Expense = {
+      id: expenseId,
+      projectId: globalState.activeProjectId,
+      title: item?.name || '',
+      amount: price,
+      categoryId: categoryId,
+      subCategoryId: item?.sub_category_id || undefined,
+      date: today,
+      status: 'paid',
+      note: noteParts.join('，') || '',
+      createdAt: new Date().toISOString(),
+    };
+    expenses = [newExpense, ...globalState.expenses];
+
+    // Update budget category spent
+    categories = categories.map(c =>
+      c.id === categoryId ? { ...c, spent: c.spent + price } : c
+    );
+  }
+
   const recentExpenses = expenses.slice(0, 5);
 
-  // 4. Update budget category spent
-  const categories = globalState.budget.categories.map(c =>
-    c.id === categoryId ? { ...c, spent: c.spent + price } : c
-  );
-
-  // 5. Track expense mapping
+  // 4. Track expense mapping
   const purchasedExpenseMap = { ...globalState.purchasedExpenseMap, [itemId]: expenseId };
 
   globalState = {
@@ -618,7 +814,7 @@ export function purchaseItem(itemId: string, price: number, categoryId: string):
   notify();
   persist();
 
-  // 6. Sync to backend
+  // 5. Sync to backend
   if (isAuthenticated()) {
     import('../api/purchase').then(({ togglePurchasedItem }) => {
       togglePurchasedItem(globalState.activeProjectId, itemId, {

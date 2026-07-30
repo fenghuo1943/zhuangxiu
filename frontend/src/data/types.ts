@@ -209,7 +209,8 @@ export interface AppState {
   purchaseReferences: PurchaseReferenceStage[];
   selectedPurchaseIds: string[];
   purchasedItemIds: string[];
-  purchasedExpenseMap: Record<string, string>;  // itemId -> expenseId 关联映射
+  purchasedExpenseMap: Record<string, string>;  // itemId -> expenseId 关联映射（已购）
+  selectedExpenseMap: Record<string, string>;   // itemId -> expenseId 关联映射（待购，未支付账单）
   expenses: Expense[];
   recentExpenses: Expense[];
   expenseSubCategories: ExpenseSubCategory[];

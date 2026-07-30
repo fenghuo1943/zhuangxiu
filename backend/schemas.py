@@ -178,6 +178,14 @@ class TogglePurchasedRequest(BaseModel):
     delete_expense: Optional[bool] = None  # 取消已购时是否同步删除关联账单
 
 
+class SelectedPurchaseOut(BaseModel):
+    """待购物品输出（含关联账单 ID）"""
+    item_id: str
+    expense_id: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
 class PurchasedItemOut(BaseModel):
     item_id: str
     expense_id: Optional[str] = None
@@ -205,6 +213,8 @@ class CustomPurchaseCreate(BaseModel):
     qty: int = 1
     category_id: Optional[str] = None
     sub_category_id: Optional[str] = None
+    price: Optional[float] = None
+    # 若设置了价格，添加待购物品时会自动创建一笔未支付账单
 
 
 # ── Batch category update ──

@@ -167,6 +167,8 @@ class SelectedPurchase(Base):
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     item_id = Column(String(36), ForeignKey("purchase_ref_items.id"), nullable=False)
+    expense_id = Column(String(36), nullable=True)
+    # 关联的记账记录 ID，在添加待购物品时若设置了价格则自动创建（状态为 unpaid）
 
     project = relationship("Project", back_populates="selected_purchases")
 

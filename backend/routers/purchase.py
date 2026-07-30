@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from ..database import get_db
 from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, SelectedPurchase, PurchasedItem, PriceModel, ChannelQuote, PriceCategory, ProjectCompareItem, Expense, BudgetCategory
-from ..schemas import PurchaseRefStageOut, PurchaseRefSubgroupOut, PurchaseRefItemOut, CustomPurchaseCreate, CompareItemOut, PriceModelOut, ChannelQuoteOut, TogglePurchasedRequest, TogglePurchasedResponse, PurchasedItemOut
+from ..schemas import PurchaseRefStageOut, PurchaseRefSubgroupOut, PurchaseRefItemOut, CustomPurchaseCreate, CompareItemOut, PriceModelOut, ChannelQuoteOut, TogglePurchasedRequest, TogglePurchasedResponse, PurchasedItemOut, SelectedPurchaseOut
 from ..auth import get_current_user
 from sqlalchemy import update
 import uuid
@@ -95,20 +95,34 @@ async def get_references(
     return out
 
 
-@router.get("/api/projects/{project_id}/purchase/selected", response_model=list[str])
+@router.get("/api/projects/{project_id}/purchase/selected", response_model=list[SelectedPurchaseOut])
 async def get_selected(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     sid = await _ensure_project(project_id, user, db)
     result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == sid))
-    return [sp.item_id for sp in result.scalars().all()]
+    return [SelectedPurchaseOut(item_id=sp.item_id, expense_id=sp.expense_id) for sp in result.scalars().all()]
 
 
 @router.put("/api/projects/{project_id}/purchase/selected/{item_id}")
-async def toggle_selected(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def toggle_selected(project_id: str, item_id: str, delete_expense: bool = Query(False, description="移除待购时是否同步删除关联账单"), user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     sid = await _ensure_project(project_id, user, db)
 
     result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id))
     existing = result.scalar_one_or_none()
     if existing:
+        # ── 移出待购清单 ──
+        expense_id = existing.expense_id
+        if delete_expense and expense_id:
+            # 同步删除关联的记账记录
+            exp_result = await db.execute(select(Expense).where(Expense.id == expense_id, Expense.project_id == sid))
+            expense = exp_result.scalar_one_or_none()
+            if expense:
+                if expense.status in ("paid", "prepaid"):
+                    cat_result = await db.execute(select(BudgetCategory).where(BudgetCategory.id == f"{sid}_{expense.category_id}"))
+                    cat = cat_result.scalar_one_or_none()
+                    if cat:
+                        cat.spent = max(0, cat.spent - expense.amount)
+                await db.delete(expense)
+
         await db.delete(existing)
         await db.commit()
         return {"selected": False}
@@ -145,6 +159,8 @@ async def add_custom_item(project_id: str, data: CustomPurchaseCreate, user: Use
     if not sub:
         raise HTTPException(status_code=404, detail="子分组不存在")
 
+    price = data.price  # 用户设置的价格
+
     item = PurchaseRefItem(
         id=f"p_custom_{uuid.uuid4().hex[:12]}",
         subgroup_id=sub.id,
@@ -155,17 +171,49 @@ async def add_custom_item(project_id: str, data: CustomPurchaseCreate, user: Use
         project_id=sid,  # 标记为项目专属物品
         category_id=data.category_id,
         sub_category_id=data.sub_category_id,
+        price=price,  # 保存价格到物品
     )
     db.add(item)
-    # 自动加入待购清单
-    sp = SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=item.id)
+
+    # 若设置了价格，自动创建一笔未支付账单
+    expense_id = None
+    if price is not None and price > 0:
+        expense_category_id = data.category_id or "hard"
+
+        # 构建备注：规格 + 数量
+        note_parts = []
+        if data.spec:
+            note_parts.append(data.spec)
+        if data.qty and data.unit:
+            note_parts.append(f"{data.qty}{data.unit}")
+        elif data.qty:
+            note_parts.append(str(data.qty))
+
+        expense_id = f"exp_{uuid.uuid4().hex[:12]}"
+        expense = Expense(
+            id=expense_id,
+            project_id=sid,
+            title=data.name,
+            amount=price,
+            category_id=expense_category_id,
+            sub_category_id=data.sub_category_id,
+            stage_id=None,
+            date=date.today(),
+            status="unpaid",  # 待购状态，未支付
+            payer=None,
+            note="，".join(note_parts) if note_parts else "",
+        )
+        db.add(expense)
+
+    # 自动加入待购清单，关联账单
+    sp = SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=item.id, expense_id=expense_id)
     db.add(sp)
     await db.commit()
-    return {"id": item.id, "name": item.name, "spec": item.spec, "qty": item.qty, "unit": item.unit, "selected": True}
+    return {"id": item.id, "name": item.name, "spec": item.spec, "qty": item.qty, "unit": item.unit, "selected": True, "expense_id": expense_id}
 
 
 @router.delete("/api/projects/{project_id}/purchase/items/{item_id}", status_code=204)
-async def delete_purchase_item(project_id: str, item_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def delete_purchase_item(project_id: str, item_id: str, delete_expense: bool = Query(False, description="是否同步删除关联的待购账单"), user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     sid = await _ensure_project(project_id, user, db)
 
     # 验证物品存在且属于该项目
@@ -182,14 +230,31 @@ async def delete_purchase_item(project_id: str, item_id: str, user: User = Depen
     # 自定义物品 (project_id == sid): 完全删除
     is_seed = item.project_id is None
 
+    # 检查待购清单中是否有关联账单
+    sel_result = await db.execute(
+        select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id)
+    )
+    sel = sel_result.scalar_one_or_none()
+
     # 解除 PriceCategory 关联
     await db.execute(
         update(PriceCategory).where(PriceCategory.purchase_item_id == item_id).values(purchase_item_id=None)
     )
 
-    # 移除待购清单中的记录
-    sel_result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id))
-    for sp in sel_result.scalars().all():
+    # 移除待购清单中的记录（含关联账单处理）
+    sel_result_all = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id))
+    for sp in sel_result_all.scalars().all():
+        if delete_expense and sp.expense_id:
+            # 同步删除关联的记账记录
+            exp_result = await db.execute(select(Expense).where(Expense.id == sp.expense_id, Expense.project_id == sid))
+            expense = exp_result.scalar_one_or_none()
+            if expense:
+                if expense.status in ("paid", "prepaid"):
+                    cat_result = await db.execute(select(BudgetCategory).where(BudgetCategory.id == f"{sid}_{expense.category_id}"))
+                    cat = cat_result.scalar_one_or_none()
+                    if cat:
+                        cat.spent = max(0, cat.spent - expense.amount)
+                await db.delete(expense)
         await db.delete(sp)
 
     # 移除比价清单中的记录
@@ -271,38 +336,113 @@ async def toggle_purchased(project_id: str, item_id: str, data: TogglePurchasedR
         # 确定账单分类：优先使用传入的，其次使用物品已有的
         expense_category_id = data.category_id or item.category_id or "hard"
 
-        # 构建备注：规格 + 数量
-        note_parts = []
-        if item.spec:
-            note_parts.append(item.spec)
-        if item.qty and item.unit:
-            note_parts.append(f"{item.qty}{item.unit}")
-        elif item.qty:
-            note_parts.append(str(item.qty))
-
-        # 创建记账记录
-        expense_id = f"exp_{uuid.uuid4().hex[:12]}"
-        expense = Expense(
-            id=expense_id,
-            project_id=sid,
-            title=item.name,
-            amount=data.price or item.price or 0,
-            category_id=expense_category_id,
-            sub_category_id=item.sub_category_id,
-            stage_id=None,
-            date=date.today(),
-            status="paid",
-            payer=None,
-            note="，".join(note_parts) if note_parts else "",
+        # 检查是否已有待购时自动创建的未支付账单
+        sel_result = await db.execute(
+            select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id)
         )
-        db.add(expense)
+        sel = sel_result.scalar_one_or_none()
+        existing_expense_id = sel.expense_id if sel else None
 
-        # 更新预算已花费
-        if expense.status in ("paid", "prepaid") and expense.amount > 0:
-            cat_result = await db.execute(select(BudgetCategory).where(BudgetCategory.id == f"{sid}_{expense_category_id}"))
-            cat = cat_result.scalar_one_or_none()
-            if cat:
-                cat.spent += expense.amount
+        if existing_expense_id:
+            # ── 已有待购账单：更新状态为已支付 ──
+            exp_result = await db.execute(
+                select(Expense).where(Expense.id == existing_expense_id, Expense.project_id == sid)
+            )
+            existing_expense = exp_result.scalar_one_or_none()
+            if existing_expense:
+                # 更新账单状态为已支付，同步更新金额和分类（如果用户提供了新值）
+                old_status = existing_expense.status
+                old_amount = existing_expense.amount
+                old_category_id = existing_expense.category_id
+
+                existing_expense.status = "paid"
+                if data.price is not None:
+                    existing_expense.amount = data.price
+                if data.category_id is not None:
+                    existing_expense.category_id = expense_category_id
+                existing_expense.sub_category_id = item.sub_category_id
+
+                # 重新构建备注
+                note_parts = []
+                if item.spec:
+                    note_parts.append(item.spec)
+                if item.qty and item.unit:
+                    note_parts.append(f"{item.qty}{item.unit}")
+                elif item.qty:
+                    note_parts.append(str(item.qty))
+                existing_expense.note = "，".join(note_parts) if note_parts else ""
+
+                # 更新预算已花费：旧状态不是 paid/prepaid 时加上新金额
+                new_amount = data.price if data.price is not None else old_amount
+                new_category_id = data.category_id if data.category_id is not None else old_category_id
+
+                if old_status not in ("paid", "prepaid"):
+                    # 之前未计入预算，现在计入
+                    if new_amount > 0:
+                        cat_result = await db.execute(
+                            select(BudgetCategory).where(BudgetCategory.id == f"{sid}_{new_category_id}")
+                        )
+                        cat = cat_result.scalar_one_or_none()
+                        if cat:
+                            cat.spent += new_amount
+                else:
+                    # 之前已计入预算，可能需要调整
+                    if old_category_id != new_category_id or old_amount != new_amount:
+                        # 先减去旧的
+                        old_cat_result = await db.execute(
+                            select(BudgetCategory).where(BudgetCategory.id == f"{sid}_{old_category_id}")
+                        )
+                        old_cat = old_cat_result.scalar_one_or_none()
+                        if old_cat:
+                            old_cat.spent = max(0, old_cat.spent - old_amount)
+                        # 加上新的
+                        if new_amount > 0:
+                            new_cat_result = await db.execute(
+                                select(BudgetCategory).where(BudgetCategory.id == f"{sid}_{new_category_id}")
+                            )
+                            new_cat = new_cat_result.scalar_one_or_none()
+                            if new_cat:
+                                new_cat.spent += new_amount
+
+                expense_id = existing_expense_id
+            else:
+                # 账单已被删除，创建新账单
+                existing_expense_id = None
+
+        if not existing_expense_id:
+            # ── 没有待购账单：创建新的已支付账单（原有逻辑）──
+            # 构建备注：规格 + 数量
+            note_parts = []
+            if item.spec:
+                note_parts.append(item.spec)
+            if item.qty and item.unit:
+                note_parts.append(f"{item.qty}{item.unit}")
+            elif item.qty:
+                note_parts.append(str(item.qty))
+
+            # 创建记账记录
+            expense_id = f"exp_{uuid.uuid4().hex[:12]}"
+            expense = Expense(
+                id=expense_id,
+                project_id=sid,
+                title=item.name,
+                amount=data.price or item.price or 0,
+                category_id=expense_category_id,
+                sub_category_id=item.sub_category_id,
+                stage_id=None,
+                date=date.today(),
+                status="paid",
+                payer=None,
+                note="，".join(note_parts) if note_parts else "",
+            )
+            db.add(expense)
+
+            # 更新预算已花费
+            if expense.amount > 0:
+                cat_result = await db.execute(select(BudgetCategory).where(BudgetCategory.id == f"{sid}_{expense_category_id}"))
+                cat = cat_result.scalar_one_or_none()
+                if cat:
+                    cat.spent += expense.amount
 
         # 创建已购记录
         pi = PurchasedItem(

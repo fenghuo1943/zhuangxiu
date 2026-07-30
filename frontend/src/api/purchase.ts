@@ -6,30 +6,36 @@ export async function fetchPurchaseReferences(projectId: string): Promise<Purcha
   return apiGet(`/api/purchase/references?project_id=${encodeURIComponent(projectId)}`);
 }
 
-/** Get selected item IDs for a project */
-export async function fetchSelectedPurchases(projectId: string): Promise<string[]> {
+/** Get selected item IDs + expense IDs for a project */
+export async function fetchSelectedPurchases(projectId: string): Promise<{ item_id: string; expense_id: string | null }[]> {
   return apiGet(`/api/projects/${projectId}/purchase/selected`);
 }
 
-/** Toggle a purchase item's selected state */
+/** Toggle a purchase item's selected state.
+ *  When removing from 待购, pass delete_expense=true to also delete the linked unpaid bill. */
 export async function togglePurchaseSelection(
   projectId: string,
   itemId: string,
+  deleteExpense?: boolean,
 ): Promise<{ selected: boolean }> {
-  return apiPut(`/api/projects/${projectId}/purchase/selected/${itemId}`);
+  const params = deleteExpense ? '?delete_expense=true' : '';
+  return apiPut(`/api/projects/${projectId}/purchase/selected/${itemId}${params}`);
 }
 
-/** Add a custom purchase item (auto-selects it) */
+/** Add a custom purchase item (auto-selects it).
+ *  If price is provided, an unpaid expense record is auto-created. */
 export async function addCustomPurchaseItem(
   projectId: string,
-  data: { name: string; stage_parent: string; subgroup_name?: string; spec?: string; qty?: number; unit?: string },
-): Promise<{ id: string; name: string; spec?: string; qty: number; unit: string; selected: boolean }> {
+  data: { name: string; stage_parent: string; subgroup_name?: string; spec?: string; qty?: number; unit?: string; category_id?: string | null; sub_category_id?: string | null; price?: number },
+): Promise<{ id: string; name: string; spec?: string; qty: number; unit: string; selected: boolean; expense_id?: string | null }> {
   return apiPost(`/api/projects/${projectId}/purchase/custom`, data);
 }
 
-/** Delete a purchase item (custom items only are deleted on backend) */
-export async function deletePurchaseItem(projectId: string, itemId: string): Promise<void> {
-  return apiDelete(`/api/projects/${projectId}/purchase/items/${itemId}`);
+/** Delete a purchase item (custom items only are deleted on backend).
+ *  Pass delete_expense=true to also delete the linked unpaid bill. */
+export async function deletePurchaseItem(projectId: string, itemId: string, deleteExpense?: boolean): Promise<void> {
+  const params = deleteExpense ? '?delete_expense=true' : '';
+  return apiDelete(`/api/projects/${projectId}/purchase/items/${itemId}${params}`);
 }
 
 /** Get purchased items with expense mapping for a project */

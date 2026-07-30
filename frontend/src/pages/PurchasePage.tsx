@@ -7,6 +7,7 @@ import {
   addPurchaseToCompare, isItemInComparison, getItemBestPrice,
   getItemBestChannel,
   checkPurchaseReadiness, purchaseItem, getPurchasedExpenseId, unpurchaseItem,
+  getSelectedExpenseId,
 } from '../data/store';
 import { DEFAULT_BUDGET_CATEGORIES } from '../data/mockData';
 import type { PurchaseReferenceStage, PurchaseReferenceSubgroup, PurchaseReferenceItem } from '../data/types';
@@ -97,6 +98,7 @@ const PurchasePage: React.FC = () => {
   const [quickQty, setQuickQty] = useState('1');
   const [quickCategory, setQuickCategory] = useState('');
   const [quickSubCategory, setQuickSubCategory] = useState('');
+  const [quickPrice, setQuickPrice] = useState('');
 
   // Shopping card
   const [shoppingListView, setShoppingListView] = useState<'pending' | 'purchased'>('pending');
@@ -407,9 +409,27 @@ const PurchasePage: React.FC = () => {
   };
 
   const handleDelete = (itemId: string, itemName: string) => {
-    if (!window.confirm(`确定从采购库删除「${itemName}」？`)) return;
-    deletePurchaseRefItem(itemId);
-    showToast('已从采购库删除');
+    const selExpenseId = getSelectedExpenseId(itemId);
+    const purExpenseId = getPurchasedExpenseId(itemId);
+    const hasExpense = !!(selExpenseId || purExpenseId);
+    if (hasExpense) {
+      // 有待购或已购账单，询问是否同步删除
+      const billType = purExpenseId ? '已支付' : '未支付';
+      if (!window.confirm(`确定从采购库删除「${itemName}」？\n\n该物品有一笔关联的${billType}账单，是否同步删除账单？`)) {
+        return; // 用户取消
+      }
+      // 用户确认：同步删除账单（含待购和已购账单）
+      if (purExpenseId) {
+        // 先取消已购并删除账单
+        unpurchaseItem(itemId, true);
+      }
+      deletePurchaseRefItem(itemId, true);
+      showToast('已从采购库删除（含关联账单）');
+    } else {
+      if (!window.confirm(`确定从采购库删除「${itemName}」？`)) return;
+      deletePurchaseRefItem(itemId);
+      showToast('已从采购库删除');
+    }
   };
 
   // ── Quick-add ──
@@ -419,27 +439,30 @@ const PurchasePage: React.FC = () => {
     const stage = state.purchaseReferences[pi];
     const sub = stage?.subs[si];
     if (!stage || !sub) return;
+    const price = quickPrice ? parseFloat(quickPrice) : undefined;
     addCustomPurchaseItem(
       quickName.trim(), stage.parent,
       Math.max(1, parseInt(quickQty) || 1),
       '', sub.name, '个',
       quickCategory || undefined,
       quickSubCategory || undefined,
+      price && price > 0 ? price : undefined,
     );
     setQuickName('');
     setQuickQty('1');
     setQuickCategory('');
     setQuickSubCategory('');
+    setQuickPrice('');
     // Auto-expand target
     setExpandedParents(prev => new Set(prev).add(pi));
     setExpandedSubs(prev => new Set(prev).add(`${pi}_${si}`));
-    showToast('已添加到首页待购清单');
+    showToast(price && price > 0 ? '已添加到待购清单（含未支付账单）' : '已添加到首页待购清单');
   };
 
   // ── Custom add within subgroup ──
-  const [customInputs, setCustomInputs] = useState<Record<string, { name: string; spec: string; qty: string; category: string; subCategory: string }>>({});
+  const [customInputs, setCustomInputs] = useState<Record<string, { name: string; spec: string; qty: string; category: string; subCategory: string; price: string }>>({});
   const getCustomInput = (key: string) =>
-    customInputs[key] || { name: '', spec: '', qty: '1', category: '', subCategory: '' };
+    customInputs[key] || { name: '', spec: '', qty: '1', category: '', subCategory: '', price: '' };
   const setCustomInput = (key: string, field: string, value: string) => {
     setCustomInputs(prev => ({
       ...prev,
@@ -454,19 +477,22 @@ const PurchasePage: React.FC = () => {
     const stage = state.purchaseReferences[pi];
     const sub = stage?.subs[si];
     if (!stage || !sub) return;
+    const price = input.price ? parseFloat(input.price) : undefined;
     addCustomPurchaseItem(
       input.name.trim(), stage.parent,
       Math.max(1, parseInt(input.qty) || 1),
       input.spec.trim(), sub.name, '个',
       input.category || undefined,
       input.subCategory || undefined,
+      price && price > 0 ? price : undefined,
     );
     setCustomInput(key, 'name', '');
     setCustomInput(key, 'spec', '');
     setCustomInput(key, 'qty', '1');
     setCustomInput(key, 'category', '');
     setCustomInput(key, 'subCategory', '');
-    showToast('已添加到首页待购清单');
+    setCustomInput(key, 'price', '');
+    showToast(price && price > 0 ? '已添加到待购清单（含未支付账单）' : '已添加到首页待购清单');
   };
 
   // ── Quick-stage options ──
@@ -834,17 +860,18 @@ const PurchasePage: React.FC = () => {
                                         title="移出清单"
                                         onClick={() => {
                                           const isPur = isItemPurchased(item.itemId);
-                                          const expId = isPur ? getPurchasedExpenseId(item.itemId) : null;
-                                          if (isPur) {
-                                            // Purchased item: ask about expense deletion
+                                          const purExpId = isPur ? getPurchasedExpenseId(item.itemId) : null;
+                                          const selExpId = !isPur ? getSelectedExpenseId(item.itemId) : null;
+                                          if (isPur || selExpId) {
+                                            // Has linked expense: ask about expense deletion
                                             setRemoveModal({
                                               itemId: item.itemId,
                                               itemName: item.name,
-                                              isPurchased: true,
-                                              hasExpense: !!expId,
+                                              isPurchased: isPur,
+                                              hasExpense: !!purExpId || !!selExpId,
                                             });
                                           } else {
-                                            // Not purchased: just remove from list
+                                            // No linked expense: just remove from list
                                             handleToggle(item.itemId);
                                           }
                                         }}
@@ -971,6 +998,16 @@ const PurchasePage: React.FC = () => {
               ))}
             </select>
           )}
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={quickPrice}
+            onChange={e => setQuickPrice(e.target.value)}
+            placeholder="价格(可选)"
+            style={{ width: 80, fontSize: 12 }}
+            title="设置价格后将自动创建未支付账单"
+          />
           <button className="btn btn-primary" type="button" onClick={handleQuickAdd}>添加</button>
         </div>
 
@@ -1130,6 +1167,17 @@ const PurchasePage: React.FC = () => {
                                         <option key={cat.id} value={cat.id}>{cat.name}</option>
                                       ))}
                                     </select>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      placeholder="价格"
+                                      value={getCustomInput(subKey).price}
+                                      onChange={e => setCustomInput(subKey, 'price', e.target.value)}
+                                      onKeyDown={e => e.key === 'Enter' && handleCustomAdd(pi, si)}
+                                      style={{ width: 70 }}
+                                      title="设置价格后将自动创建未支付账单"
+                                    />
                                     <button className="btn btn-primary btn-sm" type="button" onClick={() => handleCustomAdd(pi, si)}>
                                       添加
                                     </button>
@@ -1272,7 +1320,7 @@ const PurchasePage: React.FC = () => {
         </div>
       )}
 
-      {/* ── Remove from List Modal (purchased items) ── */}
+      {/* ── Remove from List Modal (purchased or pending items with expense) ── */}
       {removeModal && (
         <div className="modal-overlay" onClick={() => setRemoveModal(null)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(400px, 100%)' }}>
@@ -1282,11 +1330,11 @@ const PurchasePage: React.FC = () => {
             </div>
             <div className="modal-body">
               <p style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>
-                将 <strong>{removeModal.itemName}</strong> 移出清单将同时取消已购标记。
+                将 <strong>{removeModal.itemName}</strong> 移出清单{removeModal.isPurchased ? '将同时取消已购标记' : ''}。
               </p>
               {removeModal.hasExpense && (
                 <p style={{ fontSize: 13, color: '#e45b3f', marginBottom: 8 }}>
-                  该物品有关联的记账记录，是否同步删除账单？
+                  该物品有关联的记账记录（{removeModal.isPurchased ? '已支付' : '未支付'}），是否同步删除账单？
                 </p>
               )}
             </div>
@@ -1297,8 +1345,10 @@ const PurchasePage: React.FC = () => {
                   className="btn btn-primary"
                   style={{ background: '#e45b3f', borderColor: '#e45b3f' }}
                   onClick={() => {
-                    unpurchaseItem(removeModal.itemId, true);
-                    togglePurchaseRef(removeModal.itemId);
+                    if (removeModal.isPurchased) {
+                      unpurchaseItem(removeModal.itemId, true);
+                    }
+                    togglePurchaseRef(removeModal.itemId, true);
                     showToast(`已移出并删除账单：${removeModal.itemName}`);
                     setRemoveModal(null);
                   }}
@@ -1309,8 +1359,10 @@ const PurchasePage: React.FC = () => {
               <button
                 className="btn btn-ghost"
                 onClick={() => {
-                  unpurchaseItem(removeModal.itemId, false);
-                  togglePurchaseRef(removeModal.itemId);
+                  if (removeModal.isPurchased) {
+                    unpurchaseItem(removeModal.itemId, false);
+                  }
+                  togglePurchaseRef(removeModal.itemId, false);
                   showToast(`已移出清单：${removeModal.itemName}`);
                   setRemoveModal(null);
                 }}
