@@ -6,6 +6,7 @@ import {
   addChannelQuote, deleteChannelQuote, updateChannelQuote,
   selectBestQuote, getModelDisplayPrice, getItemDisplayPrice,
   toggleModelSync, isModelSynced, loadCompareItemsFromBackend,
+  isItemPurchased, addCompareToSelected, unpurchaseItem,
 } from '../data/store';
 import {
   IconCompare, IconPlus, IconTrash, IconChevronDown,
@@ -69,7 +70,14 @@ const ComparePage: React.FC = () => {
   const [editQuotePrice, setEditQuotePrice] = useState('');
   const [editQuoteNote, setEditQuoteNote] = useState('');
 
+  // ── 待购/已购 标签切换 ──
+  const [compareTab, setCompareTab] = useState<'pending' | 'purchased'>('pending');
+
   const ci = state.compareItems;
+
+  // Split compare items by purchased status
+  const pendingCompareItems = ci.filter(c => !isItemPurchased(c.item_id));
+  const purchasedCompareItems = ci.filter(c => isItemPurchased(c.item_id));
 
   // Filter helpers
   const budgetCategories = state.budget.categories;
@@ -109,7 +117,6 @@ const ComparePage: React.FC = () => {
   })();
 
   const totalModels = ci.reduce((sum, c) => sum + c.models.length, 0);
-  const syncedCount = state.syncedModelIds.length;
 
   const toggleItem = (id: string) => {
     setExpandedItems(prev => {
@@ -300,12 +307,12 @@ const ComparePage: React.FC = () => {
               <b className="flow-stat-value">{ci.length}</b>
             </div>
             <div className="flow-stat">
-              <span className="flow-stat-label">型号数</span>
-              <b className="flow-stat-value">{totalModels}</b>
+              <span className="flow-stat-label">待购</span>
+              <b className="flow-stat-value" style={{ color: pendingCompareItems.length > 0 ? 'var(--fresh-coral)' : undefined }}>{pendingCompareItems.length}</b>
             </div>
             <div className="flow-stat">
-              <span className="flow-stat-label">已标记已购</span>
-              <b className="flow-stat-value" style={{ color: syncedCount > 0 ? 'var(--fresh-coral)' : undefined }}>{syncedCount}</b>
+              <span className="flow-stat-label">已购</span>
+              <b className="flow-stat-value" style={{ color: purchasedCompareItems.length > 0 ? '#48bb78' : undefined }}>{purchasedCompareItems.length}</b>
             </div>
           </div>
         </div>
@@ -417,26 +424,59 @@ const ComparePage: React.FC = () => {
         </div>
 
         {/* Compare Items */}
-        {filteredItems.length === 0 ? (
+        {/* ── 待购/已购 标签切换 ── */}
+        <div className="purchase-shopping-toggle" style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+          <button
+            type="button"
+            className={`purchase-shopping-toggle-btn${compareTab === 'pending' ? ' active' : ''}`}
+            onClick={() => setCompareTab('pending')}
+          >
+            待购{pendingCompareItems.length > 0 ? ` (${pendingCompareItems.length})` : ''}
+          </button>
+          <button
+            type="button"
+            className={`purchase-shopping-toggle-btn${compareTab === 'purchased' ? ' active' : ''}`}
+            onClick={() => setCompareTab('purchased')}
+          >
+            已购{purchasedCompareItems.length > 0 ? ` (${purchasedCompareItems.length})` : ''}
+          </button>
+        </div>
+
+        {(() => {
+          const displayItems = compareTab === 'pending' ? filteredItems.filter(c => !isItemPurchased(c.item_id)) : filteredItems.filter(c => isItemPurchased(c.item_id));
+
+          if (displayItems.length === 0) {
+            return (
           <div className="card">
             <div className="card-bd">
               <div className="empty-state">
-                <div className="empty-state-icon">⚖️</div>
+                <div className="empty-state-icon">{compareTab === 'purchased' ? '📦' : '⚖️'}</div>
                 <p className="empty-state-title">
-                  {searchQuery || filterCategory || filterStage ? '未找到匹配的物品' : '暂无比价物品'}
+                  {searchQuery || filterCategory || filterStage
+                    ? '未找到匹配的物品'
+                    : compareTab === 'purchased'
+                      ? '暂无已购物品'
+                      : '暂无比价物品'}
                 </p>
                 <p className="empty-state-desc">
-                  {searchQuery || filterCategory || filterStage ? '尝试调整筛选条件' : '使用上方快速添加栏，先添加物品再进行比价'}
+                  {searchQuery || filterCategory || filterStage
+                    ? '尝试调整筛选条件'
+                    : compareTab === 'purchased'
+                      ? '在待购页面标记已购后，物品将自动移动到此处'
+                      : '使用上方快速添加栏，先添加物品再进行比价'}
                 </p>
               </div>
             </div>
           </div>
-        ) : (
+            );
+          }
+
+          return (
           <div className="compare-categories">
             {(() => {
               // Group items by first-level category (stage_parent)
-              const grouped = new Map<string, typeof filteredItems>();
-              filteredItems.forEach(item => {
+              const grouped = new Map<string, typeof displayItems>();
+              displayItems.forEach(item => {
                 const parent = item.stage_parent || '未分类';
                 const list = grouped.get(parent) || [];
                 list.push(item);
@@ -469,6 +509,48 @@ const ComparePage: React.FC = () => {
                           <div className="compare-cat-header-right">
                       {(() => { const p = getItemDisplayPrice(item.item_id); return p ? <span className="compare-cat-price">{p}</span> : null; })()}
                       {(() => {
+                        const isInSelected = state.selectedPurchaseIds.includes(item.item_id);
+
+                        if (compareTab === 'purchased') {
+                          // 已购 tab: show unpurchase button
+                          return (
+                            <button
+                              className="btn btn-sm btn-outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Also clean up synced model IDs for this item
+                                const syncedModelIds = item.models
+                                  .filter(m => isModelSynced(m.id))
+                                  .map(m => m.id);
+                                syncedModelIds.forEach(mid => toggleModelSync(mid));
+                                unpurchaseItem(item.item_id, false);
+                              }}
+                              title="取消已购，移回待购"
+                              style={{ fontSize: 10 }}
+                            >
+                              取消已购
+                            </button>
+                          );
+                        }
+
+                        if (!isInSelected) {
+                          // Item not in 待购: show "添加待购"
+                          return (
+                            <button
+                              className="btn btn-sm btn-primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addCompareToSelected(item.item_id);
+                              }}
+                              title="将此物品添加到待购清单"
+                              style={{ fontSize: 10 }}
+                            >
+                              + 添加待购
+                            </button>
+                          );
+                        }
+
+                        // Item is in 待购: show "标记已购" / "✓ 已购"
                         const bestModelId = item.models.find(m => state.bestQuoteIds[m.id])?.id;
                         const synced = bestModelId ? isModelSynced(bestModelId) : false;
                         return (
@@ -646,7 +728,8 @@ const ComparePage: React.FC = () => {
                 ));
               })()}
           </div>
-        )}
+          );
+          })()}
       </div>
     </AppShell>
   );

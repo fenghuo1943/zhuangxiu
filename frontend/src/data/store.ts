@@ -979,6 +979,25 @@ export function isItemPurchased(itemId: string): boolean {
   return globalState.purchasedItemIds.includes(itemId);
 }
 
+/** 在比价页面将物品添加到待购清单。仅在物品不在待购清单中时生效。 */
+export function addCompareToSelected(itemId: string) {
+  if (globalState.selectedPurchaseIds.includes(itemId)) return; // 已在待购
+
+  globalState = {
+    ...globalState,
+    selectedPurchaseIds: [...globalState.selectedPurchaseIds, itemId],
+  };
+  notify();
+  persist();
+
+  // 同步到后端
+  if (isAuthenticated()) {
+    import('../api/purchase').then(({ togglePurchaseSelection }) => {
+      togglePurchaseSelection(globalState.activeProjectId, itemId).catch(() => {});
+    });
+  }
+}
+
 /** Load purchased items from backend */
 export async function loadPurchasedFromBackend(): Promise<void> {
   if (!isAuthenticated()) return;
@@ -1674,19 +1693,37 @@ export function toggleModelSync(modelId: string) {
   else set.delete(modelId);
   globalState = { ...globalState, syncedModelIds: Array.from(set) };
 
-  // If syncing, toggle purchased on the linked item via model's item_id
-  if (isSyncing) {
-    let purchaseItemId: string | null = null;
-    for (const ci of globalState.compareItems) {
-      if (ci.models.some(m => m.id === modelId)) {
-        purchaseItemId = ci.item_id;
-        break;
-      }
+  // Find linked purchase item
+  let purchaseItemId: string | null = null;
+  for (const ci of globalState.compareItems) {
+    if (ci.models.some(m => m.id === modelId)) {
+      purchaseItemId = ci.item_id;
+      break;
     }
+  }
+
+  if (isSyncing) {
+    // Add to purchased
     if (purchaseItemId) {
       const purSet = new Set(globalState.purchasedItemIds);
       purSet.add(purchaseItemId);
       globalState = { ...globalState, purchasedItemIds: Array.from(purSet) };
+    }
+  } else {
+    // Remove from purchased when unsyncing (only if no other synced models for this item)
+    if (purchaseItemId) {
+      let hasOtherSynced = false;
+      for (const ci of globalState.compareItems) {
+        if (ci.item_id === purchaseItemId) {
+          hasOtherSynced = ci.models.some(m => m.id !== modelId && set.has(m.id));
+          break;
+        }
+      }
+      if (!hasOtherSynced) {
+        const purSet = new Set(globalState.purchasedItemIds);
+        purSet.delete(purchaseItemId);
+        globalState = { ...globalState, purchasedItemIds: Array.from(purSet) };
+      }
     }
   }
 
