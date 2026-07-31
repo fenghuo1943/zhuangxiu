@@ -752,6 +752,43 @@ export function checkPurchaseReadiness(itemId: string): {
   };
 }
 
+/** Get an item's display price with its source, for UI price display and editing.
+ *  Returns null price if no price data exists for this item.
+ *
+ *  Resolution order:
+ *  1. Expense.amount (via SelectedPurchase.expense_id or PurchasedItem.expense_id)
+ *  2. Best quote price (via compareItems + bestQuoteIds)
+ */
+export type PriceSource = 'quote' | 'expense' | null;
+
+export function getItemPriceWithSource(itemId: string): {
+  price: number | null;
+  source: PriceSource;
+  sourceLabel: string;
+} {
+  // 1. Check expense (unpaid from 待购 or paid from 已购)
+  const expenseId =
+    globalState.selectedExpenseMap[itemId] ||
+    globalState.purchasedExpenseMap[itemId];
+  if (expenseId) {
+    const expense = globalState.expenses.find(e => e.id === expenseId);
+    if (expense) {
+      const label = expense.status === 'paid' || expense.status === 'prepaid'
+        ? '实际支付'
+        : '待购预算';
+      return { price: expense.amount, source: 'expense', sourceLabel: label };
+    }
+  }
+
+  // 2. Check best quote price from compare page
+  const bestPrice = getItemBestPrice(itemId);
+  if (bestPrice !== null) {
+    return { price: bestPrice, source: 'quote', sourceLabel: '比价' };
+  }
+
+  return { price: null, source: null, sourceLabel: '' };
+}
+
 /** Get the expense ID associated with a purchased item (if any) */
 export function getPurchasedExpenseId(itemId: string): string | null {
   return globalState.purchasedExpenseMap[itemId] || null;
@@ -1634,6 +1671,108 @@ export function selectBestQuote(modelId: string, quoteId: string | null) {
   if (isAuthenticated()) {
     import('../api/compare').then(({ setBestQuoteApi }) => {
       setBestQuoteApi(globalState.activeProjectId, modelId, quoteId).catch(() => {});
+    });
+  }
+}
+
+/** Update an item's price, cascading to the correct source based on binding state.
+ *  - Has best quote -> updates ChannelQuote.price (syncs Expense)
+ *  - Has expense, no quote -> updates Expense.amount
+ *  - Neither -> creates unpaid Expense
+ */
+export async function updateItemPrice(itemId: string, price: number): Promise<void> {
+  const expenseId =
+    globalState.selectedExpenseMap[itemId] ||
+    globalState.purchasedExpenseMap[itemId];
+
+  const ci = globalState.compareItems.find(c => c.item_id === itemId);
+  let bestQuoteId: string | null = null;
+  if (ci) {
+    for (const m of ci.models) {
+      if (m.best_quote_id) { bestQuoteId = m.best_quote_id; break; }
+    }
+  }
+
+  let expenses = globalState.expenses;
+  let selectedExpenseMap = { ...globalState.selectedExpenseMap };
+  let compareItems = globalState.compareItems;
+  let categories = globalState.budget.categories;
+
+  if (bestQuoteId) {
+    compareItems = compareItems.map(c => ({
+      ...c,
+      models: c.models.map(m => ({
+        ...m,
+        channelQuotes: (m.channelQuotes || []).map(q =>
+          q.id === bestQuoteId ? { ...q, price } : q
+        ),
+      })),
+    }));
+    if (expenseId) {
+      const oldExpense = expenses.find(e => e.id === expenseId);
+      expenses = expenses.map(e => {
+        if (e.id === expenseId) {
+          if (oldExpense && (oldExpense.status === 'paid' || oldExpense.status === 'prepaid')) {
+            const diff = price - oldExpense.amount;
+            categories = categories.map(cat =>
+              cat.id === `${globalState.activeProjectId}_${e.categoryId}`
+                ? { ...cat, spent: Math.max(0, cat.spent + diff) }
+                : cat
+            );
+          }
+          return { ...e, amount: price };
+        }
+        return e;
+      });
+    }
+  } else if (expenseId) {
+    const oldExpense = expenses.find(e => e.id === expenseId);
+    expenses = expenses.map(e => {
+      if (e.id === expenseId) {
+        if (oldExpense && (oldExpense.status === 'paid' || oldExpense.status === 'prepaid')) {
+          const diff = price - oldExpense.amount;
+          categories = categories.map(cat =>
+            cat.id === `${globalState.activeProjectId}_${e.categoryId}`
+              ? { ...cat, spent: Math.max(0, cat.spent + diff) }
+              : cat
+          );
+        }
+        return { ...e, amount: price };
+      }
+      return e;
+    });
+  } else if (globalState.selectedPurchaseIds.includes(itemId)) {
+    const item = getPurchaseRefItem(itemId);
+    const newExpId = `exp_${Date.now()}`;
+    const today = new Date().toISOString().slice(0, 10);
+    const newExpense: Expense = {
+      id: newExpId,
+      projectId: globalState.activeProjectId,
+      title: item?.name || '',
+      amount: price,
+      categoryId: item?.category_id || 'hard',
+      subCategoryId: item?.sub_category_id || undefined,
+      date: today,
+      status: 'unpaid',
+      note: item?.spec || '',
+      createdAt: new Date().toISOString(),
+    };
+    expenses = [newExpense, ...expenses];
+    selectedExpenseMap = { ...selectedExpenseMap, [itemId]: newExpId };
+  }
+
+  globalState = {
+    ...globalState, expenses,
+    recentExpenses: expenses.slice(0, 5),
+    compareItems, selectedExpenseMap,
+    budget: { ...globalState.budget, categories },
+  };
+  notify();
+  persist();
+
+  if (isAuthenticated()) {
+    import('../api/purchase').then(({ updateItemPrice: apiUpdatePrice }) => {
+      apiUpdatePrice(globalState.activeProjectId, itemId, price).catch(() => {});
     });
   }
 }

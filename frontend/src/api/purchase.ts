@@ -75,6 +75,23 @@ export async function fetchProjectCompareIds(projectId: string): Promise<string[
   return apiGet(`/api/projects/${projectId}/purchase/compare-ids`);
 }
 
+/** Update item price (smart cascade: updates quote if bound, expense otherwise) */
+export interface UpdateItemPriceResult {
+  item_id: string;
+  price: number;
+  updated_targets: string[];
+  quote_id: string | null;
+  expense_id: string | null;
+}
+
+export async function updateItemPrice(
+  projectId: string,
+  itemId: string,
+  price: number,
+): Promise<UpdateItemPriceResult> {
+  return apiPut(`/api/projects/${projectId}/purchase/items/${itemId}/price`, { price });
+}
+
 /** Batch update purchase item categories */
 export interface BatchCategoryItem {
   item_id: string;

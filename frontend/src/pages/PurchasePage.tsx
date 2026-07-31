@@ -7,7 +7,7 @@ import {
   addPurchaseToCompare, isItemInComparison, getItemBestPrice,
   getItemBestChannel,
   checkPurchaseReadiness, purchaseItem, getPurchasedExpenseId, unpurchaseItem,
-  getSelectedExpenseId,
+  getSelectedExpenseId, getItemPriceWithSource, updateItemPrice,
 } from '../data/store';
 import { DEFAULT_BUDGET_CATEGORIES } from '../data/mockData';
 import type { PurchaseReferenceStage, PurchaseReferenceSubgroup, PurchaseReferenceItem } from '../data/types';
@@ -110,6 +110,10 @@ const PurchasePage: React.FC = () => {
   const [editShoppingName, setEditShoppingName] = useState('');
   const [editShoppingSpec, setEditShoppingSpec] = useState('');
   const [editShoppingQty, setEditShoppingQty] = useState('');
+
+  // Price editing
+  const [editingPriceItemId, setEditingPriceItemId] = useState<string | null>(null);
+  const [editingPriceValue, setEditingPriceValue] = useState('');
 
   // ── Purchase-with-expense modal state ──
   const [purchaseModal, setPurchaseModal] = useState<{
@@ -294,8 +298,25 @@ const PurchasePage: React.FC = () => {
             bestModelId = model.id;
           }
         }
-        return { ...item, matchedPrice: bestPrice ?? undefined, matchedChannel: bestChannel, matchedModelId: bestModelId, hasComparison: true, comparisonItemId: matchedCi.item_id };
+        // Price source: expense takes priority over quote for display
+        const expenseId = state.selectedExpenseMap[item.itemId];
+        const expPrice = expenseId ? state.expenses.find(e => e.id === expenseId)?.amount : undefined;
+        const displayPrice = expPrice ?? bestPrice ?? undefined;
+        const priceSource: string = expPrice ? 'expense' : (bestPrice ? 'quote' : '');
+        const priceSourceLabel = expPrice ? '待购预算' : (bestPrice ? '比价' : '');
+        return { ...item, matchedPrice: displayPrice, matchedChannel: bestChannel, matchedModelId: bestModelId, hasComparison: true, comparisonItemId: matchedCi.item_id, expenseId, priceSource, priceSourceLabel };
       }
+
+      // Fallback: try expense-based price (from selectedExpenseMap or purchasedExpenseMap)
+      const expId = state.selectedExpenseMap[item.itemId] || state.purchasedExpenseMap[item.itemId];
+      if (expId) {
+        const expense = state.expenses.find(e => e.id === expId);
+        if (expense) {
+          const label = expense.status === 'paid' || expense.status === 'prepaid' ? '实际支付' : '待购预算';
+          return { ...item, matchedPrice: expense.amount, matchedChannel: undefined, matchedModelId: undefined, hasComparison: false, expenseId: expId, priceSource: 'expense', priceSourceLabel: label };
+        }
+      }
+
       // Last fallback: try fuzzy name matching via syncedPriceModels for backward compat
       const match = syncedPriceModels.find(m =>
         m.modelName === item.name ||
@@ -303,9 +324,9 @@ const PurchasePage: React.FC = () => {
         m.modelName.includes(item.name) ||
         item.name.includes(m.modelName)
       );
-      return { ...item, matchedPrice: match?.price, matchedChannel: match?.channel, matchedModelId: match?.modelId, hasComparison: false };
+      return { ...item, matchedPrice: match?.price, matchedChannel: match?.channel, matchedModelId: match?.modelId, hasComparison: false, priceSource: '', priceSourceLabel: '' };
     });
-  }, [filteredShoppingItems, state.compareItems, state.syncedModelIds, state.bestQuoteIds, syncedPriceModels]);
+  }, [filteredShoppingItems, state.compareItems, state.syncedModelIds, state.bestQuoteIds, syncedPriceModels, state.selectedExpenseMap, state.purchasedExpenseMap, state.expenses]);
 
   // Unmatched synced models — only those without FK link
   const unmatchedSyncedModels = useMemo(() => {
@@ -765,10 +786,60 @@ const PurchasePage: React.FC = () => {
                                       </span>
                                       {item.spec && <span className="purchase-shopping-row-spec">{item.spec}</span>}
                                       <span className="purchase-shopping-row-qty">×{item.qty}{item.unit || '个'}</span>
-                                      {item.matchedPrice && (
-                                        <span className="purchase-shopping-row-price">
+                                      {/* Price display with source badge and inline edit */}
+                                      {editingPriceItemId === item.itemId ? (
+                                        <span className="purchase-shopping-row-price" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                          ¥<input
+                                            type="number"
+                                            className="purchase-price-input"
+                                            value={editingPriceValue}
+                                            onChange={e => setEditingPriceValue(e.target.value)}
+                                            onKeyDown={e => {
+                                              if (e.key === 'Enter') {
+                                                const p = parseFloat(editingPriceValue);
+                                                if (p > 0) {
+                                                  updateItemPrice(item.itemId, p);
+                                                  showToast(`价格已更新: ¥${p.toLocaleString()}`);
+                                                }
+                                                setEditingPriceItemId(null);
+                                              } else if (e.key === 'Escape') {
+                                                setEditingPriceItemId(null);
+                                              }
+                                            }}
+                                            onBlur={() => setEditingPriceItemId(null)}
+                                            autoFocus
+                                            style={{ width: 80, padding: '2px 6px', border: '1px solid #4a90d9', borderRadius: 4, fontSize: 13 }}
+                                          />
+                                        </span>
+                                      ) : item.matchedPrice ? (
+                                        <span
+                                          className="purchase-shopping-row-price"
+                                          title="点击修改价格"
+                                          onClick={() => {
+                                            setEditingPriceItemId(item.itemId);
+                                            setEditingPriceValue(String(item.matchedPrice));
+                                          }}
+                                          style={{ cursor: 'pointer' }}
+                                        >
                                           ¥{item.matchedPrice.toLocaleString()}
                                           {item.matchedChannel && <span className="purchase-shopping-row-channel"> ({item.matchedChannel})</span>}
+                                          {(item as any).priceSourceLabel && (
+                                            <span className="price-source-tag" style={{ fontSize: 10, color: '#888', background: '#f0f0f0', padding: '0 4px', borderRadius: 3, marginLeft: 4 }}>
+                                              {(item as any).priceSourceLabel}
+                                            </span>
+                                          )}
+                                        </span>
+                                      ) : (
+                                        <span
+                                          className="purchase-shopping-row-price purchase-shopping-row-price--empty"
+                                          title="点击设置价格"
+                                          onClick={() => {
+                                            setEditingPriceItemId(item.itemId);
+                                            setEditingPriceValue('');
+                                          }}
+                                          style={{ cursor: 'pointer', color: '#bbb', fontStyle: 'italic' }}
+                                        >
+                                          设置价格
                                         </span>
                                       )}
                                     </div>

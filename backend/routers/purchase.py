@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from ..database import get_db
 from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, SelectedPurchase, PurchasedItem, PriceModel, ChannelQuote, PriceCategory, ProjectCompareItem, Expense, BudgetCategory
-from ..schemas import PurchaseRefStageOut, PurchaseRefSubgroupOut, PurchaseRefItemOut, CustomPurchaseCreate, CompareItemOut, PriceModelOut, ChannelQuoteOut, TogglePurchasedRequest, TogglePurchasedResponse, PurchasedItemOut, SelectedPurchaseOut
+from ..schemas import PurchaseRefStageOut, PurchaseRefSubgroupOut, PurchaseRefItemOut, CustomPurchaseCreate, CompareItemOut, PriceModelOut, ChannelQuoteOut, TogglePurchasedRequest, TogglePurchasedResponse, PurchasedItemOut, SelectedPurchaseOut, UpdateItemPriceRequest, UpdateItemPriceResponse
 from ..auth import get_current_user
 from sqlalchemy import update
 import uuid
@@ -620,6 +620,178 @@ async def get_item_comparison(project_id: str, item_id: str, user: User = Depend
         sub_category_id=item.sub_category_id,
         models=models_out,
     )
+
+
+# ── 手动修改物品价格 ──
+
+@router.put("/api/projects/{project_id}/purchase/items/{item_id}/price", response_model=UpdateItemPriceResponse)
+async def update_item_price(project_id: str, item_id: str, data: UpdateItemPriceRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """手动修改待购/已购物品的价格。
+
+    级联规则：
+    - 已绑最优报价（有 ChannelQuote）：更新 ChannelQuote.price → 同步 Expense.amount
+    - 无报价，有 Expense（待购/已购）：直接更新 Expense.amount（已购时调整预算 spent）
+    - 无报价，无 Expense：创建 unpaid Expense → 关联 SelectedPurchase.expense_id
+    """
+    sid = await _ensure_project(project_id, user, db)
+
+    # 验证物品存在且该项目可访问
+    item_result = await db.execute(
+        select(PurchaseRefItem).where(
+            PurchaseRefItem.id == item_id,
+            or_(
+                PurchaseRefItem.project_id == None,
+                PurchaseRefItem.project_id == sid,
+            ),
+        )
+    )
+    item = item_result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="物品不存在或无权访问")
+
+    updated_targets: list[str] = []
+    quote_id: Optional[str] = None
+    expense_id: Optional[str] = None
+
+    # 查找该项目下该物品是否有绑定的最优报价
+    model_result = await db.execute(
+        select(PriceModel).where(
+            PriceModel.item_id == item_id,
+            PriceModel.project_id == sid,
+            PriceModel.best_quote_id != None,
+        )
+    )
+    model = model_result.scalar_one_or_none()
+    quote = None
+    if model:
+        quote_result = await db.execute(
+            select(ChannelQuote).where(ChannelQuote.id == model.best_quote_id)
+        )
+        quote = quote_result.scalar_one_or_none()
+
+    # 查找待购/已购关联的 Expense
+    sel_result = await db.execute(
+        select(SelectedPurchase).where(
+            SelectedPurchase.project_id == sid,
+            SelectedPurchase.item_id == item_id,
+        )
+    )
+    sel = sel_result.scalar_one_or_none()
+
+    pur_result = await db.execute(
+        select(PurchasedItem).where(
+            PurchasedItem.project_id == sid,
+            PurchasedItem.item_id == item_id,
+        )
+    )
+    pur = pur_result.scalar_one_or_none()
+
+    existing_expense = None
+    expense_source = None  # 'selected' | 'purchased'
+    expense_to_check = sel.expense_id if sel and sel.expense_id else (pur.expense_id if pur and pur.expense_id else None)
+    if expense_to_check:
+        exp_result = await db.execute(
+            select(Expense).where(Expense.id == expense_to_check, Expense.project_id == sid)
+        )
+        existing_expense = exp_result.scalar_one_or_none()
+        if existing_expense:
+            expense_source = 'selected' if (sel and sel.expense_id == existing_expense.id) else 'purchased'
+
+    if quote and quote.price is not None:
+        # ── 优先级 1: 有最优报价 → 更新报价金额，同步 Expense ──
+        quote.price = data.price
+        updated_targets.append("quote")
+        quote_id = quote.id
+
+        if existing_expense:
+            # 同步更新 Expense
+            await _adjust_expense_amount(existing_expense, data.price, sid, db)
+            expense_id = existing_expense.id
+            updated_targets.append("expense")
+        else:
+            # 创建 unpaid Expense 并关联到 SelectedPurchase
+            expense_id = await _create_unpaid_expense(item, data.price, sid, db)
+            updated_targets.append("expense")
+            if sel:
+                sel.expense_id = expense_id
+            else:
+                db.add(SelectedPurchase(
+                    id=f"sp_{uuid.uuid4().hex[:12]}",
+                    project_id=sid,
+                    item_id=item_id,
+                    expense_id=expense_id,
+                ))
+
+    elif existing_expense:
+        # ── 优先级 2: 无报价，有 Expense → 直接更新 Expense ──
+        await _adjust_expense_amount(existing_expense, data.price, sid, db)
+        expense_id = existing_expense.id
+        updated_targets.append("expense")
+
+    else:
+        # ── 优先级 3: 无报价，无 Expense → 创建 unpaid Expense ──
+        expense_id = await _create_unpaid_expense(item, data.price, sid, db)
+        updated_targets.append("expense")
+        if sel:
+            sel.expense_id = expense_id
+        else:
+            db.add(SelectedPurchase(
+                id=f"sp_{uuid.uuid4().hex[:12]}",
+                project_id=sid,
+                item_id=item_id,
+                expense_id=expense_id,
+            ))
+
+    await db.commit()
+    return UpdateItemPriceResponse(
+        item_id=item_id,
+        price=data.price,
+        updated_targets=updated_targets,
+        quote_id=quote_id,
+        expense_id=expense_id,
+    )
+
+
+async def _adjust_expense_amount(expense: Expense, new_amount: float, project_id: str, db: AsyncSession):
+    """调整 Expense 金额，若 status 为 paid/prepaid 则同步调整预算 spent。"""
+    old_amount = expense.amount
+    expense.amount = new_amount
+
+    if expense.status in ("paid", "prepaid") and old_amount != new_amount:
+        cat_result = await db.execute(
+            select(BudgetCategory).where(BudgetCategory.id == f"{project_id}_{expense.category_id}")
+        )
+        cat = cat_result.scalar_one_or_none()
+        if cat:
+            cat.spent = max(0, cat.spent - old_amount + new_amount)
+
+
+async def _create_unpaid_expense(item: PurchaseRefItem, price: float, project_id: str, db: AsyncSession) -> str:
+    """创建一笔 unpaid Expense，返回 expense_id。"""
+    note_parts = []
+    if item.spec:
+        note_parts.append(item.spec)
+    if item.qty and item.unit:
+        note_parts.append(f"{item.qty}{item.unit}")
+    elif item.qty:
+        note_parts.append(str(item.qty))
+
+    expense_id = f"exp_{uuid.uuid4().hex[:12]}"
+    expense = Expense(
+        id=expense_id,
+        project_id=project_id,
+        title=item.name,
+        amount=price,
+        category_id=item.category_id or "hard",
+        sub_category_id=item.sub_category_id,
+        stage_id=None,
+        date=date.today(),
+        status="unpaid",
+        payer=None,
+        note="，".join(note_parts) if note_parts else "",
+    )
+    db.add(expense)
+    return expense_id
 
 
 # ── 批量修改采购物品分类 ──

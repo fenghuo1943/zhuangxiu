@@ -217,6 +217,19 @@ class CustomPurchaseCreate(BaseModel):
     # 若设置了价格，添加待购物品时会自动创建一笔未支付账单
 
 
+# ── Update item price ──
+
+class UpdateItemPriceRequest(BaseModel):
+    price: float = Field(..., gt=0, description="新的物品价格")
+
+class UpdateItemPriceResponse(BaseModel):
+    item_id: str
+    price: float
+    updated_targets: list[str]  # e.g. ["quote", "expense"]
+    quote_id: Optional[str] = None
+    expense_id: Optional[str] = None
+
+
 # ── Batch category update ──
 
 class BatchCategoryItem(BaseModel):
