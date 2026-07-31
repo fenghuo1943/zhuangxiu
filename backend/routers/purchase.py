@@ -107,7 +107,8 @@ async def toggle_selected(project_id: str, item_id: str, delete_expense: bool = 
     sid = await _ensure_project(project_id, user, db)
 
     result = await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id))
-    existing = result.scalar_one_or_none()
+    sel_all = result.scalars().all()
+    existing = sel_all[0] if sel_all else None
     if existing:
         # ── 移出待购清单 ──
         expense_id = existing.expense_id
@@ -123,7 +124,8 @@ async def toggle_selected(project_id: str, item_id: str, delete_expense: bool = 
                         cat.spent = max(0, cat.spent - expense.amount)
                 await db.delete(expense)
 
-        await db.delete(existing)
+        for rec in sel_all:
+            await db.delete(rec)
         await db.commit()
         return {"selected": False}
     else:
@@ -230,12 +232,6 @@ async def delete_purchase_item(project_id: str, item_id: str, delete_expense: bo
     # 自定义物品 (project_id == sid): 完全删除
     is_seed = item.project_id is None
 
-    # 检查待购清单中是否有关联账单
-    sel_result = await db.execute(
-        select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id)
-    )
-    sel = sel_result.scalar_one_or_none()
-
     # 解除 PriceCategory 关联
     await db.execute(
         update(PriceCategory).where(PriceCategory.purchase_item_id == item_id).values(purchase_item_id=None)
@@ -277,7 +273,12 @@ async def delete_purchase_item(project_id: str, item_id: str, delete_expense: bo
 async def get_purchased(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     sid = await _ensure_project(project_id, user, db)
     result = await db.execute(select(PurchasedItem).where(PurchasedItem.project_id == sid))
-    return [PurchasedItemOut(item_id=pi.item_id, expense_id=pi.expense_id) for pi in result.scalars().all()]
+    # Deduplicate by item_id: keep the record with expense_id when duplicates exist
+    best: dict[str, PurchasedItem] = {}
+    for pi in result.scalars().all():
+        if pi.item_id not in best or (pi.expense_id and not best[pi.item_id].expense_id):
+            best[pi.item_id] = pi
+    return [PurchasedItemOut(item_id=pi.item_id, expense_id=pi.expense_id) for pi in best.values()]
 
 
 @router.put("/api/projects/{project_id}/purchase/purchased/{item_id}", response_model=TogglePurchasedResponse)
@@ -296,10 +297,12 @@ async def toggle_purchased(project_id: str, item_id: str, data: TogglePurchasedR
     sid = await _ensure_project(project_id, user, db)
 
     result = await db.execute(select(PurchasedItem).where(PurchasedItem.project_id == sid, PurchasedItem.item_id == item_id))
-    existing = result.scalar_one_or_none()
+    all_existing = result.scalars().all()
 
-    if existing:
+    if all_existing:
         # ── 移出已购清单 ──
+        # 可能存在历史重复记录，取第一条作为参考，删除全部重复行
+        existing = all_existing[0]
         expense_id = existing.expense_id
         if data.delete_expense and expense_id:
             # 同步删除关联的记账记录
@@ -328,7 +331,11 @@ async def toggle_purchased(project_id: str, item_id: str, data: TogglePurchasedR
             sel_result = await db.execute(
                 select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id)
             )
-            sel = sel_result.scalar_one_or_none()
+            sel_all = sel_result.scalars().all()
+            sel = sel_all[0] if sel_all else None
+            # 清理多余重复记录
+            for extra in sel_all[1:]:
+                await db.delete(extra)
             if sel:
                 sel.expense_id = expense_id
             elif expense:
@@ -340,7 +347,8 @@ async def toggle_purchased(project_id: str, item_id: str, data: TogglePurchasedR
                     expense_id=expense_id,
                 ))
 
-        await db.delete(existing)
+        for rec in all_existing:
+            await db.delete(rec)
         await db.commit()
         return TogglePurchasedResponse(purchased=False)
 
@@ -373,7 +381,11 @@ async def toggle_purchased(project_id: str, item_id: str, data: TogglePurchasedR
         sel_result = await db.execute(
             select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id)
         )
-        sel = sel_result.scalar_one_or_none()
+        sel_all = sel_result.scalars().all()
+        sel = sel_all[0] if sel_all else None
+        # 清理多余重复记录
+        for extra in sel_all[1:]:
+            await db.delete(extra)
         existing_expense_id = sel.expense_id if sel else None
 
         if existing_expense_id:
@@ -527,10 +539,12 @@ async def toggle_purchase_compare(project_id: str, item_id: str, user: User = De
             ProjectCompareItem.item_id == item_id,
         )
     )
-    existing = cmp_result.scalar_one_or_none()
+    cmp_all = cmp_result.scalars().all()
+    existing = cmp_all[0] if cmp_all else None
 
     if existing:
-        await db.delete(existing)
+        for rec in cmp_all:
+            await db.delete(rec)
         needs_compare = False
     else:
         db.add(ProjectCompareItem(
@@ -543,8 +557,13 @@ async def toggle_purchase_compare(project_id: str, item_id: str, user: User = De
         sel_result = await db.execute(
             select(SelectedPurchase).where(SelectedPurchase.project_id == sid, SelectedPurchase.item_id == item_id)
         )
-        if not sel_result.scalar_one_or_none():
+        sel_check = sel_result.scalars().all()
+        if not sel_check:
             db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=item_id))
+        else:
+            # 清理可能的重复
+            for extra in sel_check[1:]:
+                await db.delete(extra)
 
     await db.commit()
     return {"needs_compare": needs_compare}
