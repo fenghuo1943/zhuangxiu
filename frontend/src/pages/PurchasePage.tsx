@@ -806,7 +806,14 @@ const PurchasePage: React.FC = () => {
                                                 setEditingPriceItemId(null);
                                               }
                                             }}
-                                            onBlur={() => setEditingPriceItemId(null)}
+                                            onBlur={() => {
+                                              const p = parseFloat(editingPriceValue);
+                                              if (p > 0) {
+                                                updateItemPrice(item.itemId, p);
+                                                showToast(`价格已更新: ¥${p.toLocaleString()}`);
+                                              }
+                                              setEditingPriceItemId(null);
+                                            }}
                                             autoFocus
                                             style={{ width: 80, padding: '2px 6px', border: '1px solid #4a90d9', borderRadius: 4, fontSize: 13 }}
                                           />
