@@ -544,11 +544,6 @@ const PurchasePage: React.FC = () => {
         </div>
         <p className="purchase-subtitle">按装修阶段整理需要采购的物品，勾选后自动同步到首页待购清单。</p>
 
-        {/* ── Tip ── */}
-        <div className="purchase-tip">
-          <strong>使用方法：</strong>浏览各阶段物品参考，勾选你需要购买的项目，主页会同步显示待购状态。
-        </div>
-
         {/* ── Summary bar ── */}
         <div className="purchase-summary">
           <div className="purchase-summary-left">

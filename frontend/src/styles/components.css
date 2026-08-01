@@ -3267,19 +3267,6 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   margin-bottom: 16px;
 }
 
-/* ── Tip ── */
-.purchase-tip {
-  background: #F0FDF4;
-  border-left: 3px solid #22C55E;
-  border-radius: 0 12px 12px 0;
-  padding: 12px 16px;
-  margin-bottom: 14px;
-  font-size: 13px;
-  color: #666;
-}
-
-.purchase-tip strong { color: #166534; }
-
 /* ── Shopping List Card ── */
 .purchase-shopping-card {
   background: white;
