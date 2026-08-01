@@ -346,6 +346,7 @@ async def toggle_purchased(project_id: str, item_id: str, data: TogglePurchasedR
                 await db.delete(extra)
             if sel:
                 sel.expense_id = expense_id
+                sel.price = existing.price  # 同步已购价格回待购
             elif expense:
                 # 待购记录不存在（可能被手动删除），重新创建
                 db.add(SelectedPurchase(
@@ -353,6 +354,7 @@ async def toggle_purchased(project_id: str, item_id: str, data: TogglePurchasedR
                     project_id=sid,
                     item_id=item_id,
                     expense_id=expense_id,
+                    price=existing.price,  # 同步已购价格
                 ))
 
         for rec in all_existing:
@@ -750,6 +752,12 @@ async def update_item_price(project_id: str, item_id: str, data: UpdateItemPrice
                 item_id=item_id,
                 expense_id=expense_id,
             ))
+
+    # 同步 sel.price / pur.price，保持 待购/已购价格 = 账单金额 = 报价价格
+    if sel:
+        sel.price = data.price
+    if pur:
+        pur.price = data.price
 
     await db.commit()
     return UpdateItemPriceResponse(

@@ -339,6 +339,7 @@ async def set_best_quote(project_id: str, model_id: str, data: SetBestQuoteReque
                     existing_expense = exp_result.scalar_one_or_none()
                     if existing_expense:
                         existing_expense.amount = quote.price
+                    sel.price = quote.price  # 同步待购价格
                 else:
                     # 没有待购账单 → 创建新的未支付账单
                     note_parts = []
@@ -366,6 +367,8 @@ async def set_best_quote(project_id: str, model_id: str, data: SetBestQuoteReque
                     )
                     db.add(expense)
                     sel.expense_id = expense_id
+
+                sel.price = quote.price  # 同步待购价格
     else:
         # 取消最优报价 → 不清除已创建的账单（账单可能已被用户手动管理）
         model.best_quote_id = None
