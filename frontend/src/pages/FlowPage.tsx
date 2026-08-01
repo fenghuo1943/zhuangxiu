@@ -5,7 +5,7 @@ import FlowStepCard from '../components/flow/FlowStepCard';
 import KnowledgeModal from '../components/flow/KnowledgeModal';
 import type { FlowResource } from '../data/types';
 import { useStore, setFlowCustomOrder, getOrderedFlowSteps, addCustomFlowStep, removeCustomFlowStep, loadCustomFlowSteps, loadFlowFromBackend, loadFlowStagesFromBackend } from '../data/store';
-import { IconEdit, IconCheck, IconChevronUp, IconChevronDown, IconPlus } from '../components/common/Icons';
+import { IconEdit, IconCheck, IconChevronUp, IconChevronDown, IconPlus, IconMenu } from '../components/common/Icons';
 
 const FlowPage: React.FC = () => {
   const state = useStore();
@@ -19,6 +19,7 @@ const FlowPage: React.FC = () => {
     const saved = localStorage.getItem('flow_sidebar_open');
     return saved !== null ? saved === 'true' : true;
   });
+  const [popupOpen, setPopupOpen] = useState(false);
 
   const toggleSidebar = useCallback(() => {
     setSidebarOpen(prev => {
@@ -288,6 +289,57 @@ const FlowPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Mobile FAB — floating button to open stage list */}
+        <button
+          className="flow-fab show-mobile"
+          onClick={() => setPopupOpen(true)}
+          aria-label="查看流程阶段"
+        >
+          <IconMenu size={22} />
+        </button>
+
+        {/* Mobile Popup — bottom sheet stage list */}
+        {popupOpen && (
+          <div className="flow-popup-overlay" onClick={() => setPopupOpen(false)}>
+            <div className="flow-popup-dialog" onClick={e => e.stopPropagation()}>
+              <div className="flow-popup-header">
+                <span>流程阶段</span>
+                <button
+                  type="button"
+                  className="flow-popup-close"
+                  onClick={() => setPopupOpen(false)}
+                  aria-label="关闭"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="flow-popup-body">
+                <div className="flow-bulk-actions">
+                  <button type="button" onClick={expandAll}>全部展开</button>
+                  <button type="button" onClick={collapseAll}>全部折叠</button>
+                </div>
+                {orderedSteps.map((step, i) => {
+                  const isDone = doneSet.has(step.id);
+                  const isCurrent = step.id === firstUndoneId;
+                  return (
+                    <button
+                      key={step.id}
+                      className={`stage-chip ${isDone ? 'done' : ''} ${isCurrent ? 'active' : ''}`}
+                      onClick={() => {
+                        scrollToStep(step.id);
+                        setPopupOpen(false);
+                      }}
+                    >
+                      <span className="stage-dot"></span>
+                      <span>{String(i + 1).padStart(2, '0')} {step.title}{step.isCustom && ' *'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {selectedResource && (
           <KnowledgeModal
