@@ -180,6 +180,7 @@ export interface PriceModel {
   note?: string;
   quantity?: number;
   best_quote_id?: string | null;
+  synced?: boolean;
   channelQuotes: ChannelQuote[];
 }
 

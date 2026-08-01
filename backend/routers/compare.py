@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from ..database import get_db
-from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, PriceModel, ChannelQuote, SyncedModel, SelectedPurchase, PurchasedItem, ProjectCompareItem, Expense, BudgetCategory
+from ..models import User, Project, PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem, PriceModel, ChannelQuote, SelectedPurchase, PurchasedItem, ProjectCompareItem, Expense, BudgetCategory
 from ..schemas import PriceModelCreate, PriceModelOut, ChannelQuoteCreate, ChannelQuoteOut, SetBestQuoteRequest, CompareItemOut, CustomPurchaseCreate
 from ..auth import get_current_user
 import uuid
@@ -56,7 +56,8 @@ def _build_model_out(m: PriceModel, quotes: list[ChannelQuote]) -> PriceModelOut
     return PriceModelOut(
         id=m.id, item_id=m.item_id, project_id=m.project_id,
         name=m.name, spec=m.spec, note=m.note, quantity=m.quantity,
-        best_quote_id=m.best_quote_id, quotes=[ChannelQuoteOut.model_validate(q) for q in quotes],
+        best_quote_id=m.best_quote_id, synced=m.synced,
+        quotes=[ChannelQuoteOut.model_validate(q) for q in quotes],
     )
 
 
@@ -159,7 +160,6 @@ async def add_compare_item(project_id: str, data: CustomPurchaseCreate, user: Us
         spec=data.spec or "",
         qty=data.qty,
         unit=data.unit or "个",
-        needs_compare=True,
         project_id=sid,  # 项目专属
     )
     db.add(item)
@@ -374,13 +374,13 @@ async def set_best_quote(project_id: str, model_id: str, data: SetBestQuoteReque
     return {"best_quote_id": data.quote_id}
 
 
-# ── 同步（仅管理 SyncedModel 记录，PurchasedItem 由 purchase 路由管理）──
+# ── 同步（管理 PriceModel.synced 标志，PurchasedItem 由 purchase 路由管理）──
 
 @router.put("/models/{model_id}/sync")
 async def toggle_model_sync(project_id: str, model_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """切换比价型号的同步状态。
 
-    仅管理 SyncedModel 记录（标记哪些型号已从比价同步）。
+    直接读写 PriceModel.synced 字段（替代旧的 synced_models 表）。
     已购物品 (PurchasedItem) 和账单 (Expense) 的创建/修改由
     /api/projects/{project_id}/purchase/purchased/{item_id} 负责。
     """
@@ -390,18 +390,10 @@ async def toggle_model_sync(project_id: str, model_id: str, user: User = Depends
     if not model:
         raise HTTPException(status_code=404, detail="型号不存在")
 
-    # 检查 SyncedModel
-    result = await db.execute(select(SyncedModel).where(SyncedModel.project_id == sid, SyncedModel.model_id == model_id))
-    existing = result.scalar_one_or_none()
-    if existing:
-        await db.delete(existing)
-        await db.commit()
-        return {"synced": False, "auto_purchased": 0}
-
-    # 创建同步记录
-    db.add(SyncedModel(id=f"sm_{uuid.uuid4().hex[:12]}", project_id=sid, model_id=model_id))
+    # Toggle synced flag on PriceModel directly
+    model.synced = not model.synced
     await db.commit()
-    return {"synced": True, "auto_purchased": 0}
+    return {"synced": model.synced, "auto_purchased": 0}
 
 
 # ── CSV 导出/导入 ──
@@ -514,7 +506,7 @@ async def import_csv(project_id: str, file: UploadFile = File(...), user: User =
                 item = PurchaseRefItem(
                     id=f"p_import_{uuid.uuid4().hex[:12]}",
                     subgroup_id=sub.id, name=item_name, spec=spec or None,
-                    qty=qty, unit="个", needs_compare=True,
+                    qty=qty, unit="个",
                     project_id=sid,  # 导入的物品归该项目专属
                 )
                 db.add(item)

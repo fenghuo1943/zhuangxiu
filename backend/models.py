@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, String, Float, Boolean, Date, DateTime, ForeignKey, JSON, Integer, Text
+from sqlalchemy import Column, String, Float, Boolean, Date, DateTime, ForeignKey, JSON, Integer, Text, Index
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -40,11 +40,9 @@ class Project(Base):
     todos = relationship("Todo", back_populates="project", cascade="all, delete-orphan")
     expenses = relationship("Expense", back_populates="project", cascade="all, delete-orphan")
     flow_progress = relationship("FlowProgress", back_populates="project", uselist=False, cascade="all, delete-orphan")
-    price_categories = relationship("PriceCategory", back_populates="project", cascade="all, delete-orphan")
     price_models = relationship("PriceModel", back_populates=None, foreign_keys="[PriceModel.project_id]", cascade="all, delete-orphan")
     selected_purchases = relationship("SelectedPurchase", back_populates="project", cascade="all, delete-orphan")
     purchased_items = relationship("PurchasedItem", back_populates="project", cascade="all, delete-orphan")
-    synced_models = relationship("SyncedModel", back_populates="project", cascade="all, delete-orphan")
     stage_notes = relationship("StageNote", back_populates="project", cascade="all, delete-orphan")
     custom_flow_steps = relationship("CustomFlowStep", back_populates="project", cascade="all, delete-orphan")
     compare_items = relationship("ProjectCompareItem", back_populates="project", cascade="all, delete-orphan")
@@ -88,7 +86,11 @@ class Todo(Base):
 
 class Expense(Base):
     __tablename__ = "expenses"
-    __table_args__ = {"comment": "支出记录表"}
+    __table_args__ = (
+        Index("idx_expenses_project_status", "project_id", "status"),
+        Index("idx_expenses_project_category", "project_id", "category_id"),
+        {"comment": "支出记录表"},
+    )
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     title = Column(String(200), nullable=False)
@@ -96,7 +98,7 @@ class Expense(Base):
     category_id = Column(String(50), nullable=False, default="hard")
     sub_category_id = Column(String(50), nullable=True)
     stage_id = Column(String(50), nullable=True)
-    date = Column(Date, nullable=False)
+    date = Column(Date, nullable=False, index=True)
     status = Column(String(20), nullable=False, default="paid")
     payer = Column(String(50), nullable=True)
     note = Column(String(500), nullable=True)
@@ -147,15 +149,12 @@ class PurchaseRefItem(Base):
     spec = Column(String(100), nullable=True)
     qty = Column(Integer, default=1)
     unit = Column(String(20), nullable=True)
-    needs_compare = Column(Boolean, default=False, index=True)  # kept for backward compat; prefer ProjectCompareItem
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
     # NULL = 公共种子数据（所有项目可见）；非NULL = 项目专属物品（仅该项目可见）
-    category_id = Column(String(50), nullable=True, index=True)
+    category_id = Column(String(50), nullable=True)
     # 预算分类（如 hard/material/equipment/soft/service），NULL = 未分配
     sub_category_id = Column(String(50), nullable=True)
     # 预算子分类（如 shuidian/cizhuan/diban 等），NULL = 未分配
-    price = Column(Float, nullable=True)
-    # 物品价格，在从待购添加至已购时由用户输入并保存
 
     subgroup = relationship("PurchaseRefSubgroup", back_populates="items")
     price_models = relationship("PriceModel", back_populates="purchase_item", cascade="all, delete-orphan")
@@ -163,24 +162,34 @@ class PurchaseRefItem(Base):
 
 class SelectedPurchase(Base):
     __tablename__ = "selected_purchases"
-    __table_args__ = {"comment": "项目已选采购项表"}
+    __table_args__ = (
+        Index("idx_selected_project_item", "project_id", "item_id"),
+        {"comment": "项目已选采购项表"},
+    )
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
     item_id = Column(String(36), ForeignKey("purchase_ref_items.id"), nullable=False)
     expense_id = Column(String(36), nullable=True)
     # 关联的记账记录 ID，在添加待购物品时若设置了价格则自动创建（状态为 unpaid）
+    price = Column(Float, nullable=True)
+    # 项目级价格，替代 purchase_ref_items.price
 
     project = relationship("Project", back_populates="selected_purchases")
 
 
 class PurchasedItem(Base):
     __tablename__ = "purchased_items"
-    __table_args__ = {"comment": "项目已购物品表"}
+    __table_args__ = (
+        Index("idx_purchased_project_item", "project_id", "item_id"),
+        {"comment": "项目已购物品表"},
+    )
     id = _pk()
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
-    item_id = Column(String(36), nullable=False)
+    item_id = Column(String(36), ForeignKey("purchase_ref_items.id"), nullable=False)
     expense_id = Column(String(36), nullable=True)
     # 关联的记账记录 ID，从待购添加至已购时自动创建
+    price = Column(Float, nullable=True)
+    # 项目级价格，替代 purchase_ref_items.price
 
     project = relationship("Project", back_populates="purchased_items")
 
@@ -199,39 +208,21 @@ class ProjectCompareItem(Base):
 
 # ---- Price Comparison ----
 
-# [DEPRECATED] PriceCategory table — replaced by PurchaseRefItem.needs_compare + PriceModel.item_id FK.
-# Table kept for migration compat; no new data should be written here.
-class PriceCategory(Base):
-    __tablename__ = "price_categories"
-    __table_args__ = {"comment": "[已废弃] 比价分类表 — 已被 PurchaseRefItem.needs_compare + PriceModel.item_id FK 替代"}
-    id = _pk()
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
-    name = Column(String(100), nullable=False)
-    icon = Column(String(10), default="📦")
-    purchase_item_id = Column(String(36), ForeignKey("purchase_ref_items.id"), nullable=True, index=True)
-    best_quote_id = Column(String(36), ForeignKey("channel_quotes.id"), nullable=True)
-
-    project = relationship("Project", back_populates="price_categories")
-    models = relationship("PriceModel", back_populates="category", foreign_keys="[PriceModel.category_id]", cascade="all, delete-orphan")
-    purchase_item = relationship("PurchaseRefItem", foreign_keys=[purchase_item_id])
-    best_quote = relationship("ChannelQuote", foreign_keys=[best_quote_id])
-
-
 class PriceModel(Base):
     __tablename__ = "price_models"
     __table_args__ = {"comment": "比价型号表"}
     id = _pk()
-    category_id = Column(String(36), ForeignKey("price_categories.id"), nullable=True)  # deprecated
-    item_id = Column(String(36), ForeignKey("purchase_ref_items.id"), nullable=True, index=True)     # NEW: direct FK to purchase item
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)            # NEW: project context
+    item_id = Column(String(36), ForeignKey("purchase_ref_items.id"), nullable=True, index=True)     # direct FK to purchase item
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)            # project context
     name = Column(String(200), nullable=False)
     spec = Column(String(100), nullable=True)
     note = Column(String(200), nullable=True)
     quantity = Column(Integer, default=1)
     best_quote_id = Column(String(36), nullable=True)
     # 最优报价 ID，在比价页面选中某个报价后持久化
+    synced = Column(Boolean, default=False)
+    # 是否已同步，替代 synced_models 表
 
-    category = relationship("PriceCategory", back_populates="models", foreign_keys=[category_id])
     purchase_item = relationship("PurchaseRefItem", back_populates="price_models", foreign_keys=[item_id])
     quotes = relationship("ChannelQuote", back_populates="model", cascade="all, delete-orphan")
 
@@ -250,23 +241,16 @@ class ChannelQuote(Base):
     model = relationship("PriceModel", back_populates="quotes")
 
 
-class SyncedModel(Base):
-    __tablename__ = "synced_models"
-    __table_args__ = {"comment": "已同步型号表"}
-    id = _pk()
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
-    model_id = Column(String(36), ForeignKey("price_models.id"), nullable=False)
-
-    project = relationship("Project", back_populates="synced_models")
-
-
 class StageNote(Base):
     """User notes attached to a specific flow stage."""
     __tablename__ = "stage_notes"
-    __table_args__ = {"comment": "阶段备注表"}
+    __table_args__ = (
+        Index("idx_stage_notes_project_stage", "project_id", "stage_id"),
+        {"comment": "阶段备注表"},
+    )
     id = _pk()
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
-    stage_id = Column(String(50), nullable=False, index=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
+    stage_id = Column(String(50), nullable=False)
     content = Column(String(2000), nullable=False)
     created_at = Column(DateTime, default=_now)
 

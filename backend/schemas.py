@@ -163,7 +163,7 @@ class PurchaseRefItemOut(BaseModel):
     spec: Optional[str]
     qty: int
     unit: Optional[str]
-    needs_compare: bool = False
+    needs_compare: bool = False  # 动态计算（通过 ProjectCompareItem），非 DB 列值
     category_id: Optional[str] = None
     sub_category_id: Optional[str] = None
     price: Optional[float] = None
@@ -179,16 +179,19 @@ class TogglePurchasedRequest(BaseModel):
 
 
 class SelectedPurchaseOut(BaseModel):
-    """待购物品输出（含关联账单 ID）"""
+    """待购物品输出（含关联账单 ID 和价格）"""
     item_id: str
     expense_id: Optional[str] = None
+    price: Optional[float] = None
 
     model_config = {"from_attributes": True}
 
 
 class PurchasedItemOut(BaseModel):
+    """已购物品输出（含关联账单 ID 和价格）"""
     item_id: str
     expense_id: Optional[str] = None
+    price: Optional[float] = None
 
     model_config = {"from_attributes": True}
 
@@ -279,6 +282,7 @@ class PriceModelOut(BaseModel):
     note: Optional[str]
     quantity: int
     best_quote_id: Optional[str] = None
+    synced: bool = False
     quotes: List[ChannelQuoteOut]
 
     model_config = {"from_attributes": True}
@@ -352,12 +356,13 @@ class AppStateSync(BaseModel):
     expenses: List[dict] = []
     budget: Optional[dict] = None
     flow_progress: Optional[dict] = None
-    price_categories: List[dict] = []  # deprecated — kept for backward compat
-    price_models: List[dict] = []     # NEW: model data directly keyed by item_id
+    price_models: List[dict] = []     # model data directly keyed by item_id
     selected_purchase_ids: List[str] = []
+    selected_purchase_prices: dict = {}  # item_id -> price (project-scoped)
     purchased_item_ids: List[str] = []
-    project_compare_item_ids: List[str] = []  # NEW: per-project compare item IDs
-    synced_model_ids: List[str] = []
+    purchased_item_prices: dict = {}     # item_id -> price (project-scoped)
+    project_compare_item_ids: List[str] = []  # per-project compare item IDs
+    synced_model_ids: List[str] = []  # deprecated — kept for backward compat; prefer PriceModel.synced
     stage_notes: Optional[dict] = None
     custom_flow_steps: List[dict] = []
 

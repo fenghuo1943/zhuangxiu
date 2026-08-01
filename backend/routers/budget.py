@@ -124,3 +124,26 @@ async def update_category_allocation(project_id: str, category_id: str, data: Ca
     await db.commit()
     await db.refresh(cat)
     return cat
+
+
+@router.post("/recalc")
+async def recalc_budget_spent(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Recalculate budget category spent from actual paid/prepaid expenses."""
+    from ..models import Expense
+
+    sid = await _ensure_project(project_id, user, db)
+
+    result = await db.execute(
+        select(Expense).where(Expense.project_id == sid, Expense.status.in_(["paid", "prepaid"]))
+    )
+    expenses = result.scalars().all()
+    totals: dict[str, float] = {}
+    for e in expenses:
+        totals[e.category_id] = totals.get(e.category_id, 0.0) + e.amount
+
+    cat_result = await db.execute(select(BudgetCategory).where(BudgetCategory.project_id == sid))
+    for cat in cat_result.scalars():
+        cat.spent = totals.get(cat.id, 0.0)
+
+    await db.commit()
+    return {"status": "ok", "recalculated": len(expenses)}

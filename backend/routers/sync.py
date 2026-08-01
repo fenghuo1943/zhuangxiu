@@ -46,7 +46,7 @@ async def _ensure_project(project_id: str, user: User, db: AsyncSession) -> Proj
 async def export_state(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Export all project data as JSON (same format as frontend localStorage)."""
     from sqlalchemy import select
-    from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceCategory, PriceModel, ChannelQuote, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep, PurchasedItem, ProjectCompareItem
+    from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceModel, ChannelQuote, SelectedPurchase, StageNote, CustomFlowStep, PurchasedItem, ProjectCompareItem
 
     proj = await _ensure_project(project_id, user, db)
     sid = proj.id  # scoped project ID
@@ -60,22 +60,7 @@ async def export_state(project_id: str, user: User = Depends(get_current_user), 
 
     fp = (await db.execute(select(FlowProgress).where(FlowProgress.project_id == sid))).scalar_one_or_none()
 
-    # Export price categories (deprecated compat) + direct price_models
-    price_cats = (await db.execute(select(PriceCategory).where(PriceCategory.project_id == sid))).scalars().all()
-    price_data = []
-    for pc in price_cats:
-        models = (await db.execute(select(PriceModel).where(PriceModel.category_id == pc.id))).scalars().all()
-        models_data = []
-        for m in models:
-            quotes = (await db.execute(select(ChannelQuote).where(ChannelQuote.model_id == m.id))).scalars().all()
-            models_data.append({"id": m.id, "name": m.name, "spec": m.spec, "note": m.note, "quantity": m.quantity,
-                "item_id": m.item_id, "project_id": m.project_id,
-                "channelQuotes": [{"id": q.id, "channel": q.channel, "price": q.price, "url": q.url, "updatedAt": q.updated_at.isoformat() if q.updated_at else None} for q in quotes]})
-        price_data.append({"id": pc.id, "name": pc.name, "icon": pc.icon,
-            "purchase_item_id": pc.purchase_item_id, "best_quote_id": pc.best_quote_id,
-            "models": models_data})
-
-    # Export direct price_models (new format, keyed by item_id)
+    # Export direct price_models (keyed by item_id)
     direct_models = (await db.execute(
         select(PriceModel).where(PriceModel.project_id == sid, PriceModel.item_id != None)
     )).scalars().all()
@@ -89,9 +74,15 @@ async def export_state(project_id: str, user: User = Depends(get_current_user), 
         })
 
     sel = (await db.execute(select(SelectedPurchase).where(SelectedPurchase.project_id == sid))).scalars().all()
+    sel_prices = {s.item_id: s.price for s in sel if s.price is not None}
     purch = (await db.execute(select(PurchasedItem).where(PurchasedItem.project_id == sid))).scalars().all()
+    purch_prices = {p.item_id: p.price for p in purch if p.price is not None}
     compare_items = (await db.execute(select(ProjectCompareItem).where(ProjectCompareItem.project_id == sid))).scalars().all()
-    synced = (await db.execute(select(SyncedModel).where(SyncedModel.project_id == sid))).scalars().all()
+    # Read synced model IDs from PriceModel.synced flag
+    synced_result = await db.execute(
+        select(PriceModel.id).where(PriceModel.project_id == sid, PriceModel.synced == True)
+    )
+    synced_ids = [row[0] for row in synced_result.fetchall()]
 
     # Stage notes
     notes = (await db.execute(select(StageNote).where(StageNote.project_id == sid))).scalars().all()
@@ -124,12 +115,13 @@ async def export_state(project_id: str, user: User = Depends(get_current_user), 
         "flowType": fp.flow_type if fp else "new",
         "flowDoneStepIds": fp.done_step_ids if fp else [],
         "flowCustomOrder": fp.custom_order if fp else None,
-        "priceCategories": price_data,
         "priceModels": price_models_data,
         "selectedPurchaseIds": [s.item_id for s in sel],
+        "selectedPurchasePrices": sel_prices,
         "purchasedItemIds": [p.item_id for p in purch],
+        "purchasedItemPrices": purch_prices,
         "projectCompareItemIds": [c.item_id for c in compare_items],
-        "syncedModelIds": [s.model_id for s in synced],
+        "syncedModelIds": synced_ids,
         "stageNotes": notes_by_stage,
         "customFlowSteps": custom_steps_data,
     }
@@ -139,7 +131,7 @@ async def export_state(project_id: str, user: User = Depends(get_current_user), 
 async def import_state(project_id: str, data: AppStateSync, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Import full project state from JSON."""
     from sqlalchemy import select, delete
-    from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceCategory, PriceModel, ChannelQuote, SelectedPurchase, SyncedModel, StageNote, CustomFlowStep, PurchasedItem, ProjectCompareItem
+    from ..models import Todo, Expense, Budget, BudgetCategory, FlowProgress, PriceModel, ChannelQuote, SelectedPurchase, StageNote, CustomFlowStep, PurchasedItem, ProjectCompareItem
     import uuid
     from datetime import date as date_type, datetime, timezone
 
@@ -147,15 +139,15 @@ async def import_state(project_id: str, data: AppStateSync, user: User = Depends
     sid = proj.id  # scoped project ID
 
     # Clear existing data
-    for model in [Todo, Expense, SelectedPurchase, PurchasedItem, SyncedModel, StageNote, CustomFlowStep, ProjectCompareItem]:
+    for model in [Todo, Expense, SelectedPurchase, PurchasedItem, StageNote, CustomFlowStep, ProjectCompareItem]:
         await db.execute(delete(model).where(model.project_id == sid))
     await db.execute(delete(Budget).where(Budget.project_id == sid))
     await db.execute(delete(BudgetCategory).where(BudgetCategory.project_id == sid))
     await db.execute(delete(FlowProgress).where(FlowProgress.project_id == sid))
-    # Clear price categories
-    existing_pc = (await db.execute(select(PriceCategory).where(PriceCategory.project_id == sid))).scalars().all()
-    for pc in existing_pc:
-        await db.delete(pc)
+    # Clear project-scoped price models
+    existing_pm = (await db.execute(select(PriceModel).where(PriceModel.project_id == sid))).scalars().all()
+    for pm in existing_pm:
+        await db.delete(pm)
 
     # Import todos
     for t in data.todos:
@@ -204,25 +196,6 @@ async def import_state(project_id: str, data: AppStateSync, user: User = Depends
             sort_order=cs.get("sort_order", 0),
         ))
 
-    # Import price categories (deprecated compat)
-    for pc in data.price_categories:
-        cat = PriceCategory(
-            id=pc.get("id", f"pc_{uuid.uuid4().hex[:12]}"),
-            project_id=sid,
-            name=pc["name"],
-            icon=pc.get("icon", "📦"),
-            purchase_item_id=pc.get("purchase_item_id"),
-            best_quote_id=pc.get("best_quote_id"),
-        )
-        db.add(cat)
-        for m in pc.get("models", []):
-            model = PriceModel(id=m.get("id", f"pm_{uuid.uuid4().hex[:12]}"),
-                category_id=cat.id, item_id=m.get("item_id"), project_id=m.get("project_id", sid),
-                name=m["name"], spec=m.get("spec"), note=m.get("note"), quantity=m.get("quantity", 1))
-            db.add(model)
-            for q in m.get("channelQuotes", []):
-                db.add(ChannelQuote(id=q.get("id", f"ch_{uuid.uuid4().hex[:12]}"), model_id=model.id, channel=q["channel"], price=q.get("price"), url=q.get("url")))
-
     # Import direct price_models (new format)
     for pm in data.price_models:
         model = PriceModel(
@@ -234,15 +207,28 @@ async def import_state(project_id: str, data: AppStateSync, user: User = Depends
         for q in pm.get("channelQuotes", []):
             db.add(ChannelQuote(id=q.get("id", f"ch_{uuid.uuid4().hex[:12]}"), model_id=model.id, channel=q["channel"], price=q.get("price"), url=q.get("url")))
 
-    # Import selections
+    # Import selections (with project-scoped prices)
     for sp_id in data.selected_purchase_ids:
-        db.add(SelectedPurchase(id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=sp_id))
+        db.add(SelectedPurchase(
+            id=f"sp_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=sp_id,
+            price=data.selected_purchase_prices.get(sp_id) if data.selected_purchase_prices else None,
+        ))
     for pi_id in data.purchased_item_ids:
-        db.add(PurchasedItem(id=f"pi_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=pi_id))
+        db.add(PurchasedItem(
+            id=f"pi_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=pi_id,
+            price=data.purchased_item_prices.get(pi_id) if data.purchased_item_prices else None,
+        ))
     for ci_id in data.project_compare_item_ids:
         db.add(ProjectCompareItem(id=f"pci_{uuid.uuid4().hex[:12]}", project_id=sid, item_id=ci_id))
-    for sm_id in data.synced_model_ids:
-        db.add(SyncedModel(id=f"sm_{uuid.uuid4().hex[:12]}", project_id=sid, model_id=sm_id))
+    # Set synced flag on matching PriceModels (replaces synced_models table)
+    if data.synced_model_ids:
+        for sm_id in data.synced_model_ids:
+            pm_result = await db.execute(
+                select(PriceModel).where(PriceModel.id == sm_id, PriceModel.project_id == sid)
+            )
+            pm = pm_result.scalar_one_or_none()
+            if pm:
+                pm.synced = True
 
     await db.commit()
     return {"status": "ok"}
