@@ -1,5 +1,6 @@
 import React from 'react';
 import { useStore } from '../../data/store';
+import { useAuth } from '../../api/useAuth';
 import { IconHome, IconBell, IconUser } from '../common/Icons';
 import { switchProject } from '../../data/store';
 
@@ -9,6 +10,7 @@ interface MobileHeaderProps {
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({ currentPage }) => {
   const state = useStore();
+  const { isLoggedIn, user } = useAuth();
 
   return (
     <nav className="fresh-navbar">
@@ -42,10 +44,16 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({ currentPage }) => {
           <IconBell size={16} />
         </a>
 
-        {/* Account */}
-        <a href="/account" className="fresh-user-link" title="账号">
-          <IconUser size={16} />
-        </a>
+        {/* Account / Login */}
+        {isLoggedIn ? (
+          <a href="/account" className="fresh-user-link" title={user?.username || '账号'}>
+            <IconUser size={16} />
+          </a>
+        ) : (
+          <a href="/login" className="fresh-user-link" title="登录">
+            <IconUser size={16} />
+          </a>
+        )}
       </div>
     </nav>
   );
