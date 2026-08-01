@@ -21,7 +21,7 @@ export const ExpenseSummary: React.FC = () => {
             <span className="card-subtitle">{state.expenses.length} 条记录</span>
           </div>
         </div>
-        <a href="/expense" className="more-link">查看全部 →</a>
+        <a href="/expense" className="more-link">查看全部</a>
       </CardHeader>
       <CardBody>
         {!hasExpenses ? (

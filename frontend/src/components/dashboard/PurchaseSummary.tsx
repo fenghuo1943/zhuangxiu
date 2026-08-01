@@ -179,7 +179,7 @@ export const PurchaseSummary: React.FC = () => {
                 {pendingItems.length} 待购 / {purchasedItems.length} 已购
               </span>
             )}
-            <a href="/purchase" className="more-link">采购参考库 →</a>
+            <a href="/purchase" className="more-link">采购参考库</a>
           </div>
         </CardHeader>
         <CardBody>

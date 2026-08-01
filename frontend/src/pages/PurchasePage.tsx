@@ -1044,7 +1044,7 @@ const PurchasePage: React.FC = () => {
             <select
               value={quickCategory}
               onChange={e => { setQuickCategory(e.target.value); setQuickSubCategory(''); }}
-              style={{ fontSize: 12, maxWidth: 500 }}
+              style={{ fontSize: 12 }}
               title="预算分类（可选）"
             >
               <option value="">分类(可选)</option>
@@ -1052,19 +1052,18 @@ const PurchasePage: React.FC = () => {
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
-            {quickCategory && (
-              <select
-                value={quickSubCategory}
-                onChange={e => setQuickSubCategory(e.target.value)}
-                style={{ fontSize: 12, maxWidth: 500 }}
-                title="子分类（可选）"
-              >
-                <option value="">子分类(可选)</option>
-                {state.expenseSubCategories.filter(s => s.categoryId === quickCategory).map(sub => (
-                  <option key={sub.id} value={sub.id}>{sub.name}</option>
-                ))}
-              </select>
-            )}
+            <select
+              value={quickSubCategory}
+              onChange={e => setQuickSubCategory(e.target.value)}
+              style={{ fontSize: 12 }}
+              title="子分类（可选）"
+              disabled={!quickCategory}
+            >
+              <option value="">子分类(可选)</option>
+              {state.expenseSubCategories.filter(s => s.categoryId === quickCategory).map(sub => (
+                <option key={sub.id} value={sub.id}>{sub.name}</option>
+              ))}
+            </select>
           </span>
           <span className="purchase-quick-row">
             <input
@@ -1073,7 +1072,6 @@ const PurchasePage: React.FC = () => {
               value={quickQty}
               onChange={e => setQuickQty(e.target.value)}
               placeholder="数量"
-              style={{ width: 56 }}
             />
             <input
               type="number"
@@ -1082,7 +1080,7 @@ const PurchasePage: React.FC = () => {
               value={quickPrice}
               onChange={e => setQuickPrice(e.target.value)}
               placeholder="价格(可选)"
-              style={{ width: 80, fontSize: 12 }}
+              style={{ fontSize: 12 }}
               title="设置价格后将自动创建未支付账单"
             />
           </span>

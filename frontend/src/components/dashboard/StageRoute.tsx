@@ -70,7 +70,6 @@ export const StageRoute: React.FC = () => {
               <span>···</span>
               <b>
                 查看全部
-                <IconArrowRight size={12} />
               </b>
             </button>
           )}

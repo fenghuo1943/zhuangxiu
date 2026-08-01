@@ -319,60 +319,64 @@ const ComparePage: React.FC = () => {
         </div>
 
         {/* Quick-Add Bar — matches PurchasePage */}
-        <div className="purchase-quick-add-v2">
+        <div className="purchase-quick-add-v2 compare-quick-add">
           <input
+            className="purchase-quick-name"
             type="text"
-            className="input"
             placeholder="直接添加比价物品，例如：冰箱"
             value={quickName}
             onChange={e => setQuickName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
             style={{ minWidth: 0 }}
           />
-          <select
-            value={quickStage}
-            onChange={e => setQuickStage(e.target.value)}
-            style={{ fontSize: 12 }}
-          >
-            {quickStageOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: 12, color: 'var(--fresh-muted)', whiteSpace: 'nowrap' }}>数量：</span>
-            <input
-              type="number"
-              min="1"
-              value={quickQty}
-              onChange={e => setQuickQty(e.target.value.replace(/\D/g, '') || '1')}
-              style={{ width: 56, fontSize: 12 }}
-            />
+          <span className="purchase-quick-row">
+            <select
+              className="purchase-quick-stage"
+              value={quickStage}
+              onChange={e => setQuickStage(e.target.value)}
+              style={{ fontSize: 12 }}
+            >
+              {quickStageOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <span className="purchase-quick-qty" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 12, color: 'var(--fresh-muted)', whiteSpace: 'nowrap' }}>数量：</span>
+              <input
+                type="number"
+                min="1"
+                value={quickQty}
+                onChange={e => setQuickQty(e.target.value.replace(/\D/g, '') || '1')}
+                style={{ width: 56, fontSize: 12 }}
+              />
+            </span>
           </span>
-          <select
-            value={quickCategory}
-            onChange={e => { setQuickCategory(e.target.value); setQuickSubCategory(''); }}
-            style={{ fontSize: 12, maxWidth: 90 }}
-            title="预算分类（可选）"
-          >
-            <option value="">分类(可选)</option>
-            {state.budget.categories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-          {quickCategory && (
+          <span className="purchase-quick-cat-group">
+            <select
+              value={quickCategory}
+              onChange={e => { setQuickCategory(e.target.value); setQuickSubCategory(''); }}
+              style={{ fontSize: 12 }}
+              title="预算分类（可选）"
+            >
+              <option value="">分类(可选)</option>
+              {state.budget.categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
             <select
               value={quickSubCategory}
               onChange={e => setQuickSubCategory(e.target.value)}
-              style={{ fontSize: 12, maxWidth: 90 }}
+              style={{ fontSize: 12 }}
               title="子分类（可选）"
+              disabled={!quickCategory}
             >
               <option value="">子分类(可选)</option>
               {state.expenseSubCategories.filter(s => s.categoryId === quickCategory).map(sub => (
                 <option key={sub.id} value={sub.id}>{sub.name}</option>
               ))}
             </select>
-          )}
-          <button className="btn btn-primary" type="button" onClick={handleQuickAdd} style={{ justifyContent: 'center' }}>添加</button>
+          </span>
+          <button className="btn btn-primary purchase-quick-btn" type="button" onClick={handleQuickAdd}>添加</button>
         </div>
 
         {/* Search & Filters */}
