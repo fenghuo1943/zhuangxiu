@@ -379,72 +379,72 @@ const ComparePage: React.FC = () => {
           <button className="btn btn-primary purchase-quick-btn" type="button" onClick={handleQuickAdd}>添加</button>
         </div>
 
-        {/* Search & Filters */}
-        <div className="compare-toolbar" style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+        {/* Search & Filters + Toggle (merged for mobile) */}
+        <div className="compare-toolbar">
           <div className="compare-search">
             <IconSearch size={14} />
             <input className="input" placeholder="搜索比价物品..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: 32, width: '100%' }} />
           </div>
-          {/* Stage filter */}
-          <select
-            value={filterStage}
-            onChange={e => { setFilterStage(e.target.value); setFilterSubgroup(''); }}
-            style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 120 }}
-          >
-            <option value="">全部阶段</option>
-            {stages.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-          {filterStage && (
-            <select
-              value={filterSubgroup}
-              onChange={e => setFilterSubgroup(e.target.value)}
-              style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 130 }}
+          {/* ── 待购/已购 标签切换 ── */}
+          <div className="purchase-shopping-toggle compare-toggle">
+            <button
+              type="button"
+              className={`purchase-shopping-toggle-btn${compareTab === 'pending' ? ' active' : ''}`}
+              onClick={() => setCompareTab('pending')}
             >
-              <option value="">全部子分组</option>
-              {filteredSubgroups.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          )}
-          {/* Category filter */}
-          <select
-            value={filterCategory}
-            onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
-            style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 120 }}
-          >
-            <option value="">全部分类</option>
-            {budgetCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-          </select>
-          {filterCategory && (
-            <select
-              value={filterSubCategory}
-              onChange={e => setFilterSubCategory(e.target.value)}
-              style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)', maxWidth: 130 }}
+              待购{pendingCompareItems.length > 0 ? ` (${pendingCompareItems.length})` : ''}
+            </button>
+            <button
+              type="button"
+              className={`purchase-shopping-toggle-btn${compareTab === 'purchased' ? ' active' : ''}`}
+              onClick={() => setCompareTab('purchased')}
             >
-              <option value="">全部子分类</option>
-              {filteredSubCategories.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
+              已购{purchasedCompareItems.length > 0 ? ` (${purchasedCompareItems.length})` : ''}
+            </button>
+          </div>
+          <button className="btn btn-outline btn-sm compare-export-btn" onClick={handleExportCSV}><IconUpload size={14} /> <span className="compare-btn-label">导出</span></button>
+          <button className="btn btn-outline btn-sm compare-import-btn" onClick={handleImportCSV}><IconDownload size={14} /> <span className="compare-btn-label">导入</span></button>
+          <div className="compare-filter-row">
+            {/* Stage filter */}
+            <select
+              className="compare-filter compare-filter-stage"
+              value={filterStage}
+              onChange={e => { setFilterStage(e.target.value); setFilterSubgroup(''); }}
+            >
+              <option value="">全部阶段</option>
+              {stages.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-          )}
-          <button className="btn btn-outline btn-sm" onClick={handleExportCSV}><IconUpload size={14} /> 导出</button>
-          <button className="btn btn-outline btn-sm" onClick={handleImportCSV}><IconDownload size={14} /> 导入</button>
-          {importMsg && <span className={`backup-msg ${importMsg.type}`} style={{ padding: '4px 10px', fontSize: 12 }}>{importMsg.text}</span>}
-        </div>
-
-        {/* Compare Items */}
-        {/* ── 待购/已购 标签切换 ── */}
-        <div className="purchase-shopping-toggle" style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
-          <button
-            type="button"
-            className={`purchase-shopping-toggle-btn${compareTab === 'pending' ? ' active' : ''}`}
-            onClick={() => setCompareTab('pending')}
-          >
-            待购{pendingCompareItems.length > 0 ? ` (${pendingCompareItems.length})` : ''}
-          </button>
-          <button
-            type="button"
-            className={`purchase-shopping-toggle-btn${compareTab === 'purchased' ? ' active' : ''}`}
-            onClick={() => setCompareTab('purchased')}
-          >
-            已购{purchasedCompareItems.length > 0 ? ` (${purchasedCompareItems.length})` : ''}
-          </button>
+            {filterStage && (
+              <select
+                className="compare-filter compare-filter-subgroup"
+                value={filterSubgroup}
+                onChange={e => setFilterSubgroup(e.target.value)}
+              >
+                <option value="">全部子分组</option>
+                {filteredSubgroups.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
+            {/* Category filter */}
+            <select
+              className="compare-filter compare-filter-cat"
+              value={filterCategory}
+              onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
+            >
+              <option value="">全部分类</option>
+              {budgetCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+            </select>
+            {filterCategory && (
+              <select
+                className="compare-filter compare-filter-subcat"
+                value={filterSubCategory}
+                onChange={e => setFilterSubCategory(e.target.value)}
+              >
+                <option value="">全部子分类</option>
+                {filteredSubCategories.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
+              </select>
+            )}
+          </div>
+          {importMsg && <span className={`backup-msg ${importMsg.type} compare-import-msg`} style={{ padding: '4px 10px', fontSize: 12 }}>{importMsg.text}</span>}
         </div>
 
         {(() => {

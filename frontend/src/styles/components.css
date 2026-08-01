@@ -3961,6 +3961,43 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 .compare-search { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; }
 .compare-search svg { position: absolute; left: 8px; color: var(--fresh-subtle); }
 
+.compare-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.compare-filter {
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--fresh-border);
+  background: var(--fresh-surface);
+  color: #333;
+  outline: none;
+  max-width: 130px;
+}
+.compare-filter:focus {
+  border-color: #e45b3f;
+}
+
+.compare-filter-row {
+  display: contents;
+}
+
+.compare-search { order: 1; }
+.compare-toggle { order: 2; flex-shrink: 0; }
+.compare-filter { order: 3; }
+.compare-export-btn { order: 4; margin-left: auto; }
+.compare-import-btn { order: 5; }
+
+.compare-import-msg {
+  flex-basis: 100%;
+  order: 99;
+}
+
 /* Compare Category Cards */
 .compare-categories { display: grid; gap: 10px; }
 .compare-section { margin-bottom: 24px; }
@@ -4490,8 +4527,46 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .compare-header-content h1 { font-size: 20px; }
   .compare-header-stats .flow-stat { width: auto; flex: 1; }
 
-  .compare-toolbar { gap: 6px !important; flex-wrap: nowrap !important; }
+  .compare-toolbar {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 6px;
+    align-items: center;
+  }
+  .compare-toolbar .compare-search {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .compare-toolbar .compare-toggle {
+    grid-column: 2;
+    grid-row: 1;
+    margin-left: 0;
+  }
+  .compare-toolbar .compare-export-btn {
+    grid-column: 3;
+    grid-row: 1;
+    margin-left: 0;
+  }
+  .compare-toolbar .compare-import-btn {
+    grid-column: 4;
+    grid-row: 1;
+  }
   .compare-toolbar .btn-sm { padding: 0 8px; font-size: 11px; white-space: nowrap; }
+  .compare-btn-label { display: none; }
+  /* Row 2: filters only */
+  .compare-toolbar .compare-filter-row {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .compare-toolbar .compare-import-msg {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    order: unset;
+  }
 
   .compare-prod-hd { flex-direction: column; align-items: flex-start; }
   .compare-prod-actions { width: 100%; justify-content: flex-end; }
