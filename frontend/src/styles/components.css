@@ -4379,6 +4379,24 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
   .purchase-page-title-row h1 { font-size: 20px; }
   .purchase-summary { padding: 12px 14px; }
+  .purchase-summary-left {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    width: 100%;
+  }
+  .purchase-summary-left > .purchase-summary-item {
+    display: contents;
+  }
+  .purchase-summary-left .purchase-summary-label {
+    grid-row: 1;
+    font-size: 10px;
+    margin-top: 0;
+  }
+  .purchase-summary-left .purchase-summary-value {
+    grid-row: 2;
+    font-size: 16px;
+  }
   .purchase-bulk-actions { gap: 6px; }
   .purchase-bulk-actions button { font-size: 11px; padding: 0 8px; }
 
