@@ -3574,6 +3574,11 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   background: #fff;
 }
 
+.purchase-quick-row,
+.purchase-quick-cat-group {
+  display: contents;
+}
+
 .purchase-quick-add-v2 input,
 .purchase-quick-add-v2 select {
   min-height: 38px;
@@ -4399,6 +4404,40 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   }
   .purchase-bulk-actions { gap: 6px; }
   .purchase-bulk-actions button { font-size: 11px; padding: 0 8px; }
+
+  /* Quick-add mobile: stacked rows */
+  .purchase-quick-add-v2 {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .purchase-quick-add-v2 > * {
+    width: 100%;
+  }
+  .purchase-quick-name { order: 1; }
+  .purchase-quick-stage { order: 2; }
+  .purchase-quick-cat-group {
+    order: 3;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .purchase-quick-cat-group > * {
+    flex: 1;
+    min-width: 0;
+  }
+  .purchase-quick-row {
+    order: 4;
+    display: flex;
+    gap: 8px;
+  }
+  .purchase-quick-row > * {
+    flex: 1;
+    min-width: 0;
+  }
+  .purchase-quick-btn {
+    order: 5;
+  }
 
   .purchase-ref-item { padding-left: 10px; flex-wrap: wrap; }
   .purchase-ref-item.selected { padding-left: 7px; }

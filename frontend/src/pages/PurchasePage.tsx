@@ -1027,6 +1027,7 @@ const PurchasePage: React.FC = () => {
         {/* ── Quick-add ── */}
         <div className="purchase-quick-add-v2">
           <input
+            className="purchase-quick-name"
             type="text"
             placeholder="添加待购物品，例如：浴室柜"
             value={quickName}
@@ -1034,54 +1035,58 @@ const PurchasePage: React.FC = () => {
             onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
             style={{ minWidth: 0 }}
           />
-          <select value={quickStage} onChange={e => setQuickStage(e.target.value)}>
+          <select className="purchase-quick-stage" value={quickStage} onChange={e => setQuickStage(e.target.value)}>
             {quickStageOptions.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
-          <input
-            type="number"
-            min="1"
-            value={quickQty}
-            onChange={e => setQuickQty(e.target.value)}
-            placeholder="数量"
-            style={{ width: 56 }}
-          />
-          <select
-            value={quickCategory}
-            onChange={e => { setQuickCategory(e.target.value); setQuickSubCategory(''); }}
-            style={{ fontSize: 12, maxWidth: 90 }}
-            title="预算分类（可选）"
-          >
-            <option value="">分类(可选)</option>
-            {state.budget.categories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-          {quickCategory && (
+          <span className="purchase-quick-cat-group">
             <select
-              value={quickSubCategory}
-              onChange={e => setQuickSubCategory(e.target.value)}
+              value={quickCategory}
+              onChange={e => { setQuickCategory(e.target.value); setQuickSubCategory(''); }}
               style={{ fontSize: 12, maxWidth: 90 }}
-              title="子分类（可选）"
+              title="预算分类（可选）"
             >
-              <option value="">子分类(可选)</option>
-              {state.expenseSubCategories.filter(s => s.categoryId === quickCategory).map(sub => (
-                <option key={sub.id} value={sub.id}>{sub.name}</option>
+              <option value="">分类(可选)</option>
+              {state.budget.categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
-          )}
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={quickPrice}
-            onChange={e => setQuickPrice(e.target.value)}
-            placeholder="价格(可选)"
-            style={{ width: 80, fontSize: 12 }}
-            title="设置价格后将自动创建未支付账单"
-          />
-          <button className="btn btn-primary" type="button" onClick={handleQuickAdd}>添加</button>
+            {quickCategory && (
+              <select
+                value={quickSubCategory}
+                onChange={e => setQuickSubCategory(e.target.value)}
+                style={{ fontSize: 12, maxWidth: 90 }}
+                title="子分类（可选）"
+              >
+                <option value="">子分类(可选)</option>
+                {state.expenseSubCategories.filter(s => s.categoryId === quickCategory).map(sub => (
+                  <option key={sub.id} value={sub.id}>{sub.name}</option>
+                ))}
+              </select>
+            )}
+          </span>
+          <span className="purchase-quick-row">
+            <input
+              type="number"
+              min="1"
+              value={quickQty}
+              onChange={e => setQuickQty(e.target.value)}
+              placeholder="数量"
+              style={{ width: 56 }}
+            />
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={quickPrice}
+              onChange={e => setQuickPrice(e.target.value)}
+              placeholder="价格(可选)"
+              style={{ width: 80, fontSize: 12 }}
+              title="设置价格后将自动创建未支付账单"
+            />
+          </span>
+          <button className="btn btn-primary purchase-quick-btn" type="button" onClick={handleQuickAdd}>添加</button>
         </div>
 
         {/* ── Bulk actions ── */}
