@@ -1044,7 +1044,7 @@ const PurchasePage: React.FC = () => {
             <select
               value={quickCategory}
               onChange={e => { setQuickCategory(e.target.value); setQuickSubCategory(''); }}
-              style={{ fontSize: 12, maxWidth: 90 }}
+              style={{ fontSize: 12, maxWidth: 500 }}
               title="预算分类（可选）"
             >
               <option value="">分类(可选)</option>
@@ -1056,7 +1056,7 @@ const PurchasePage: React.FC = () => {
               <select
                 value={quickSubCategory}
                 onChange={e => setQuickSubCategory(e.target.value)}
-                style={{ fontSize: 12, maxWidth: 90 }}
+                style={{ fontSize: 12, maxWidth: 500 }}
                 title="子分类（可选）"
               >
                 <option value="">子分类(可选)</option>

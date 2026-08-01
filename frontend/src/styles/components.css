@@ -4425,6 +4425,8 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .purchase-quick-cat-group > * {
     flex: 1;
     min-width: 0;
+    max-width: none;
+    width: 100%;
   }
   .purchase-quick-row {
     order: 4;
