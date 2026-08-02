@@ -728,15 +728,15 @@ export function checkPurchaseReadiness(itemId: string): {
     }
   }
 
-  // 2. 若没有待购账单，检查比价最优报价
+  // 2. 若没有待购账单，检查比价最优报价（报价为单价，转换为总价）
   if (existingPrice == null) {
     const bestPrice = getItemBestPrice(itemId);
     if (bestPrice !== null) {
-      existingPrice = bestPrice;
+      existingPrice = bestPrice * (item?.qty || 1);
     }
   }
 
-  // 3. 向后兼容：检查物品自带价格（项目专属物品）
+  // 3. 向后兼容：检查物品自带价格（项目专属物品，已经是总价）
   if (existingPrice == null) {
     existingPrice = item?.price ?? null;
   }
@@ -1681,6 +1681,7 @@ export function selectBestQuote(modelId: string, quoteId: string | null) {
  *  - Neither -> creates unpaid Expense
  */
 export async function updateItemPrice(itemId: string, price: number): Promise<void> {
+  // price 统一为总价，直接存入账单
   const expenseId =
     globalState.selectedExpenseMap[itemId] ||
     globalState.purchasedExpenseMap[itemId];

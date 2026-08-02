@@ -299,15 +299,18 @@ const PurchasePage: React.FC = () => {
           }
         }
         // Price source: expense takes priority over quote for display
+        // 统一以总价显示：账单金额已是总价，报价需要 ×数量转换为总价
         const expenseId = state.selectedExpenseMap[item.itemId];
         const expPrice = expenseId ? state.expenses.find(e => e.id === expenseId)?.amount : undefined;
-        const displayPrice = expPrice ?? bestPrice ?? undefined;
+        const quoteTotalPrice = bestPrice != null ? bestPrice * item.qty : undefined;
+        const displayPrice = expPrice ?? quoteTotalPrice ?? undefined;
         const priceSource: string = expPrice ? 'expense' : (bestPrice ? 'quote' : '');
         const priceSourceLabel = expPrice ? '待购预算' : (bestPrice ? '比价' : '');
         return { ...item, matchedPrice: displayPrice, matchedChannel: bestChannel, matchedModelId: bestModelId, hasComparison: true, comparisonItemId: matchedCi.item_id, expenseId, priceSource, priceSourceLabel };
       }
 
       // Fallback: try expense-based price (from selectedExpenseMap or purchasedExpenseMap)
+      // 账单金额已是总价，直接使用
       const expId = state.selectedExpenseMap[item.itemId] || state.purchasedExpenseMap[item.itemId];
       if (expId) {
         const expense = state.expenses.find(e => e.id === expId);
@@ -343,11 +346,12 @@ const PurchasePage: React.FC = () => {
     });
   }, [syncedPriceModels, filteredShoppingItems]);
 
+  // matchedPrice 统一为总价（报价已×数量，账单金额本身即总价），直接求和即可
   const totalEstimatedCost = useMemo(() => {
     let total = 0;
     shoppingItemsWithPrice.forEach(item => {
       if (item.matchedPrice) {
-        total += item.matchedPrice * item.qty;
+        total += item.matchedPrice;
       }
     });
     unmatchedSyncedModels.forEach(m => {
@@ -361,7 +365,7 @@ const PurchasePage: React.FC = () => {
     let total = 0;
     shoppingItemsWithPrice.forEach(item => {
       if (!state.purchasedItemIds.includes(item.itemId) && item.matchedPrice) {
-        total += item.matchedPrice * item.qty;
+        total += item.matchedPrice;
       }
     });
     unmatchedSyncedModels.forEach(m => {
@@ -374,7 +378,7 @@ const PurchasePage: React.FC = () => {
     let total = 0;
     shoppingItemsWithPrice.forEach(item => {
       if (state.purchasedItemIds.includes(item.itemId) && item.matchedPrice) {
-        total += item.matchedPrice * item.qty;
+        total += item.matchedPrice;
       }
     });
     return total;
