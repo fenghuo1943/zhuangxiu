@@ -4675,8 +4675,24 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
     order: unset;
   }
 
-  .compare-prod-hd { flex-direction: column; align-items: flex-start; }
-  .compare-prod-actions { width: 100%; justify-content: flex-end; }
+  .compare-prod-hd {
+    flex-direction: row;
+    align-items: flex-start;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .compare-model-info {
+    max-width: calc(100% - 130px);
+  }
+  .compare-model-name { white-space: normal; word-break: break-word; }
+  .compare-model-spec { white-space: normal; word-break: break-word; }
+  .compare-model-note { white-space: normal; word-break: break-word; }
+  .compare-prod-actions {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+  }
   .compare-add-quote-row { flex-wrap: wrap; }
 
   .tools-page {
