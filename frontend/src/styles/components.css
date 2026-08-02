@@ -4694,6 +4694,28 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
     gap: 4px;
   }
   .compare-add-quote-row { flex-wrap: wrap; }
+  .compare-add-model-row {
+    flex-wrap: wrap;
+    padding: 8px 10px;
+    gap: 3px;
+  }
+  .compare-add-model-row .input {
+    width: auto !important;
+    min-width: 0;
+    flex: 1 1 0%;
+    font-size: 11px !important;
+    padding: 4px 4px !important;
+  }
+  .compare-add-model-row .btn {
+    flex: 0 0 auto;
+    font-size: 11px;
+    padding: 4px 7px;
+    white-space: nowrap;
+    gap: 0;
+  }
+  .compare-add-model-row .btn svg {
+    display: none;
+  }
 
   .tools-page {
     width: 100%;

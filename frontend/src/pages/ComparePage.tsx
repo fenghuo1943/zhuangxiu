@@ -737,7 +737,7 @@ const ComparePage: React.FC = () => {
                           onKeyDown={e => e.key === 'Enter' && handleAddModel(item.item_id)}
                           style={{ width: 100, fontSize: 12, padding: '4px 8px' }} />
                         <button className="btn btn-primary btn-sm" onClick={() => handleAddModel(item.item_id)} disabled={!newModelName.trim()}>
-                          <IconPlus size={14} /> 添加型号
+                          添加型号
                         </button>
                       </div>
                     </div>
