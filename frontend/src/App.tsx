@@ -6,7 +6,6 @@ import ComparePage from './pages/ComparePage';
 import ExpensePage from './pages/ExpensePage';
 import FlowPage from './pages/FlowPage';
 import ToolsPage from './pages/ToolsPage';
-import NoticesPage from './pages/NoticesPage';
 import AccountPage from './pages/AccountPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -23,7 +22,6 @@ const App: React.FC = () => {
         <Route path="/expense" element={<ExpensePage />} />
         <Route path="/flow" element={<FlowPage />} />
         <Route path="/tools" element={<ToolsPage />} />
-        <Route path="/notices" element={<NoticesPage />} />
         <Route path="/account" element={<AccountPage />} />
       </Routes>
     </BrowserRouter>

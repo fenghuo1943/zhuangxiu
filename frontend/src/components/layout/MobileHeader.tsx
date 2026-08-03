@@ -1,7 +1,7 @@
 import React from 'react';
 import { useStore } from '../../data/store';
 import { useAuth } from '../../api/useAuth';
-import { IconHome, IconBell, IconUser } from '../common/Icons';
+import { IconHome, IconUser } from '../common/Icons';
 import { switchProject } from '../../data/store';
 
 interface MobileHeaderProps {
@@ -38,11 +38,6 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({ currentPage }) => {
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
-
-        {/* Notices */}
-        <a href="/notices" className="fresh-notice-link" title="公告">
-          <IconBell size={16} />
-        </a>
 
         {/* Account / Login */}
         {isLoggedIn ? (

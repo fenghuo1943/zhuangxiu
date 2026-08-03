@@ -124,7 +124,7 @@
 
 .fresh-user-link:hover { text-decoration: none; opacity: .92; }
 
-.fresh-notice-link {
+.fresh-action-link {
   min-height: 38px;
   padding: 0 12px;
   display: inline-flex;
@@ -143,7 +143,7 @@
   white-space: nowrap;
 }
 
-.fresh-notice-link:hover { background: var(--fresh-coral-soft); text-decoration: none; }
+.fresh-action-link:hover { background: var(--fresh-coral-soft); text-decoration: none; }
 
 .project-select {
   min-height: 34px;

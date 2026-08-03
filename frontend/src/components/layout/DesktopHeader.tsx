@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStore } from '../../data/store';
-import { IconHome, IconShopping, IconCompare, IconExpense, IconFlow, IconBell, IconUser, IconPlus } from '../common/Icons';
+import { IconHome, IconShopping, IconCompare, IconExpense, IconFlow, IconUser, IconPlus } from '../common/Icons';
 import { switchProject } from '../../data/store';
 import { useAuth } from '../../api/useAuth';
 
@@ -62,14 +62,9 @@ export const DesktopHeader: React.FC<DesktopHeaderProps> = ({ currentPage }) => 
         </select>
 
         {/* New Project */}
-        <button className="fresh-notice-link" title="新建项目">
+        <button className="fresh-action-link" title="新建项目">
           <IconPlus size={16} />
         </button>
-
-        {/* Notices */}
-        <a href="/notices" className="fresh-notice-link" title="公告">
-          <IconBell size={16} />
-        </a>
 
         {/* Account / Login */}
         {isLoggedIn ? (
