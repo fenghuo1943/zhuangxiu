@@ -244,3 +244,19 @@ export interface KnowledgeArticle {
   created_at: string;
   updated_at?: string;
 }
+
+// ==================== Renovation Tips ====================
+
+export type TipStatus = 'pending' | 'adopted' | 'rejected';
+
+export interface Tip {
+  id: string;
+  user_id: string;
+  title: string;
+  room: string;
+  content: string;
+  status: TipStatus;
+  images: string[];
+  created_at: string;
+  updated_at?: string;
+}

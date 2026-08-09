@@ -311,3 +311,20 @@ class FlowStageResource(Base):
     sort_order = Column(Integer, default=0)
 
     stage = relationship("FlowStage", back_populates="resources")
+
+
+class Tip(Base):
+    """User-recorded renovation tips (personal knowledge base, user-global scope)."""
+    __tablename__ = "tips"
+    __table_args__ = {"comment": "装修技巧表"}
+    id = _pk()
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String(200), nullable=False)                 # 一句话概括技巧
+    room = Column(String(50), nullable=False, index=True)       # 房间：预设值或自定义名
+    content = Column(Text, default="")                          # 详情文本（来源写在这里）
+    status = Column(String(20), nullable=False, default="pending")  # pending/adopted/rejected
+    images = Column(JSON, default=list)                         # 图片 URL 数组
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+    user = relationship("User")

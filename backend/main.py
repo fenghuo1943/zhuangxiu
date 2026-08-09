@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from .database import init_db, get_db
 from .models import FlowStage as FlowStageModel
 from .schemas import FlowStageOut
-from .routers import auth, projects, budget, todos, expenses, flow, purchase, compare, sync, knowledge, upload
+from .routers import auth, projects, budget, todos, expenses, flow, purchase, compare, sync, knowledge, upload, tips
 
 
 @asynccontextmanager
@@ -56,6 +56,7 @@ app.include_router(compare.router)
 app.include_router(sync.router)
 app.include_router(knowledge.router)
 app.include_router(upload.router)
+app.include_router(tips.router)
 
 # Mount static files for uploaded images
 _public_dir = Path(__file__).resolve().parent.parent / "frontend" / "public"

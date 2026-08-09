@@ -1,10 +1,11 @@
 import React from 'react';
 import { Card, CardHeader, CardBody } from '../common/Card';
-import { IconMap, IconShopping, IconWrench, IconLayout } from '../common/Icons';
+import { IconMap, IconShopping, IconWrench, IconBook, IconLayout } from '../common/Icons';
 
 const entries = [
   { id: 'flow', label: '装修流程', desc: '按阶段推进装修', href: '/flow', icon: IconMap, color: 'coral' },
   { id: 'purchase', label: '采购清单', desc: '管理采购材料', href: '/purchase', icon: IconShopping, color: 'green' },
+  { id: 'tips', label: '装修技巧', desc: '记录与筛选技巧', href: '/tips', icon: IconBook, color: 'blue' },
   { id: 'tools', label: '实用工具', desc: '装修计算与查询', href: '/tools', icon: IconWrench, color: 'blue' },
 ];
 

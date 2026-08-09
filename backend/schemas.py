@@ -408,3 +408,32 @@ class FlowStageOut(BaseModel):
     resources: list[FlowStageResourceOut] = []
 
     model_config = {"from_attributes": True}
+
+
+# ---- Renovation Tips ----
+class TipCreate(BaseModel):
+    title: str = Field(..., max_length=200)
+    room: str = Field(..., max_length=50)
+    content: str = Field("", max_length=20000)
+    status: str = Field("pending", pattern="^(pending|adopted|rejected)$")
+    images: list[str] = []
+
+class TipUpdate(BaseModel):
+    title: Optional[str] = Field(None, max_length=200)
+    room: Optional[str] = Field(None, max_length=50)
+    content: Optional[str] = Field(None, max_length=20000)
+    status: Optional[str] = Field(None, pattern="^(pending|adopted|rejected)$")
+    images: Optional[list[str]] = None
+
+class TipOut(BaseModel):
+    id: str
+    user_id: str
+    title: str
+    room: str
+    content: str
+    status: str
+    images: list[str]
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}

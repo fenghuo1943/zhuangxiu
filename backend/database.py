@@ -149,12 +149,14 @@ async def init_db():
     # Seed purchase reference data (idempotent — skips if already populated)
     from .seed_purchase import seed_purchase_references
     from .seed_flow import seed_flow_stages
+    from .seed_tips import seed_tips
     from sqlalchemy import select, update
 
     async with async_session() as session:
         try:
             await seed_purchase_references(session)
             await seed_flow_stages(session)
+            await seed_tips(session)
 
             # Recalculate spent for all budget categories on startup
             await _recalc_all_spent(session)
