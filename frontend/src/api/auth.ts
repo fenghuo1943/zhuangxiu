@@ -1,4 +1,4 @@
-import { apiPost, apiGet, setToken } from './client';
+import { apiPost, apiGet, storeTokens, clearTokens } from './client';
 
 export interface UserInfo {
   id: string;
@@ -10,18 +10,19 @@ export interface UserInfo {
 
 export interface AuthResponse {
   token: string;
+  refresh_token: string;
   user: UserInfo;
 }
 
 export async function register(username: string, email: string, password: string): Promise<AuthResponse> {
   const res = await apiPost<AuthResponse>('/api/auth/register', { username, email, password });
-  setToken(res.token);
+  storeTokens(res.token, res.refresh_token);
   return res;
 }
 
 export async function login(username: string, password: string): Promise<AuthResponse> {
   const res = await apiPost<AuthResponse>('/api/auth/login', { username, password });
-  setToken(res.token);
+  storeTokens(res.token, res.refresh_token);
   return res;
 }
 
@@ -30,5 +31,5 @@ export async function getMe(): Promise<UserInfo> {
 }
 
 export function logout() {
-  setToken(null);
+  clearTokens();
 }

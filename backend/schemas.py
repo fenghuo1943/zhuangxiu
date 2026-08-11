@@ -13,6 +13,9 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
 class UserOut(BaseModel):
     id: str
     username: str
@@ -24,6 +27,7 @@ class UserOut(BaseModel):
 
 class TokenOut(BaseModel):
     token: str
+    refresh_token: str
     user: UserOut
 
 

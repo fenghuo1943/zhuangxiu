@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getToken, setToken, isAuthenticated } from './client';
+import { isAuthenticated, getRefreshToken, rotateTokens, maybeRotate, clearTokens } from './client';
 import { getMe, logout as apiLogout, login as apiLogin, register as apiRegister } from './auth';
 import { migrateLocalDataToServer, syncFromServerAfterLogin } from '../data/store';
 import type { UserInfo } from './auth';
@@ -38,6 +38,10 @@ export function useAuth(): AuthState & {
     // Auto-check auth on mount
     if (globalAuthState.loading) {
       if (isAuthenticated()) {
+        // 每次访问后台主动轮换一对新令牌（有刷新令牌时），不阻塞页面加载
+        if (getRefreshToken()) {
+          rotateTokens().catch(() => {});
+        }
         getMe()
           .then(user => {
             globalAuthState = { user, loading: false, error: null, isLoggedIn: true };
@@ -46,7 +50,7 @@ export function useAuth(): AuthState & {
             syncFromServerAfterLogin();
           })
           .catch(() => {
-            setToken(null);
+            clearTokens();
             globalAuthState = { user: null, loading: false, error: null, isLoggedIn: false };
             notify();
           });
@@ -58,6 +62,23 @@ export function useAuth(): AuthState & {
     }
     return () => { listeners.splice(listeners.indexOf(cb), 1); };
   }, []);
+
+  // 访问网站（窗口焦点/回到页面）与间隔定时自动刷新长期和短期令牌
+  useEffect(() => {
+    if (!globalAuthState.isLoggedIn) return;
+    const onFocus = () => maybeRotate();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') maybeRotate();
+    };
+    const timer = setInterval(() => maybeRotate(), 60 * 60 * 1000); // 每小时轮换
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+      clearInterval(timer);
+    };
+  }, [globalAuthState.isLoggedIn]);
 
   const login = useCallback(async (username: string, password: string) => {
     globalAuthState = { ...globalAuthState, loading: true, error: null };
