@@ -9,7 +9,7 @@ export async function fetchCompareItems(projectId: string): Promise<CompareItem[
 /** Add item to compare (same as purchase custom add + needs_compare flag) */
 export async function addCompareItemApi(
   projectId: string,
-  data: { name: string; stage_parent: string; subgroup_name?: string; spec?: string; qty?: number; unit?: string },
+  data: { name: string; stage_parent: string; subgroup_name?: string; spec?: string; qty?: number; unit?: string; category_id?: string | null; sub_category_id?: string | null },
 ): Promise<CompareItem> {
   return apiPost(`/api/projects/${projectId}/compare`, data);
 }
@@ -22,12 +22,36 @@ export async function toggleModelSyncApi(
   return apiPut(`/api/projects/${projectId}/compare/models/${modelId}/sync`);
 }
 
+/** Raw backend response for a price model (snake_case, matches backend PriceModelOut) */
+export interface ModelApiResponse {
+  id: string;
+  item_id?: string | null;
+  project_id?: string | null;
+  name: string;
+  spec?: string | null;
+  note?: string | null;
+  quantity?: number;
+  best_quote_id?: string | null;
+  synced?: boolean;
+  quotes?: QuoteApiResponse[];
+}
+
+/** Raw backend response for a channel quote (snake_case, matches backend ChannelQuoteOut) */
+export interface QuoteApiResponse {
+  id: string;
+  channel: string;
+  price?: number | null;
+  url?: string | null;
+  note?: string | null;
+  updated_at?: string | null;
+}
+
 /** Create a price model for an item */
 export async function createModelApi(
   projectId: string,
   itemId: string,
   data: { name: string; spec?: string; note?: string; quantity?: number },
-): Promise<import('../data/types').PriceModel> {
+): Promise<ModelApiResponse> {
   return apiPost(`/api/projects/${projectId}/compare/items/${itemId}/models`, data);
 }
 
@@ -36,7 +60,7 @@ export async function createQuoteApi(
   projectId: string,
   modelId: string,
   data: { channel: string; price?: number; url?: string; note?: string },
-): Promise<import('../data/types').ChannelQuote> {
+): Promise<QuoteApiResponse> {
   return apiPost(`/api/projects/${projectId}/compare/models/${modelId}/quotes`, data);
 }
 

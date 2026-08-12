@@ -248,9 +248,7 @@ const ComparePage: React.FC = () => {
           const stage = state.purchaseReferences[pi];
           const sub = stage?.subs[si];
           if (!stage || !sub) continue;
-          const itemId = `p_import_${Date.now()}_${imported}`;
-          addCompareItem(itemId, itemName, stage.parent, sub.name, qty, spec);
-          existingItem = state.compareItems.find(c => c.item_id === itemId);
+          existingItem = addCompareItem(itemName, stage.parent, sub.name, qty, spec);
         }
         if (!existingItem) continue;
 
@@ -321,6 +319,7 @@ const ComparePage: React.FC = () => {
         {/* Quick-Add Bar — matches PurchasePage */}
         <div className="purchase-quick-add-v2 compare-quick-add">
           <input
+            name="compareQuickName"
             className="purchase-quick-name"
             type="text"
             placeholder="直接添加比价物品，例如：冰箱"
@@ -331,6 +330,7 @@ const ComparePage: React.FC = () => {
           />
           <span className="purchase-quick-row">
             <select
+              name="compareQuickStage"
               className="purchase-quick-stage"
               value={quickStage}
               onChange={e => setQuickStage(e.target.value)}
@@ -343,6 +343,7 @@ const ComparePage: React.FC = () => {
             <span className="purchase-quick-qty" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ fontSize: 12, color: 'var(--fresh-muted)', whiteSpace: 'nowrap' }}>数量：</span>
               <input
+                name="compareQuickQty"
                 type="number"
                 min="1"
                 value={quickQty}
@@ -353,6 +354,7 @@ const ComparePage: React.FC = () => {
           </span>
           <span className="purchase-quick-cat-group">
             <select
+              name="compareQuickCategory"
               value={quickCategory}
               onChange={e => { setQuickCategory(e.target.value); setQuickSubCategory(''); }}
               style={{ fontSize: 12 }}
@@ -364,6 +366,7 @@ const ComparePage: React.FC = () => {
               ))}
             </select>
             <select
+              name="compareQuickSubCategory"
               value={quickSubCategory}
               onChange={e => setQuickSubCategory(e.target.value)}
               style={{ fontSize: 12 }}
@@ -383,7 +386,7 @@ const ComparePage: React.FC = () => {
         <div className="compare-toolbar">
           <div className="compare-search">
             <IconSearch size={14} />
-            <input className="input" placeholder="搜索比价物品..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: 32, width: '100%' }} />
+            <input name="compareSearch" className="input" placeholder="搜索比价物品..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: 32, width: '100%' }} />
           </div>
           {/* ── 待购/已购 标签切换 ── */}
           <div className="purchase-shopping-toggle compare-toggle">
@@ -407,6 +410,7 @@ const ComparePage: React.FC = () => {
           <div className="compare-filter-row">
             {/* Stage filter */}
             <select
+              name="filterStage"
               className="compare-filter compare-filter-stage"
               value={filterStage}
               onChange={e => { setFilterStage(e.target.value); setFilterSubgroup(''); }}
@@ -416,6 +420,7 @@ const ComparePage: React.FC = () => {
             </select>
             {filterStage && (
               <select
+                name="filterSubgroup"
                 className="compare-filter compare-filter-subgroup"
                 value={filterSubgroup}
                 onChange={e => setFilterSubgroup(e.target.value)}
@@ -426,6 +431,7 @@ const ComparePage: React.FC = () => {
             )}
             {/* Category filter */}
             <select
+              name="filterCategory"
               className="compare-filter compare-filter-cat"
               value={filterCategory}
               onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
@@ -435,6 +441,7 @@ const ComparePage: React.FC = () => {
             </select>
             {filterCategory && (
               <select
+                name="filterSubCategory"
                 className="compare-filter compare-filter-subcat"
                 value={filterSubCategory}
                 onChange={e => setFilterSubCategory(e.target.value)}
@@ -612,14 +619,14 @@ const ComparePage: React.FC = () => {
                           >
                             {editingModelId === model.id ? (
                               <div className="compare-model-info" onClick={e => e.stopPropagation()}>
-                                <input className="input" value={editModelName}
+                                <input name={`compare-edit-model-name-${model.id}`} className="input" value={editModelName}
                                   onChange={e => setEditModelName(e.target.value)}
                                   onKeyDown={e => e.key === 'Enter' && handleEditModel()}
                                   style={{ width: 100, fontSize: 12, padding: '2px 6px' }} />
-                                <input className="input" placeholder="规格" value={editModelSpec}
+                                <input name={`compare-edit-model-spec-${model.id}`} className="input" placeholder="规格" value={editModelSpec}
                                   onChange={e => setEditModelSpec(e.target.value)}
                                   style={{ width: 80, fontSize: 12, padding: '2px 6px' }} />
-                                <input className="input" placeholder="备注" value={editModelNote}
+                                <input name={`compare-edit-model-note-${model.id}`} className="input" placeholder="备注" value={editModelNote}
                                   onChange={e => setEditModelNote(e.target.value)}
                                   style={{ width: 80, fontSize: 12, padding: '2px 6px' }} />
                                 <button className="btn btn-primary btn-sm" onClick={handleEditModel} style={{ fontSize: 10 }}>确定</button>
@@ -654,6 +661,7 @@ const ComparePage: React.FC = () => {
                                 return (
                                 <div key={quote.id} className={`compare-quote-row${isBest ? ' best' : ''}`}>
                                   <input
+                                    name={`compare-quote-best-${quote.id}`}
                                     type="checkbox"
                                     className="compare-quote-check"
                                     checked={state.bestQuoteIds[model.id] === quote.id}
@@ -662,15 +670,15 @@ const ComparePage: React.FC = () => {
                                   />
                                   {editingQuoteId === quote.id ? (
                                     <div className="compare-quote-edit-row" onClick={e => e.stopPropagation()}>
-                                      <input className="input" value={editQuoteChannel}
+                                      <input name={`compare-edit-quote-channel-${quote.id}`} className="input" value={editQuoteChannel}
                                         onChange={e => setEditQuoteChannel(e.target.value)}
                                         onKeyDown={e => e.key === 'Enter' && handleEditQuote()}
                                         style={{ width: 72, fontSize: 11, padding: '2px 4px' }} />
-                                      <input className="input" type="number" value={editQuotePrice}
+                                      <input name={`compare-edit-quote-price-${quote.id}`} className="input" type="number" value={editQuotePrice}
                                         onChange={e => setEditQuotePrice(e.target.value)}
                                         onKeyDown={e => e.key === 'Enter' && handleEditQuote()}
                                         style={{ width: 80, fontSize: 11, padding: '2px 4px' }} />
-                                      <input className="input" placeholder="备注" value={editQuoteNote}
+                                      <input name={`compare-edit-quote-note-${quote.id}`} className="input" placeholder="备注" value={editQuoteNote}
                                         onChange={e => setEditQuoteNote(e.target.value)}
                                         onKeyDown={e => e.key === 'Enter' && handleEditQuote()}
                                         style={{ flex: 1, minWidth: 60, fontSize: 11, padding: '2px 4px' }} />
@@ -702,15 +710,15 @@ const ComparePage: React.FC = () => {
                                 <div style={{ fontSize: 11, color: 'var(--fresh-muted)', padding: '4px 0' }}>暂无报价，点击下方添加</div>
                               )}
                               <div className="compare-add-quote-row">
-                                <input className="input" placeholder="渠道" value={addingQuoteFor === model.id ? newQuoteChannel : ''}
+                                <input name={`compare-add-quote-channel-${model.id}`} className="input" placeholder="渠道" value={addingQuoteFor === model.id ? newQuoteChannel : ''}
                                   onFocus={() => setAddingQuoteFor(model.id)}
                                   onChange={e => { setAddingQuoteFor(model.id); setNewQuoteChannel(e.target.value); }}
                                   style={{ width: 72, fontSize: 11, padding: '3px 6px' }} />
-                                <input className="input" type="number" placeholder="价格" value={addingQuoteFor === model.id ? newQuotePrice : ''}
+                                <input name={`compare-add-quote-price-${model.id}`} className="input" type="number" placeholder="价格" value={addingQuoteFor === model.id ? newQuotePrice : ''}
                                   onFocus={() => setAddingQuoteFor(model.id)}
                                   onChange={e => { setAddingQuoteFor(model.id); setNewQuotePrice(e.target.value); }}
                                   style={{ width: 80, fontSize: 11, padding: '3px 6px' }} />
-                                <input className="input" placeholder="备注" value={addingQuoteFor === model.id ? newQuoteNote : ''}
+                                <input name={`compare-add-quote-note-${model.id}`} className="input" placeholder="备注" value={addingQuoteFor === model.id ? newQuoteNote : ''}
                                   onFocus={() => setAddingQuoteFor(model.id)}
                                   onChange={e => { setAddingQuoteFor(model.id); setNewQuoteNote(e.target.value); }}
                                   onKeyDown={e => e.key === 'Enter' && handleAddQuote(model.id)}
@@ -724,15 +732,15 @@ const ComparePage: React.FC = () => {
 
                       {/* Add Model */}
                       <div className="compare-add-model-row">
-                        <input className="input" placeholder="型号名称" value={newModelName}
+                        <input name={`compare-add-model-name-${item.item_id}`} className="input" placeholder="型号名称" value={newModelName}
                           onChange={e => setNewModelName(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && handleAddModel(item.item_id)}
                           style={{ width: 120, fontSize: 12, padding: '4px 8px' }} />
-                        <input className="input" placeholder="规格" value={newModelSpec}
+                        <input name={`compare-add-model-spec-${item.item_id}`} className="input" placeholder="规格" value={newModelSpec}
                           onChange={e => setNewModelSpec(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && handleAddModel(item.item_id)}
                           style={{ width: 100, fontSize: 12, padding: '4px 8px' }} />
-                        <input className="input" placeholder="备注" value={newModelNote}
+                        <input name={`compare-add-model-note-${item.item_id}`} className="input" placeholder="备注" value={newModelNote}
                           onChange={e => setNewModelNote(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && handleAddModel(item.item_id)}
                           style={{ width: 100, fontSize: 12, padding: '4px 8px' }} />

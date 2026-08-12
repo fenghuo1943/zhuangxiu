@@ -265,6 +265,7 @@ const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) =>
               {mode === 'edit' && (
                 <input
                   type="text"
+                  name="knowledgeTitle"
                   className="input"
                   style={{ marginBottom: 12, fontSize: 16, fontWeight: 650 }}
                   placeholder="文章标题"
@@ -360,6 +361,7 @@ const KnowledgeModal: React.FC<KnowledgeModalProps> = ({ resource, onClose }) =>
                   <input
                     ref={fileInputRef}
                     type="file"
+                    name="knowledgeImage"
                     accept="image/*"
                     style={{ display: 'none' }}
                     onChange={handleFileChange}

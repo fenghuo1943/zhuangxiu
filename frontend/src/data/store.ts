@@ -484,11 +484,12 @@ export function addCustomPurchaseItem(name: string, stageParent: string, qty: nu
       }).then((result) => {
         // 用后端返回的 expense_id 更新本地映射和账单 ID
         if (result.expense_id && expenseId && result.expense_id !== expenseId) {
+          const newId = result.expense_id;
           const map = { ...globalState.selectedExpenseMap };
-          map[id] = result.expense_id;
+          map[id] = newId;
           // 同步更新账单列表中的 ID
           const updatedExpenses = globalState.expenses.map(e =>
-            e.id === expenseId ? { ...e, id: result.expense_id } : e
+            e.id === expenseId ? { ...e, id: newId } : e
           );
           globalState = {
             ...globalState,
@@ -1527,10 +1528,10 @@ export function addChannelQuote(modelId: string, channel: string, price?: number
                 q.id === tempId ? {
                   id: backendQuote.id,
                   channel: backendQuote.channel,
-                  price: backendQuote.price,
-                  url: backendQuote.url,
-                  note: backendQuote.note,
-                  updatedAt: backendQuote.updated_at || backendQuote.updatedAt,
+                  price: backendQuote.price ?? undefined,
+                  url: backendQuote.url ?? undefined,
+                  note: backendQuote.note ?? undefined,
+                  updatedAt: backendQuote.updated_at ?? undefined,
                 } : q
               ),
             } : m
@@ -2005,6 +2006,7 @@ export async function loadBudgetAndExpensesFromBackend(): Promise<void> {
       ...globalState,
       budget: {
         total: budgetData.total,
+        spent: mergedCategories.reduce((s, c) => s + c.spent, 0),
         categories: mergedCategories,
       },
     };

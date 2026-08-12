@@ -288,6 +288,7 @@ const AccountPage: React.FC = () => {
                                   {editable ? (
                                     <>
                                       <select
+                                        name={`item-category-${item.id}`}
                                         value={catId}
                                         onChange={e => setItemCat(item.id, 'category_id', e.target.value)}
                                         style={{ fontSize: 11, padding: '2px 4px', borderRadius: 4, border: '1px solid #ddd', maxWidth: 90 }}
@@ -296,6 +297,7 @@ const AccountPage: React.FC = () => {
                                         {budgetCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                       </select>
                                       <select
+                                        name={`item-subcategory-${item.id}`}
                                         value={subCatId}
                                         onChange={e => setItemCat(item.id, 'sub_category_id', e.target.value)}
                                         style={{ fontSize: 11, padding: '2px 4px', borderRadius: 4, border: '1px solid #ddd', maxWidth: 90 }}

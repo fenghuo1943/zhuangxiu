@@ -53,6 +53,7 @@ export const DesktopHeader: React.FC<DesktopHeaderProps> = ({ currentPage }) => 
         {/* Project Selector */}
         <select
           className="project-select"
+          name="project"
           value={state.activeProjectId}
           onChange={(e) => switchProject(e.target.value)}
           title="切换项目"

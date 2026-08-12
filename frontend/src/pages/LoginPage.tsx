@@ -38,13 +38,13 @@ const LoginPage: React.FC = () => {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>用户名</label>
-            <input className="input" style={{ width: '100%' }} value={username}
-              onChange={e => setUsername(e.target.value)} placeholder="输入用户名" autoFocus />
+            <input name="username" className="input" style={{ width: '100%' }} value={username}
+              onChange={e => setUsername(e.target.value)} placeholder="输入用户名" autoFocus autoComplete="username" />
           </div>
           <div className="form-group">
             <label>密码</label>
-            <input className="input" style={{ width: '100%' }} type="password" value={password}
-              onChange={e => setPassword(e.target.value)} placeholder="输入密码" />
+            <input name="password" className="input" style={{ width: '100%' }} type="password" value={password}
+              onChange={e => setPassword(e.target.value)} placeholder="输入密码" autoComplete="current-password" />
           </div>
           <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }}
             type="submit" disabled={loading || !username.trim() || !password}>

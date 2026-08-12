@@ -429,6 +429,7 @@ const ExpensePage: React.FC = () => {
               <div className="expense-search">
                 <IconSearch size={14} />
                 <input
+                  name="expenseSearch"
                   className="input"
                   placeholder="搜索记账记录..."
                   value={searchQuery}
@@ -552,6 +553,7 @@ const ExpensePage: React.FC = () => {
                   >
                     <div className="group-hd">
                       <input
+                        name={`group-rename-${group.id}`}
                         className="group-name-input"
                         value={group.name}
                         onChange={e => renameGroup(group.id, e.target.value)}
@@ -797,16 +799,16 @@ const ExpensePage: React.FC = () => {
               <div className="modal-body">
                 <div className="form-group">
                   <label>项目名称</label>
-                  <input className="input" style={{ width: '100%' }} value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="例如：水电材料费" />
+                  <input name="expenseTitle" className="input" style={{ width: '100%' }} value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="例如：水电材料费" />
                 </div>
                 <div className="form-row">
                   <div className="form-group" style={{ flex: 2 }}>
                     <label>金额 (元)</label>
-                    <input className="input" style={{ width: '100%' }} type="number" min="0" step="0.01" value={formAmount} onChange={e => setFormAmount(e.target.value)} placeholder="0.00" />
+                    <input name="expenseAmount" className="input" style={{ width: '100%' }} type="number" min="0" step="0.01" value={formAmount} onChange={e => setFormAmount(e.target.value)} placeholder="0.00" />
                   </div>
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>分类</label>
-                    <select className="input" style={{ width: '100%' }} value={formCategory} onChange={e => { setFormCategory(e.target.value); setFormSubCategory(''); }}>
+                    <select name="expenseCategory" className="input" style={{ width: '100%' }} value={formCategory} onChange={e => { setFormCategory(e.target.value); setFormSubCategory(''); }}>
                       {Object.entries(CATEGORY_NAMES).map(([id, name]) => (
                         <option key={id} value={id}>{name}</option>
                       ))}
@@ -816,7 +818,7 @@ const ExpensePage: React.FC = () => {
                 <div className="form-row">
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>子分类 (可选)</label>
-                    <select className="input" style={{ width: '100%' }} value={formSubCategory} onChange={e => setFormSubCategory(e.target.value)}>
+                    <select name="expenseSubCategory" className="input" style={{ width: '100%' }} value={formSubCategory} onChange={e => setFormSubCategory(e.target.value)}>
                       <option value="">不选择</option>
                       {getSubCategoriesByCategory(formCategory).map(sub => (
                         <option key={sub.id} value={sub.id}>{sub.name}</option>
@@ -825,13 +827,13 @@ const ExpensePage: React.FC = () => {
                   </div>
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>日期</label>
-                    <input className="input" style={{ width: '100%' }} type="date" value={formDate} onChange={e => setFormDate(e.target.value)} />
+                    <input name="expenseDate" className="input" style={{ width: '100%' }} type="date" value={formDate} onChange={e => setFormDate(e.target.value)} />
                   </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>状态</label>
-                    <select className="input" style={{ width: '100%' }} value={formStatus} onChange={e => setFormStatus(e.target.value as Expense['status'])}>
+                    <select name="expenseStatus" className="input" style={{ width: '100%' }} value={formStatus} onChange={e => setFormStatus(e.target.value as Expense['status'])}>
                       <option value="paid">已支付</option>
                       <option value="prepaid">预付款</option>
                       <option value="unpaid">未支付</option>
@@ -839,12 +841,12 @@ const ExpensePage: React.FC = () => {
                   </div>
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>备注</label>
-                    <input className="input" style={{ width: '100%' }} value={formNote} onChange={e => setFormNote(e.target.value)} placeholder="可选备注" />
+                    <input name="expenseNote" className="input" style={{ width: '100%' }} value={formNote} onChange={e => setFormNote(e.target.value)} placeholder="可选备注" />
                   </div>
                 </div>
                 <div className="form-group">
                   <label>关联阶段 (可选)</label>
-                  <select className="input" style={{ width: '100%' }} value={formStage} onChange={e => setFormStage(e.target.value)}>
+                  <select name="expenseStage" className="input" style={{ width: '100%' }} value={formStage} onChange={e => setFormStage(e.target.value)}>
                     <option value="">不关联</option>
                     {DEFAULT_STAGES.map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>

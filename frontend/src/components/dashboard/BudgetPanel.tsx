@@ -179,6 +179,7 @@ const StageBudgetInput: React.FC<{
     <input
       type="number"
       className="budget-stage-block-input"
+      name={`budget-stage-${cat.id}`}
       min={0}
       value={localVal}
       onChange={e => setLocalVal(e.target.value)}
@@ -285,6 +286,7 @@ export const BudgetPanel: React.FC = () => {
           <input
             type="number"
             className="budget-total-input"
+            name="budgetTotal"
             value={budgetInput}
             onChange={e => handleTotalChange(e.target.value)}
             onBlur={handleTotalBlur}

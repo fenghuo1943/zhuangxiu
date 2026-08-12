@@ -199,6 +199,7 @@ const FlowPage: React.FC = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <input
                       type="text"
+                      name="stageTitle"
                       className="input"
                       placeholder="阶段名称（必填）"
                       value={newStage.title}
@@ -206,12 +207,14 @@ const FlowPage: React.FC = () => {
                     />
                     <input
                       type="text"
+                      name="stageDays"
                       className="input"
                       placeholder="预计工期，如：2-3天"
                       value={newStage.days}
                       onChange={e => setNewStage({ ...newStage, days: e.target.value })}
                     />
                     <textarea
+                      name="stageDesc"
                       className="input"
                       placeholder="阶段描述（可选）"
                       rows={2}

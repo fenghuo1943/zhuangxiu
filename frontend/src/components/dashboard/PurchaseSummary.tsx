@@ -250,6 +250,7 @@ export const PurchaseSummary: React.FC = () => {
                   <input
                     className="input"
                     type="number"
+                    name="purchaseModalPrice"
                     placeholder="0.00"
                     value={purchaseModalPrice}
                     onChange={e => setPurchaseModalPrice(e.target.value)}
@@ -272,6 +273,7 @@ export const PurchaseSummary: React.FC = () => {
                   <label>请选择预算分类</label>
                   <select
                     className="input"
+                    name="purchaseModalCategory"
                     value={purchaseModalCategory}
                     onChange={e => setPurchaseModalCategory(e.target.value)}
                     style={{ width: '100%' }}

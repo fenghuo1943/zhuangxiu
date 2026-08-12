@@ -146,7 +146,7 @@ const PurchasePage: React.FC = () => {
   // Toast
   const [toastMsg, setToastMsg] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
-  const toastTimerRef = React.useRef<ReturnType<typeof setTimeout>>();
+  const toastTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const showToast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -613,6 +613,7 @@ const PurchasePage: React.FC = () => {
           <div className="purchase-shopping-filter" style={{ display: 'flex', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--fresh-border)', flexWrap: 'wrap', alignItems: 'center' }}>
             {/* Stage filter */}
             <select
+              name="filterStage"
               value={filterStage}
               onChange={e => { setFilterStage(e.target.value); setFilterSubgroup(''); }}
               style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
@@ -622,6 +623,7 @@ const PurchasePage: React.FC = () => {
             </select>
             {filterStage && (
               <select
+                name="filterSubgroup"
                 value={filterSubgroup}
                 onChange={e => setFilterSubgroup(e.target.value)}
                 style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
@@ -632,6 +634,7 @@ const PurchasePage: React.FC = () => {
             )}
             {/* Category filter */}
             <select
+              name="filterCategory"
               value={filterCategory}
               onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
               style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
@@ -641,6 +644,7 @@ const PurchasePage: React.FC = () => {
             </select>
             {filterCategory && (
               <select
+                name="filterSubCategory"
                 value={filterSubCategory}
                 onChange={e => setFilterSubCategory(e.target.value)}
                 style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
@@ -734,6 +738,7 @@ const PurchasePage: React.FC = () => {
                                 {isEditing ? (
                                   <div className="purchase-shopping-edit-row" onClick={e => e.stopPropagation()}>
                                     <input
+                                      name={`purchase-edit-name-${item.itemId}`}
                                       className="input"
                                       value={editShoppingName}
                                       onChange={e => setEditShoppingName(e.target.value)}
@@ -741,6 +746,7 @@ const PurchasePage: React.FC = () => {
                                       style={{ width: 100, fontSize: 12, padding: '3px 6px' }}
                                     />
                                     <input
+                                      name={`purchase-edit-spec-${item.itemId}`}
                                       className="input"
                                       value={editShoppingSpec}
                                       onChange={e => setEditShoppingSpec(e.target.value)}
@@ -748,6 +754,7 @@ const PurchasePage: React.FC = () => {
                                       style={{ width: 80, fontSize: 12, padding: '3px 6px' }}
                                     />
                                     <input
+                                      name={`purchase-edit-qty-${item.itemId}`}
                                       className="input"
                                       type="number"
                                       min="1"
@@ -789,6 +796,7 @@ const PurchasePage: React.FC = () => {
                                       {editingPriceItemId === item.itemId ? (
                                         <span className="purchase-shopping-row-price" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                                           ¥<input
+                                            name={`purchase-edit-price-${item.itemId}`}
                                             type="number"
                                             className="purchase-price-input"
                                             value={editingPriceValue}
@@ -1012,6 +1020,7 @@ const PurchasePage: React.FC = () => {
         {/* ── Search ── */}
         <div style={{ marginBottom: 14 }}>
           <input
+            name="purchaseSearch"
             className="input"
             type="text"
             placeholder="搜索材料名称..."
@@ -1031,6 +1040,7 @@ const PurchasePage: React.FC = () => {
         {/* ── Quick-add ── */}
         <div className="purchase-quick-add-v2">
           <input
+            name="purchaseQuickName"
             className="purchase-quick-name"
             type="text"
             placeholder="添加待购物品，例如：浴室柜"
@@ -1039,13 +1049,14 @@ const PurchasePage: React.FC = () => {
             onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
             style={{ minWidth: 0 }}
           />
-          <select className="purchase-quick-stage" value={quickStage} onChange={e => setQuickStage(e.target.value)}>
+          <select name="purchaseQuickStage" className="purchase-quick-stage" value={quickStage} onChange={e => setQuickStage(e.target.value)}>
             {quickStageOptions.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
           <span className="purchase-quick-cat-group">
             <select
+              name="purchaseQuickCategory"
               value={quickCategory}
               onChange={e => { setQuickCategory(e.target.value); setQuickSubCategory(''); }}
               style={{ fontSize: 12 }}
@@ -1057,6 +1068,7 @@ const PurchasePage: React.FC = () => {
               ))}
             </select>
             <select
+              name="purchaseQuickSubCategory"
               value={quickSubCategory}
               onChange={e => setQuickSubCategory(e.target.value)}
               style={{ fontSize: 12 }}
@@ -1071,6 +1083,7 @@ const PurchasePage: React.FC = () => {
           </span>
           <span className="purchase-quick-row">
             <input
+              name="purchaseQuickQty"
               type="number"
               min="1"
               value={quickQty}
@@ -1078,6 +1091,7 @@ const PurchasePage: React.FC = () => {
               placeholder="数量"
             />
             <input
+              name="purchaseQuickPrice"
               type="number"
               min="0"
               step="0.01"
@@ -1175,6 +1189,7 @@ const PurchasePage: React.FC = () => {
                                     }}
                                   >
                                     <input
+                                      name={`purchase-select-${item.id}`}
                                       type="checkbox"
                                       checked={isSelected(item.id)}
                                       onChange={() => handleToggle(item.id)}
@@ -1183,6 +1198,7 @@ const PurchasePage: React.FC = () => {
                                     <span className="purchase-ref-name">{item.name}</span>
                                     <span className="purchase-ref-spec">{item.spec || ''}</span>
                                     <input
+                                      name={`purchase-ref-qty-${item.id}`}
                                       type="number"
                                       min="0"
                                       value={item.qty}
@@ -1214,6 +1230,7 @@ const PurchasePage: React.FC = () => {
                                 {!searchQuery.trim() && (
                                   <div className="purchase-add-custom">
                                     <input
+                                      name={`custom-add-name-${subKey}`}
                                       type="text"
                                       placeholder="自定义物品"
                                       value={getCustomInput(subKey).name}
@@ -1221,6 +1238,7 @@ const PurchasePage: React.FC = () => {
                                       onKeyDown={e => e.key === 'Enter' && handleCustomAdd(pi, si)}
                                     />
                                     <input
+                                      name={`custom-add-spec-${subKey}`}
                                       type="text"
                                       placeholder="规格"
                                       value={getCustomInput(subKey).spec}
@@ -1229,6 +1247,7 @@ const PurchasePage: React.FC = () => {
                                       style={{ width: 80 }}
                                     />
                                     <input
+                                      name={`custom-add-qty-${subKey}`}
                                       type="number"
                                       placeholder="数量"
                                       value={getCustomInput(subKey).qty}
@@ -1237,6 +1256,7 @@ const PurchasePage: React.FC = () => {
                                       style={{ width: 50 }}
                                     />
                                     <select
+                                      name={`custom-add-category-${subKey}`}
                                       value={getCustomInput(subKey).category}
                                       onChange={e => setCustomInput(subKey, 'category', e.target.value)}
                                       style={{ fontSize: 11, maxWidth: 100 }}
@@ -1248,6 +1268,7 @@ const PurchasePage: React.FC = () => {
                                       ))}
                                     </select>
                                     <input
+                                      name={`custom-add-price-${subKey}`}
                                       type="number"
                                       min="0"
                                       step="0.01"
@@ -1294,6 +1315,7 @@ const PurchasePage: React.FC = () => {
                 <div className="form-group">
                   <label>请输入价格 (¥)</label>
                   <input
+                    name="purchaseModalPrice"
                     className="input"
                     type="number"
                     placeholder="0.00"
@@ -1317,6 +1339,7 @@ const PurchasePage: React.FC = () => {
                 <div className="form-group">
                   <label>请选择预算分类</label>
                   <select
+                    name="purchaseModalCategory"
                     className="input"
                     value={purchaseModalCategory}
                     onChange={e => setPurchaseModalCategory(e.target.value)}

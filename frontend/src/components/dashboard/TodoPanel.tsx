@@ -76,6 +76,7 @@ export const TodoPanel: React.FC = () => {
             <>
               <select
                 className="input todo-stage-select"
+                name="todoStage"
                 value={newStageId}
                 onChange={(e) => setNewStageId(e.target.value)}
               >
@@ -86,6 +87,7 @@ export const TodoPanel: React.FC = () => {
               <input
                 type="date"
                 className="input todo-date-input"
+                name="todoDate"
                 value={newDueDate}
                 onChange={(e) => setNewDueDate(e.target.value)}
               />
@@ -112,6 +114,7 @@ export const TodoPanel: React.FC = () => {
                 <div key={todo.id} className={`fresh-todo ${todo.completed ? 'done' : ''}`}>
                   <input
                     type="checkbox"
+                    name={`todo-complete-${todo.id}`}
                     checked={todo.completed}
                     onChange={() => toggleTodo(todo.id)}
                     aria-label={`标记${todo.title}为${todo.completed ? '未完成' : '已完成'}`}
@@ -152,6 +155,7 @@ export const TodoPanel: React.FC = () => {
                   <div key={todo.id} className="fresh-todo done">
                     <input
                       type="checkbox"
+                      name={`todo-complete-${todo.id}`}
                       checked={todo.completed}
                       onChange={() => toggleTodo(todo.id)}
                       aria-label={`取消${todo.title}的完成状态`}

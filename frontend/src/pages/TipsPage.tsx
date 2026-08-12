@@ -199,6 +199,7 @@ const TipsPage: React.FC = () => {
             <div className="tips-search">
               <IconSearch size={16} />
               <input
+                name="tipsSearch"
                 className="tips-search-input"
                 placeholder="搜索技巧关键词…"
                 value={search}
@@ -206,6 +207,7 @@ const TipsPage: React.FC = () => {
               />
             </div>
             <select
+              name="tipsFilterStatus"
               className="input tips-status-select"
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value as TipStatus | '')}
@@ -313,6 +315,7 @@ const TipsPage: React.FC = () => {
               <div className="form-group">
                 <label>技巧标题 *</label>
                 <input
+                  name="tipTitle"
                   className="input"
                   style={{ width: '100%' }}
                   value={formTitle}
@@ -323,6 +326,7 @@ const TipsPage: React.FC = () => {
               <div className="form-group">
                 <label>所属房间 *</label>
                 <input
+                  name="tipRoom"
                   className="input"
                   style={{ width: '100%' }}
                   list="tips-room-options"
@@ -349,6 +353,7 @@ const TipsPage: React.FC = () => {
               <div className="form-group">
                 <label>详情（来源可写在这里）</label>
                 <textarea
+                  name="tipContent"
                   className="input tips-content-input"
                   value={formContent}
                   onChange={e => setFormContent(e.target.value)}
@@ -359,6 +364,7 @@ const TipsPage: React.FC = () => {
               <div className="form-group">
                 <label>采纳状态</label>
                 <select
+                  name="tipStatus"
                   className="input"
                   style={{ width: '100%' }}
                   value={formStatus}
@@ -390,6 +396,7 @@ const TipsPage: React.FC = () => {
                     <span>{uploading ? '上传中…' : '添加图片'}</span>
                     <input
                       ref={fileInputRef}
+                      name="tipImage"
                       type="file"
                       accept="image/*"
                       multiple

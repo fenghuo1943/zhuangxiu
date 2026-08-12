@@ -94,7 +94,7 @@ export const BackupPanel: React.FC = () => {
             <IconUpload size={14} />
             导入JSON
           </button>
-          <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
+          <input ref={fileInputRef} type="file" name="backupImportFile" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
         </div>
 
         {isLoggedIn && (

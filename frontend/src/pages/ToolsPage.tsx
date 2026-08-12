@@ -116,11 +116,11 @@ const ToolsPage: React.FC = () => {
                 <div className="form-row">
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>房屋面积 (㎡)</label>
-                    <input className="input" type="number" min="30" max="500" value={budgetArea} onChange={e => setBudgetArea(e.target.value)} style={{ width: '100%' }} />
+                    <input name="budgetArea" className="input" type="number" min="30" max="500" value={budgetArea} onChange={e => setBudgetArea(e.target.value)} style={{ width: '100%' }} />
                   </div>
                   <div className="form-group" style={{ flex: 2 }}>
                     <label>装修档次</label>
-                    <select className="input" value={budgetGrade} onChange={e => setBudgetGrade(e.target.value)} style={{ width: '100%' }}>
+                    <select name="budgetGrade" className="input" value={budgetGrade} onChange={e => setBudgetGrade(e.target.value)} style={{ width: '100%' }}>
                       {Object.entries(GRADE_RATES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
                   </div>
@@ -167,14 +167,14 @@ const ToolsPage: React.FC = () => {
                 <div className="form-row">
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>装修类型</label>
-                    <select className="input" value={timelineType} onChange={e => setTimelineType(e.target.value as 'new' | 'old')} style={{ width: '100%' }}>
+                    <select name="timelineType" className="input" value={timelineType} onChange={e => setTimelineType(e.target.value as 'new' | 'old')} style={{ width: '100%' }}>
                       <option value="new">新房毛坯</option>
                       <option value="old">旧房改造</option>
                     </select>
                   </div>
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>房屋面积 (㎡)</label>
-                    <input className="input" type="number" min="30" max="500" value={timelineArea} onChange={e => setTimelineArea(e.target.value)} style={{ width: '100%' }} />
+                    <input name="timelineArea" className="input" type="number" min="30" max="500" value={timelineArea} onChange={e => setTimelineArea(e.target.value)} style={{ width: '100%' }} />
                   </div>
                 </div>
               </div>

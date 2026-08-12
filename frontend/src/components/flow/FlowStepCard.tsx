@@ -201,6 +201,7 @@ export const FlowStepCard: React.FC<FlowStepCardProps> = ({ step, isExpanded, on
                           <div className="flow-notes-edit-row">
                             <input
                               type="text"
+                              name={`flow-note-edit-${note.id}`}
                               className="flow-notes-input"
                               value={editNoteContent}
                               onChange={e => setEditNoteContent(e.target.value)}
@@ -254,6 +255,7 @@ export const FlowStepCard: React.FC<FlowStepCardProps> = ({ step, isExpanded, on
                 <div className="flow-notes-input-row">
                   <input
                     type="text"
+                    name="flowNoteAdd"
                     className="flow-notes-input"
                     placeholder="添加备注... (Enter 提交)"
                     value={noteInput}
