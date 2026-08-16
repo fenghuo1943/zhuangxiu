@@ -1,0 +1,29 @@
+# 版本控制
+.git
+.gitignore
+
+# 本地依赖 / 构建产物（加快 Docker 构建上下文传输）
+venv/
+frontend/node_modules/
+frontend/dist/
+dist/
+build/
+
+# 本地配置与密钥
+deploy/.env
+**/.env.local
+**/.env
+
+# 文档 / 杂项（不需要进镜像）
+docs/
+参考html/
+.agents/
+.claude/
+.idea/
+.vscode/
+
+# Python / 日志
+__pycache__/
+**/__pycache__/
+*.pyc
+*.log
