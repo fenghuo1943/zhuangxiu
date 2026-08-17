@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+# 加载 .env 文件（优先级低于环境变量）
+load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "mysql+aiomysql://renovation:Wzcx131130_@192.168.31.146:3307/renovation")
 JWT_SECRET = os.getenv("JWT_SECRET", "xiaozhuangjia-dev-secret-change-in-production")

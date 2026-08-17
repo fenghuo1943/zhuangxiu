@@ -1,4 +1,4 @@
-export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8003';
+export const API_BASE = import.meta.env.VITE_API_BASE || '';
 const REQUEST_TIMEOUT_MS = 10000; // 10s timeout
 const ACCESS_TOKEN_KEY = 'xiaozhuangjia_token';
 const REFRESH_TOKEN_KEY = 'xiaozhuangjia_refresh_token';

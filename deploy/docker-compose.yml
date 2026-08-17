@@ -14,10 +14,10 @@ services:
     # 启动脚本：首次/依赖变更时安装依赖到 venv 卷，再启动 uvicorn
     entrypoint: ["sh", "/app/entrypoint.sh"]
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      JWT_SECRET: ${JWT_SECRET}
-      REFRESH_SECRET: ${REFRESH_SECRET}
-      TZ: ${TZ:-Asia/Shanghai}
+      DATABASE_URL: mysql+aiomysql://renovation:Wzcx131130_@172.17.0.1:3307/renovation
+      JWT_SECRET: xiaozhuangjia-jwt-secret
+      REFRESH_SECRET: xiaozhuangjia-refresh-secret
+      TZ: Asia/Shanghai
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
     volumes:
