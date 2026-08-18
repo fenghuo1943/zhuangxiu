@@ -1,8 +1,5 @@
 # 小装家 · 群晖 NAS 部署编排
-# 方式：代码 / 构建产物直接 bind-mount 到 NAS 硬盘，容器用官方基础镜像
-#   - 后端 python:3.13-slim（源码挂载 + venv 依赖卷）
-#   - 前端 nginx:alpine（dist 挂载 + 共享上传卷）
-# 用法：cd deploy && ./deploy.sh
+# 用法：cd deploy && docker compose up -d
 name: xiaozhuangjia
 
 services:
@@ -11,23 +8,18 @@ services:
     image: python:3.13-slim
     restart: unless-stopped
     working_dir: /app
-    # 启动脚本：首次/依赖变更时安装依赖到 venv 卷，再启动 uvicorn
     entrypoint: ["sh", "/app/entrypoint.sh"]
     environment:
-      DATABASE_URL: mysql+aiomysql://renovation:Wzcx131130_@172.17.0.1:3307/renovation
-      JWT_SECRET: xiaozhuangjia-jwt-secret
-      REFRESH_SECRET: xiaozhuangjia-refresh-secret
-      TZ: Asia/Shanghai
+      DATABASE_URL: ${DATABASE_URL:-mysql+aiomysql://renovation:Wzcx131130_@172.17.0.1:3307/renovation}
+      JWT_SECRET: ${JWT_SECRET:-xiaozhuangjia-jwt-secret}
+      REFRESH_SECRET: ${REFRESH_SECRET:-xiaozhuangjia-refresh-secret}
+      TZ: ${TZ:-Asia/Shanghai}
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
     volumes:
-      # 后端源码直接映射 NAS 硬盘（只读，改代码后重启容器即可生效）
       - ../backend:/app/backend:ro
-      # 启动脚本
       - ./backend-entrypoint.sh:/app/entrypoint.sh:ro
-      # 上传图片持久化到本地硬盘（与前端 nginx 共享，见 frontend）
       - ../data/uploads:/app/frontend/public/assets/flow-images
-      # Python 依赖持久化到本地硬盘，避免每次重启重装
       - ../data/venv:/app/venv
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8003/api/health', timeout=3)"]
@@ -37,9 +29,6 @@ services:
       start_period: 120s
     networks:
       - zhuangxiu
-    # 需要直连后端调试时，放开下面端口映射：
-    # ports:
-    #   - "${API_PORT:-8003}:8003"
 
   # ---------- 前端：nginx 托管静态文件 + 反代 /api ----------
   frontend:
@@ -51,13 +40,9 @@ services:
       - "${WEB_PORT:-8007}:80"
       - "${HTTPS_PORT:-8008}:443"
     volumes:
-      # 前端构建产物 dist 直接映射 NAS 硬盘（改动后需重新构建）
       - ../frontend/dist:/usr/share/nginx/html:ro
-      # nginx 配置
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      # SSL 证书（需要用户自行准备，放到 deploy/certs 目录下）
       - /usr/syno/etc/certificate/_archive/Qi0mND:/etc/nginx/certs:ro
-      # 与后端共享上传图片卷，nginx 直接对外提供 /assets/flow-images/*
       - ../data/uploads:/usr/share/nginx/html/assets/flow-images
     networks:
       - zhuangxiu
