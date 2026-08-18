@@ -54,8 +54,9 @@ if [ ! -f .env ]; then
   esac
   NAS_IP=${NAS_IP:-127.0.0.1}
 
-  sed -i "s|^VITE_API_BASE=.*|VITE_API_BASE=http://${NAS_IP}:8080|" .env
-  echo "    已写入局域网 IP：${NAS_IP}"
+  # VITE_API_BASE 留空，让前端使用相对路径（适配外网域名访问）
+  sed -i "s|^VITE_API_BASE=.*|VITE_API_BASE=|" .env
+  echo "    已将 VITE_API_BASE 设为空（使用相对路径，适配外网访问）"
   echo "    ⚠️  请检查 deploy/.env，特别是 DATABASE_URL 是否正确。"
   echo
 else
@@ -108,7 +109,12 @@ if [ "$CMD" = "up" ] || [ "$CMD" = "restart" ]; then
   echo
   echo "============================================================"
   echo "  部署完成！"
-  echo "  浏览器访问: ${VITE_API_BASE}"
+  if [ -n "$VITE_API_BASE" ]; then
+    echo "  浏览器访问: ${VITE_API_BASE}"
+  else
+    echo "  局域网访问: http://群晖IP:${WEB_PORT}"
+    echo "  外网访问:   通过域名反向代理（VITE_API_BASE 已设为相对路径）"
+  fi
   echo "  健康检查:   curl http://127.0.0.1:${WEB_PORT}/api/health"
   echo "  查看日志:   ./deploy.sh logs"
   echo "  停止服务:   ./deploy.sh down"

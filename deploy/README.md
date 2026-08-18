@@ -84,7 +84,7 @@ chmod +x deploy.sh build-frontend.sh backend-entrypoint.sh
 
 | 配置项 | 说明 |
 | --- | --- |
-| `VITE_API_BASE` | 站点访问地址，前端构建时写死 |
+| `VITE_API_BASE` | 站点访问地址，前端构建时写死；留空则使用相对路径（推荐，支持外网访问） |
 | `WEB_PORT` | 前端对外端口，默认 8080 |
 | `DATABASE_URL` | MySQL 连接串 |
 | `TZ` | 时区，默认 `Asia/Shanghai` |
@@ -106,7 +106,10 @@ chmod +x deploy.sh build-frontend.sh backend-entrypoint.sh
 - **首次启动很慢 / 一直 healthcheck**：后端首次要 `pip install`，属正常；看日志 `./deploy.sh logs backend`。
 - **构建前端报错 / 产物是 root 属主**：node 容器以 root 运行，`dist`、`node_modules` 属主为 root，nginx 读取不受影响；要删除可用 `sudo rm -rf`。
 - **图片上传失败**：上传大小限制 20M；确认两个容器都挂了 `uploads` 卷（`./deploy.sh logs backend`）。
-- **想用域名 / HTTPS 访问**：群晖 控制面板 → 登录门户 → 高级 → 反向代理，把域名反向代理到 `http://127.0.0.1:8080`；同时把 `deploy/.env` 的 `VITE_API_BASE` 改成该域名并重新 `./deploy.sh up`。
+- **想用域名 / HTTPS 访问**：
+  1. 群晖 控制面板 → 登录门户 → 高级 → 反向代理，把域名反向代理到 `http://127.0.0.1:8080`
+  2. `deploy/.env` 的 `VITE_API_BASE` 留空（使用相对路径），重新 `./deploy.sh up`
+  3. 前端会自动使用当前访问的域名发送 API 请求，无需硬编码地址
 
 ## 目录说明
 
