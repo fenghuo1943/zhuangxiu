@@ -18,6 +18,7 @@ import {
   fetchFlowStages, type FlowStageRaw,
 } from '../api/flow';
 import { isAuthenticated } from '../api/client';
+import { getAuthState } from '../api/useAuth';
 import {
   fetchExpenses, createExpenseApi, updateExpenseApi, deleteExpenseApi,
 } from '../api/expenses';
@@ -26,6 +27,13 @@ import {
   updateCategoryAllocation as apiUpdateCategoryAllocation,
 } from '../api/budget';
 import { pushState, listProjects } from '../api/sync';
+
+/** Guard: throws if user is not logged in. Call at the top of every mutation. */
+function assertLoggedIn(): void {
+  if (!getAuthState().isLoggedIn) {
+    throw new Error('请先登录后再操作');
+  }
+}
 
 const STORAGE_KEY = 'xiaozhuangjia_state_v1';
 
@@ -188,6 +196,7 @@ function distributeBudget(total: number, categories: BudgetCategory[]): BudgetCa
 }
 
 export function setTotalBudget(total: number, scaleStages = true) {
+  assertLoggedIn();
   const categories = globalState.budget.categories;
   const oldTotal = globalState.budget.total;
   const allZero = categories.every(c => c.allocated === 0);
@@ -237,6 +246,7 @@ export function setTotalBudget(total: number, scaleStages = true) {
 }
 
 export function setCategoryAllocation(categoryId: string, allocated: number) {
+  assertLoggedIn();
   const categories = globalState.budget.categories.map(c =>
     c.id === categoryId ? { ...c, allocated } : c
   );
@@ -252,6 +262,7 @@ export function setCategoryAllocation(categoryId: string, allocated: number) {
 
 /** Atomically adjust two adjacent category allocations (for slider drag, §4.2.2) */
 export function adjustAdjacentBudgets(leftId: string, rightId: string, newLeft: number, newRight: number) {
+  assertLoggedIn();
   const categories = globalState.budget.categories.map(c => {
     if (c.id === leftId) return { ...c, allocated: newLeft };
     if (c.id === rightId) return { ...c, allocated: newRight };
@@ -289,6 +300,7 @@ export function getBudgetUsageRate(): number {
 // ==================== Todo Actions ====================
 
 export function addTodo(title: string, stageId: string, dueDate?: string) {
+  assertLoggedIn();
   const todo: Todo = {
     id: `todo_${Date.now()}`,
     projectId: globalState.activeProjectId,
@@ -304,6 +316,7 @@ export function addTodo(title: string, stageId: string, dueDate?: string) {
 }
 
 export function toggleTodo(todoId: string) {
+  assertLoggedIn();
   const todos = globalState.todos.map(t =>
     t.id === todoId ? { ...t, completed: !t.completed } : t
   );
@@ -317,6 +330,7 @@ export function getProjectTodos(): Todo[] {
 }
 
 export function deleteTodo(todoId: string) {
+  assertLoggedIn();
   const todos = globalState.todos.filter(t => t.id !== todoId);
   globalState = { ...globalState, todos };
   notify();
@@ -331,6 +345,7 @@ export function deleteTodo(todoId: string) {
 }
 
 export function updateTodo(todoId: string, updates: Partial<Todo>) {
+  assertLoggedIn();
   const todos = globalState.todos.map(t =>
     t.id === todoId ? { ...t, ...updates } : t
   );
@@ -342,6 +357,7 @@ export function updateTodo(todoId: string, updates: Partial<Todo>) {
 // ==================== Purchase Actions ====================
 
 export function togglePurchaseRef(itemId: string, deleteExpense: boolean = false) {
+  assertLoggedIn();
   const purchaseReferences = globalState.purchaseReferences.map(stage => ({
     ...stage,
     subs: stage.subs.map(sub => ({
@@ -408,6 +424,7 @@ export function togglePurchaseRef(itemId: string, deleteExpense: boolean = false
 }
 
 export function addCustomPurchaseItem(name: string, stageParent: string, qty: number, spec?: string, subgroupName?: string, unit?: string, categoryId?: string, subCategoryId?: string, price?: number): string {
+  assertLoggedIn();
   const id = `p_custom_${Date.now()}`;
   const purchaseReferences = globalState.purchaseReferences.map(stage => {
     if (stage.parent !== stageParent) return stage;
@@ -513,6 +530,7 @@ export function addCustomPurchaseItem(name: string, stageParent: string, qty: nu
 }
 
 export function deletePurchaseRefItem(itemId: string, deleteExpense: boolean = false) {
+  assertLoggedIn();
   // Find the item to get its stage parent (for possible backend sync)
   let stageParent = '';
   const purchaseReferences = globalState.purchaseReferences.map(stage => {
@@ -578,6 +596,7 @@ export function deletePurchaseRefItem(itemId: string, deleteExpense: boolean = f
 }
 
 export function updatePurchaseRefQty(itemId: string, qty: number) {
+  assertLoggedIn();
   const purchaseReferences = globalState.purchaseReferences.map(stage => ({
     ...stage,
     subs: stage.subs.map(sub => ({
@@ -593,6 +612,7 @@ export function updatePurchaseRefQty(itemId: string, qty: number) {
 }
 
 export function updatePurchaseRefItem(itemId: string, updates: { name?: string; spec?: string; qty?: number; unit?: string }) {
+  assertLoggedIn();
   const purchaseReferences = globalState.purchaseReferences.map(stage => ({
     ...stage,
     subs: stage.subs.map(sub => ({
@@ -1011,6 +1031,7 @@ export function unpurchaseItem(itemId: string, deleteExpense: boolean) {
 
 /** Simple toggle (backward compat — for marking purchased without expense flow) */
 export function togglePurchased(itemId: string) {
+  assertLoggedIn();
   const set = new Set(globalState.purchasedItemIds);
   if (set.has(itemId)) set.delete(itemId);
   else set.add(itemId);
@@ -1031,6 +1052,7 @@ export function isItemPurchased(itemId: string): boolean {
 
 /** 在比价页面将物品添加到待购清单。仅在物品不在待购清单中时生效。 */
 export function addCompareToSelected(itemId: string) {
+  assertLoggedIn();
   if (globalState.selectedPurchaseIds.includes(itemId)) return; // 已在待购
 
   globalState = {
@@ -1118,6 +1140,7 @@ export function addPurchaseToCompare(item: {
   stageParent: string;
   qty: number;
 }) {
+  assertLoggedIn();
   // Add to projectCompareItemIds
   if (!globalState.projectCompareItemIds.includes(item.itemId)) {
     globalState = {
@@ -1154,6 +1177,7 @@ function _bkCatId(frontendCatId: string): string {
 }
 
 export function addExpense(expense: Omit<Expense, 'id' | 'createdAt'>) {
+  assertLoggedIn();
   const newExpense: Expense = {
     ...expense,
     id: `exp_${Date.now()}`,
@@ -1194,6 +1218,7 @@ export function addExpense(expense: Omit<Expense, 'id' | 'createdAt'>) {
 }
 
 export function deleteExpense(expenseId: string) {
+  assertLoggedIn();
   const expense = globalState.expenses.find(e => e.id === expenseId);
   if (!expense) return;
 
@@ -1220,6 +1245,7 @@ export function deleteExpense(expenseId: string) {
 }
 
 export function updateExpenseStatus(expenseId: string, status: Expense['status']) {
+  assertLoggedIn();
   const expenses = globalState.expenses.map(e =>
     e.id === expenseId ? { ...e, status } : e
   );
@@ -1233,6 +1259,7 @@ export function updateExpenseStatus(expenseId: string, status: Expense['status']
 }
 
 export function updateExpense(expenseId: string, updates: Partial<Omit<Expense, 'id' | 'createdAt'>>) {
+  assertLoggedIn();
   const old = globalState.expenses.find(e => e.id === expenseId);
   if (!old) return;
 
@@ -1282,6 +1309,7 @@ export function getCompareItems(): CompareItem[] {
 
 /** 在比价页面快速添加物品——本地乐观更新 + 后端通过比价 API 同步 */
 export function addCompareItem(itemName: string, stageParent: string, subgroupName: string, qty: number, spec?: string, unit?: string, categoryId?: string, subCategoryId?: string): CompareItem {
+  assertLoggedIn();
   // 生成本地临时 ID，等后端返回后再替换为真实 ID
   const tempId = `p_compare_${Date.now()}`;
 
@@ -1377,6 +1405,7 @@ function _replaceCompareTempId(oldId: string, newId: string) {
 
 /** Remove item from compare (set needs_compare=false) */
 export function removeCompareItem(itemId: string) {
+  assertLoggedIn();
   globalState = {
     ...globalState,
     compareItems: globalState.compareItems.filter(c => c.item_id !== itemId),
@@ -1407,6 +1436,7 @@ export function removeCompareItem(itemId: string) {
 }
 
 export function addPriceModel(itemId: string, name: string, spec?: string, note?: string, quantity?: number) {
+  assertLoggedIn();
   const tempId = `pm_${Date.now()}`;
   const model: PriceModel = {
     id: tempId,
@@ -1465,6 +1495,7 @@ export function addPriceModel(itemId: string, name: string, spec?: string, note?
 }
 
 export function deletePriceModel(itemId: string, modelId: string) {
+  assertLoggedIn();
   const compareItems = globalState.compareItems.map(c =>
     c.item_id === itemId ? { ...c, models: c.models.filter(m => m.id !== modelId) } : c
   );
@@ -1481,6 +1512,7 @@ export function deletePriceModel(itemId: string, modelId: string) {
 }
 
 export function updatePriceModel(modelId: string, updates: { name?: string; spec?: string; note?: string }) {
+  assertLoggedIn();
   const compareItems = globalState.compareItems.map(c => ({
     ...c,
     models: c.models.map(m =>
@@ -1493,6 +1525,7 @@ export function updatePriceModel(modelId: string, updates: { name?: string; spec
 }
 
 export function addChannelQuote(modelId: string, channel: string, price?: number, note?: string, url?: string) {
+  assertLoggedIn();
   const tempId = `ch_${Date.now()}`;
   const quote: ChannelQuote = {
     id: tempId,
@@ -1548,6 +1581,7 @@ export function addChannelQuote(modelId: string, channel: string, price?: number
 }
 
 export function deleteChannelQuote(modelId: string, quoteId: string) {
+  assertLoggedIn();
   const compareItems = globalState.compareItems.map(c => ({
     ...c,
     models: c.models.map(m =>
@@ -1569,6 +1603,7 @@ export function deleteChannelQuote(modelId: string, quoteId: string) {
 }
 
 export function updateChannelQuote(quoteId: string, updates: { channel?: string; price?: number; note?: string }) {
+  assertLoggedIn();
   const compareItems = globalState.compareItems.map(c => ({
     ...c,
     models: c.models.map(m => ({
@@ -1584,6 +1619,7 @@ export function updateChannelQuote(quoteId: string, updates: { channel?: string;
 }
 
 export function selectBestQuote(modelId: string, quoteId: string | null) {
+  assertLoggedIn();
   const bestQuoteIds = { ...globalState.bestQuoteIds };
   let expenses = globalState.expenses;
   let selectedExpenseMap = { ...globalState.selectedExpenseMap };
@@ -1682,6 +1718,7 @@ export function selectBestQuote(modelId: string, quoteId: string | null) {
  *  - Neither -> creates unpaid Expense
  */
 export async function updateItemPrice(itemId: string, price: number): Promise<void> {
+  assertLoggedIn();
   // price 统一为总价，直接存入账单
   const expenseId =
     globalState.selectedExpenseMap[itemId] ||
@@ -1840,6 +1877,7 @@ export function getItemDisplayPrice(itemId: string): string | null {
 }
 
 export function toggleModelSync(modelId: string) {
+  assertLoggedIn();
   const set = new Set(globalState.syncedModelIds);
   const isSyncing = !set.has(modelId);
   if (isSyncing) set.add(modelId);
@@ -1919,18 +1957,21 @@ export function getTotalChannelCount(): number {
 // ==================== Flow Actions ====================
 
 export function setFlowType(flowType: 'new' | 'old') {
+  assertLoggedIn();
   globalState = { ...globalState, flowType, flowCustomOrder: null };
   notify();
   persist();
 }
 
 export function setFlowCustomOrder(order: string[] | null) {
+  assertLoggedIn();
   globalState = { ...globalState, flowCustomOrder: order };
   notify();
   persist();
 }
 
 export function toggleFlowStepDone(stepId: string) {
+  assertLoggedIn();
   const doneSet = new Set(globalState.flowDoneStepIds);
   if (doneSet.has(stepId)) {
     doneSet.delete(stepId);
@@ -2062,6 +2103,7 @@ export function getStageNotes(stageId: string): StageNote[] {
 }
 
 export async function addStageNote(stageId: string, content: string): Promise<void> {
+  assertLoggedIn();
   if (!content.trim()) return;
 
   if (isAuthenticated()) {
@@ -2098,6 +2140,7 @@ export async function addStageNote(stageId: string, content: string): Promise<vo
 }
 
 export async function updateStageNote(stageId: string, noteId: string, content: string): Promise<void> {
+  assertLoggedIn();
   if (!content.trim()) return;
 
   if (isAuthenticated()) {
@@ -2133,6 +2176,7 @@ export async function updateStageNote(stageId: string, noteId: string, content: 
 }
 
 export async function removeStageNote(stageId: string, noteId: string): Promise<void> {
+  assertLoggedIn();
   if (isAuthenticated()) {
     try {
       await apiDeleteStageNote(globalState.activeProjectId, stageId, noteId);
@@ -2247,6 +2291,7 @@ export function getOrderedFlowSteps(flowType: 'new' | 'old'): FlowStep[] {
 export async function addCustomFlowStep(
   flowType: string, title: string, days: string, desc: string, sortOrder: number
 ): Promise<CustomFlowStep | null> {
+  assertLoggedIn();
   if (isAuthenticated()) {
     try {
       const step = await apiCreateCustomStep(globalState.activeProjectId, {
@@ -2289,6 +2334,7 @@ export async function addCustomFlowStep(
 }
 
 export async function removeCustomFlowStep(stepId: string): Promise<void> {
+  assertLoggedIn();
   if (isAuthenticated()) {
     try {
       await apiDeleteCustomStep(globalState.activeProjectId, stepId);
@@ -2333,6 +2379,7 @@ export async function loadCustomFlowSteps(): Promise<void> {
 // ==================== Project Actions ====================
 
 export function switchProject(projectId: string) {
+  assertLoggedIn();
   // Save current project state
   const currentStates = { ...globalState.projectStates };
   currentStates[globalState.activeProjectId] = {
@@ -2360,6 +2407,7 @@ export function switchProject(projectId: string) {
 }
 
 export function addProject(name: string) {
+  assertLoggedIn();
   const project = {
     id: `proj_${Date.now()}`,
     name,
@@ -2432,7 +2480,11 @@ export async function migrateLocalDataToServer(userId?: string): Promise<void> {
 
   // Only migrate if there's local data to push
   const hasLocalData = globalState.expenses.length > 0;
-  if (!hasLocalData) return;
+  if (!hasLocalData) {
+    // No local data to push — just pull existing server data into frontend state
+    await syncFromServerAfterLogin();
+    return;
+  }
 
   // Only migrate once per user (per device)
   if (userId) {
@@ -2603,6 +2655,7 @@ export function getCurrentStageName(): string {
 // ==================== Expense SubCategory Actions ====================
 
 export function addSubCategory(name: string, categoryId: string): ExpenseSubCategory {
+  assertLoggedIn();
   const sub: ExpenseSubCategory = {
     id: `sub_${Date.now()}`,
     name: name.trim(),
@@ -2618,6 +2671,7 @@ export function addSubCategory(name: string, categoryId: string): ExpenseSubCate
 }
 
 export function deleteSubCategory(subId: string) {
+  assertLoggedIn();
   globalState = {
     ...globalState,
     expenseSubCategories: globalState.expenseSubCategories.filter(s => s.id !== subId),
@@ -2627,6 +2681,7 @@ export function deleteSubCategory(subId: string) {
 }
 
 export function renameSubCategory(subId: string, name: string) {
+  assertLoggedIn();
   globalState = {
     ...globalState,
     expenseSubCategories: globalState.expenseSubCategories.map(s =>
@@ -2638,6 +2693,7 @@ export function renameSubCategory(subId: string, name: string) {
 }
 
 export function moveSubCategory(subId: string, toCategoryId: string) {
+  assertLoggedIn();
   globalState = {
     ...globalState,
     expenseSubCategories: globalState.expenseSubCategories.map(s =>
@@ -2655,6 +2711,7 @@ export function getSubCategoriesByCategory(categoryId: string): ExpenseSubCatego
 // ==================== Expense Group Actions ====================
 
 export function setGroupVisibility(groupId: string, visible: boolean) {
+  assertLoggedIn();
   globalState = {
     ...globalState,
     expenseGroups: globalState.expenseGroups.map(g =>
@@ -2666,6 +2723,7 @@ export function setGroupVisibility(groupId: string, visible: boolean) {
 }
 
 export function renameGroup(groupId: string, name: string) {
+  assertLoggedIn();
   globalState = {
     ...globalState,
     expenseGroups: globalState.expenseGroups.map(g =>
@@ -2677,6 +2735,7 @@ export function renameGroup(groupId: string, name: string) {
 }
 
 export function addGroup(name: string, color: string): ExpenseGroup {
+  assertLoggedIn();
   const group: ExpenseGroup = {
     id: `grp_${Date.now()}`,
     name: name.trim(),
@@ -2693,6 +2752,7 @@ export function addGroup(name: string, color: string): ExpenseGroup {
 }
 
 export function deleteGroup(groupId: string) {
+  assertLoggedIn();
   // Move subcategories in this group to "other" or first available group
   const firstGroup = globalState.expenseGroups.find(g => g.id !== groupId);
   const targetId = firstGroup?.id || 'hard';

@@ -112,9 +112,10 @@ export function useAuth(): AuthState & {
 
   const logout = useCallback(() => {
     apiLogout();
+    // 清除本地应用状态缓存，确保下次登录从数据库重新加载
+    localStorage.removeItem('xiaozhuangjia_state_v1');
     globalAuthState = { user: null, loading: false, error: null, isLoggedIn: false };
     notify();
-    // Note: local data is preserved in localStorage for offline use
   }, []);
 
   const clearError = useCallback(() => {
