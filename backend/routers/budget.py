@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from ..database import get_db
 from ..models import User, Project, Budget, BudgetCategory
 from ..schemas import BudgetOut, BudgetUpdate, CategoryAllocationUpdate, BudgetCategoryOut
@@ -60,6 +60,27 @@ async def get_budget(project_id: str, user: User = Depends(get_current_user), db
     budget = result.scalar_one_or_none()
     cat_result = await db.execute(select(BudgetCategory).where(BudgetCategory.project_id == sid))
     categories = cat_result.scalars().all()
+    # Clean up stale duplicate categories: keep only the correctly scoped row per frontend key
+    prefix = sid + "_"
+    seen_frontend_keys: dict[str, BudgetCategory] = {}
+    stale_ids: list[str] = []
+    for c in categories:
+        frontend_key = c.id[len(prefix):] if c.id.startswith(prefix) else c.id.rsplit("_", 1)[-1]
+        if frontend_key in seen_frontend_keys:
+            # Duplicate — keep the correctly scoped one (starts with sid_), mark the other stale
+            existing = seen_frontend_keys[frontend_key]
+            if c.id.startswith(prefix) and not existing.id.startswith(prefix):
+                stale_ids.append(existing.id)
+                seen_frontend_keys[frontend_key] = c
+            else:
+                stale_ids.append(c.id)
+        else:
+            seen_frontend_keys[frontend_key] = c
+    if stale_ids:
+        for stale_id in stale_ids:
+            await db.execute(delete(BudgetCategory).where(BudgetCategory.id == stale_id, BudgetCategory.project_id == sid))
+        await db.commit()
+        categories = list(seen_frontend_keys.values())
     return BudgetOut(
         total=budget.total if budget else 0.0,
         categories=[_frontend_cat_id(c, sid) for c in categories],
@@ -109,9 +130,12 @@ async def update_category_allocation(project_id: str, category_id: str, data: Ca
     sid = await _ensure_project(project_id, user, db)
     # Map frontend category ID (e.g. "p1_hard") to scoped DB category ID (e.g. "p1_<hash>_hard")
     if category_id.startswith(project_id + "_"):
-        db_category_id = sid + "_" + category_id[len(project_id) + 1:]
+        cat_key = category_id[len(project_id) + 1:]
+    elif "_" in category_id:
+        cat_key = category_id.rsplit("_", 1)[-1]
     else:
-        db_category_id = category_id
+        cat_key = category_id
+    db_category_id = f"{sid}_{cat_key}"
     result = await db.execute(select(BudgetCategory).where(BudgetCategory.id == db_category_id, BudgetCategory.project_id == sid))
     cat = result.scalar_one_or_none()
     if not cat:

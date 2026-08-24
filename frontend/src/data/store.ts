@@ -2033,10 +2033,17 @@ export async function loadBudgetAndExpensesFromBackend(): Promise<void> {
       ...c,
       id: c.id.startsWith(prefix) ? c.id.slice(prefix.length) : c.id,
     }));
+    // Deduplicate categories by ID (keep last occurrence to prefer newer data)
+    const seen = new Set<string>();
+    const dedupedCategories = categories.filter(c => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
     // Preserve existing category IDs if backend returns different set
     const existingIds = new Set(globalState.budget.categories.map(c => c.id));
-    const mergedCategories = categories.length > 0
-      ? categories.map(c => ({
+    const mergedCategories = dedupedCategories.length > 0
+      ? dedupedCategories.map(c => ({
           ...c,
           // Use existing spent from backend, fall back to local
           spent: c.spent || (globalState.budget.categories.find(lc => lc.id === c.id)?.spent || 0),

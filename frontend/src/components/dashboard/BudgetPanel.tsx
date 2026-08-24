@@ -315,7 +315,7 @@ export const BudgetPanel: React.FC = () => {
                 else if (isLast) borderRadius = '0 6px 6px 0';
                 return (
                   <div
-                    key={cat.id}
+                    key={`seg-${cat.id}`}
                     className="budget-slider-seg"
                     style={{ left: `${leftPct}%`, width: `${wPct}%`, backgroundColor: cat.color, borderRadius }}
                   />
