@@ -45,11 +45,15 @@ async def _ensure_project(raw_project_id: str, user: User, db: AsyncSession) -> 
 
 
 def _frontend_cat_id(db_cat: BudgetCategory, sid: str):
-    """Convert a DB category (id = 'p1_<hash>_hard') to a frontend-friendly version (id = 'hard')."""
+    """Convert a DB category (id = 'p1_<hash>_hard' or '<hash>_hard') to a frontend-friendly version (id = 'hard')."""
     cat = BudgetCategoryOut.model_validate(db_cat)
     prefix = sid + "_"
     if cat.id.startswith(prefix):
+        # 标准格式：p1_<hash>_hard → hard
         cat.id = cat.id[len(prefix):]
+    elif "_" in cat.id:
+        # 回退格式：<hash>_hard → hard（数据库中可能存储了不带项目前缀的ID）
+        cat.id = cat.id.rsplit("_", 1)[-1]
     return cat
 
 

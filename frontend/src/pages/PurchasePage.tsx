@@ -8,6 +8,7 @@ import {
   getItemBestChannel,
   checkPurchaseReadiness, purchaseItem, getPurchasedExpenseId, unpurchaseItem,
   getSelectedExpenseId, getItemPriceWithSource, updateItemPrice,
+  loadSubCategoriesFromBackend,
 } from '../data/store';
 import { DEFAULT_BUDGET_CATEGORIES } from '../data/mockData';
 import type { PurchaseReferenceStage, PurchaseReferenceSubgroup, PurchaseReferenceItem } from '../data/types';
@@ -533,6 +534,10 @@ const PurchasePage: React.FC = () => {
     });
     return options;
   }, [state.purchaseReferences]);
+
+  const quickSubCategories = useMemo(() => {
+    return state.expenseSubCategories.filter(s => s.categoryId === quickCategory);
+  }, [state.expenseSubCategories, quickCategory]);
 
   const isSelected = (itemId: string) => state.selectedPurchaseIds.includes(itemId);
 
@@ -1076,7 +1081,7 @@ const PurchasePage: React.FC = () => {
               disabled={!quickCategory}
             >
               <option value="">子分类(可选)</option>
-              {state.expenseSubCategories.filter(s => s.categoryId === quickCategory).map(sub => (
+              {quickSubCategories.map(sub => (
                 <option key={sub.id} value={sub.id}>{sub.name}</option>
               ))}
             </select>
