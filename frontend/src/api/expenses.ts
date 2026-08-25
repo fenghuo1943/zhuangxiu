@@ -5,24 +5,24 @@ export interface ExpenseCreatePayload {
   title: string;
   amount: number;
   category_id: string;
-  sub_category_id?: string;
-  stage_id?: string;
+  sub_category_id?: string | null;
+  stage_id?: string | null;
   date: string;
   status: string;
-  payer?: string;
-  note?: string;
+  payer?: string | null;
+  note?: string | null;
 }
 
 export interface ExpenseUpdatePayload {
   title?: string;
   amount?: number;
   category_id?: string;
-  sub_category_id?: string;
-  stage_id?: string;
+  sub_category_id?: string | null;
+  stage_id?: string | null;
   date?: string;
   status?: string;
-  payer?: string;
-  note?: string;
+  payer?: string | null;
+  note?: string | null;
 }
 
 interface ExpenseResponse {

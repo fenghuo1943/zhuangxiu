@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, List
-from datetime import date, datetime
+from datetime import date as DateValue, datetime
 
 
 # ---- Auth ----
@@ -87,12 +87,12 @@ class CategoryAllocationUpdate(BaseModel):
 class TodoCreate(BaseModel):
     title: str = Field(..., max_length=200)
     stage_id: str = Field("design", max_length=50)
-    due_date: Optional[date] = None
+    due_date: Optional[DateValue] = None
 
 class TodoUpdate(BaseModel):
     title: Optional[str] = None
     stage_id: Optional[str] = None
-    due_date: Optional[date] = None
+    due_date: Optional[DateValue] = None
     completed: Optional[bool] = None
 
 class TodoOut(BaseModel):
@@ -100,7 +100,7 @@ class TodoOut(BaseModel):
     project_id: str
     title: str
     stage_id: str
-    due_date: Optional[date]
+    due_date: Optional[DateValue]
     completed: bool
     created_at: datetime
 
@@ -114,10 +114,22 @@ class ExpenseCreate(BaseModel):
     category_id: str = Field("hard", max_length=50)
     sub_category_id: Optional[str] = None
     stage_id: Optional[str] = None
-    date: date
+    date: DateValue
     status: str = Field("paid", pattern="^(paid|prepaid|unpaid|refunded)$")
     payer: Optional[str] = None
     note: Optional[str] = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_blank_optional_fields(cls, values):
+        if not isinstance(values, dict):
+            return values
+        for key in ('sub_category_id', 'stage_id', 'payer', 'note'):
+            if values.get(key) == "":
+                values[key] = None
+        if values.get('date') == "":
+            values['date'] = None
+        return values
 
 class ExpenseUpdate(BaseModel):
     title: Optional[str] = None
@@ -125,10 +137,22 @@ class ExpenseUpdate(BaseModel):
     category_id: Optional[str] = None
     sub_category_id: Optional[str] = None
     stage_id: Optional[str] = None
-    date: Optional[date] = None
+    date: Optional[DateValue] = None
     status: Optional[str] = None
     payer: Optional[str] = None
     note: Optional[str] = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_blank_optional_fields(cls, values):
+        if not isinstance(values, dict):
+            return values
+        for key in ('sub_category_id', 'stage_id', 'payer', 'note'):
+            if values.get(key) == "":
+                values[key] = None
+        if values.get('date') == "":
+            values['date'] = None
+        return values
 
 class ExpenseOut(BaseModel):
     id: str
@@ -138,7 +162,7 @@ class ExpenseOut(BaseModel):
     category_id: str
     sub_category_id: Optional[str] = None
     stage_id: Optional[str] = None
-    date: date
+    date: DateValue
     status: str
     payer: Optional[str] = None
     note: Optional[str] = None

@@ -1216,12 +1216,12 @@ export function addExpense(expense: Omit<Expense, 'id' | 'createdAt'>) {
       title: newExpense.title,
       amount: newExpense.amount,
       category_id: newExpense.categoryId,
-      sub_category_id: newExpense.subCategoryId,
-      stage_id: newExpense.stageId,
+      sub_category_id: newExpense.subCategoryId || null,
+      stage_id: newExpense.stageId || null,
       date: newExpense.date,
       status: newExpense.status,
-      payer: newExpense.payer,
-      note: newExpense.note,
+      payer: newExpense.payer || null,
+      note: newExpense.note || null,
     }).catch(() => {});
   }
 }
@@ -1299,12 +1299,12 @@ export function updateExpense(expenseId: string, updates: Partial<Omit<Expense, 
     if (updates.title !== undefined) payload.title = updates.title;
     if (updates.amount !== undefined) payload.amount = updates.amount;
     if (updates.categoryId !== undefined) payload.category_id = updates.categoryId;
-    if (updates.subCategoryId !== undefined) payload.sub_category_id = updates.subCategoryId;
-    if (updates.stageId !== undefined) payload.stage_id = updates.stageId;
+    if (updates.subCategoryId !== undefined) payload.sub_category_id = updates.subCategoryId || null;
+    if (updates.stageId !== undefined) payload.stage_id = updates.stageId || null;
     if (updates.date !== undefined) payload.date = updates.date;
     if (updates.status !== undefined) payload.status = updates.status;
-    if (updates.payer !== undefined) payload.payer = updates.payer;
-    if (updates.note !== undefined) payload.note = updates.note;
+    if (updates.payer !== undefined) payload.payer = updates.payer || null;
+    if (updates.note !== undefined) payload.note = updates.note || null;
     updateExpenseApi(globalState.activeProjectId, expenseId, payload).catch(() => {});
   }
 }
