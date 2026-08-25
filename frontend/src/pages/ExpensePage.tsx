@@ -2,9 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import AppShell from '../components/layout/AppShell';
 import {
   useStore, addExpense, deleteExpense, updateExpense,
-  getSubCategoriesByCategory, renameGroup, deleteSubCategory,
-  addSubCategory, renameSubCategory, moveSubCategory,
-  loadBudgetAndExpensesFromBackend, loadSubCategoriesFromBackend,
+  getSubCategoriesByCategory,
+  loadBudgetAndExpensesFromBackend,
 } from '../data/store';
 import type { Expense } from '../data/types';
 import {
@@ -161,14 +160,11 @@ const ExpensePage: React.FC = () => {
   const [formStage, setFormStage] = useState('');
   const [formSubCategory, setFormSubCategory] = useState('');
   const [subCategoryFilter, setSubCategoryFilter] = useState('');
-  const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
-  const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<'stats' | 'bills' | 'group'>('bills');
+  const [activeView, setActiveView] = useState<'stats' | 'bills'>('bills');
 
   // Load budget & expenses from backend on mount
   useEffect(() => {
     loadBudgetAndExpensesFromBackend();
-    loadSubCategoriesFromBackend();  // 加载子分类（默认+项目专属）
   }, []);
 
   const openAddModal = () => {
@@ -397,17 +393,6 @@ const ExpensePage: React.FC = () => {
               </button>
             </div>
           </div>
-          <button
-            className={`icon-btn icon-btn--settings ${activeView === 'group' ? 'active' : ''}`}
-            onClick={() => setActiveView('group')}
-            title="分组设置"
-            aria-label="分组设置"
-          >
-            <svg viewBox="0 0 24 24">
-              <path d="M12 8.2a3.8 3.8 0 1 1 0 7.6 3.8 3.8 0 0 1 0-7.6z" />
-              <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.2a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.2a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3h.1a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.2a1.6 1.6 0 0 0 1 1.5h.1a1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8v.1a1.6 1.6 0 0 0 1.5 1h.2a2 2 0 0 1 0 4h-.2a1.6 1.6 0 0 0-1.5 1z" />
-            </svg>
-          </button>
         </div>
 
         {activeView === 'bills' && (
@@ -488,162 +473,8 @@ const ExpensePage: React.FC = () => {
           </div>
         )}
 
-        {/* Settings / Group Management */}
-        {activeView === 'group' ? (
-          <div className="expense-view-panel">
-            <div className="card" style={{ padding: '14px 18px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ fontSize: 13, color: '#666', lineHeight: 1.55 }}>
-                  点选小分类后点击目标大分类即可移入，也可以直接拖拽小分类到目标大分类。
-                  <br />
-                  <span style={{ fontSize: 11, color: '#999' }}>
-                    💡 标记为"默认"的分类为系统预设，所有项目可见且不可删除；其他分类为当前项目专属。
-                  </span>
-                </div>
-                <button
-                  className="btn btn-outline btn-sm"
-                  style={{ flexShrink: 0 }}
-                  onClick={() => {
-                    const name = prompt('输入新小项名称:');
-                    if (name && name.trim()) {
-                      const catId = state.expenseGroups[0]?.id || 'hard';
-                      addSubCategory(name.trim(), catId);
-                    }
-                  }}
-                >
-                  添加小项
-                </button>
-              </div>
-            </div>
-
-            {selectedSubId && (
-              <div className="group-select-hint">
-                <span>
-                  已选中「{state.expenseSubCategories.find(s => s.id === selectedSubId)?.name || '未知'}」
-                  — 点击目标分组即可移入
-                </span>
-                <button onClick={() => setSelectedSubId(null)} title="取消选择">✕</button>
-              </div>
-            )}
-
-            <div className="group-area">
-              {state.expenseGroups.map(group => {
-                const subs = state.expenseSubCategories.filter(s => s.categoryId === group.id);
-                const color = CATEGORY_COLORS[group.id] || group.color;
-                const isDragOver = dragOverGroupId === group.id;
-                return (
-                  <div
-                    key={group.id}
-                    className={`group-box${isDragOver ? ' drag-over' : ''}`}
-                    onClick={() => {
-                      if (selectedSubId) {
-                        moveSubCategory(selectedSubId, group.id);
-                        setSelectedSubId(null);
-                      }
-                    }}
-                    onDragOver={e => {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = 'move';
-                      setDragOverGroupId(group.id);
-                    }}
-                    onDragLeave={() => setDragOverGroupId(null)}
-                    onDrop={e => {
-                      e.preventDefault();
-                      setDragOverGroupId(null);
-                      const subId = e.dataTransfer.getData('text/plain');
-                      if (subId) {
-                        moveSubCategory(subId, group.id);
-                      }
-                    }}
-                  >
-                    <div className="group-hd">
-                      <input
-                        name={`group-rename-${group.id}`}
-                        className="group-name-input"
-                        value={group.name}
-                        onChange={e => renameGroup(group.id, e.target.value)}
-                        onClick={e => e.stopPropagation()}
-                      />
-                      <span style={{ fontSize: 11, color: '#999' }}>{subs.length}项</span>
-                    </div>
-                    <div className="group-bd">
-                      {subs.length === 0 && !isDragOver ? (
-                        <div className="group-empty">拖到这里</div>
-                      ) : (
-                        subs.map(sub => {
-                          const isSelected = selectedSubId === sub.id;
-                          const isDefault = sub.isDefault;
-                          return (
-                            <div
-                              key={sub.id}
-                              className={`group-tag${isSelected ? ' selected' : ''}`}
-                              style={{
-                                background: isSelected ? `${color}18` : `${color}08`,
-                                border: `1px solid ${isSelected ? color : `${color}25`}`,
-                                color: color,
-                                boxShadow: isSelected ? `0 0 0 2px ${color}30` : undefined,
-                              }}
-                              draggable={!isDefault}
-                              onDragStart={e => {
-                                if (isDefault) return;
-                                e.dataTransfer.setData('text/plain', sub.id);
-                                e.dataTransfer.effectAllowed = 'move';
-                                setSelectedSubId(null);
-                              }}
-                              onDragEnd={() => setDragOverGroupId(null)}
-                              onClick={e => {
-                                e.stopPropagation();
-                                setSelectedSubId(isSelected ? null : sub.id);
-                              }}
-                            >
-                              <svg viewBox="0 0 24 24" className="fresh-svg" aria-hidden="true">
-                                <circle cx="12" cy="12" r="3.5" />
-                              </svg>
-                              <span>{sub.name}</span>
-                              {isDefault && (
-                                <span
-                                  style={{
-                                    fontSize: 9,
-                                    padding: '1px 4px',
-                                    borderRadius: 3,
-                                    background: `${color}20`,
-                                    color: color,
-                                    marginLeft: 4,
-                                  }}
-                                >
-                                  默认
-                                </span>
-                              )}
-                              {!isDefault && (
-                                <button
-                                  className="group-tag-del"
-                                  title="删除"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    if (confirm(`删除小项「${sub.name}」?`)) {
-                                      if (selectedSubId === sub.id) setSelectedSubId(null);
-                                      const result = deleteSubCategory(sub.id);
-                                      if (!result.success) {
-                                        alert(result.error || '删除失败');
-                                      }
-                                    }
-                                  }}
-                                >
-                                  ×
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-          </div>
-        ) : activeView === 'stats' ? (
+        {/* Content based on active view */}
+        {activeView === 'stats' ? (
           /* ---- Stats View: big-stat list ---- */
           <div className="big-stat-list">
             {['hard', 'material', 'equipment', 'soft', 'service'].map(cid => {

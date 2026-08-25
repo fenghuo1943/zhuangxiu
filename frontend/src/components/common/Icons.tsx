@@ -56,3 +56,4 @@ export const IconWrench: React.FC<IconProps> = (p) => <Svg {...p}><path d="M14.7
 export const IconLayout: React.FC<IconProps> = (p) => <Svg {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></Svg>;
 export const IconToggle: React.FC<IconProps> = (p) => <Svg {...p} viewBox="0 0 24 24"><rect x="1" y="5" width="22" height="14" rx="7" ry="7"/><circle cx="8" cy="12" r="3"/></Svg>;
 export const IconImage: React.FC<IconProps> = (p) => <Svg {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></Svg>;
+export const IconCategory: React.FC<IconProps> = (p) => <Svg {...p}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></Svg>;

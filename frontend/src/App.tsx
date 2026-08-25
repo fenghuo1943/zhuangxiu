@@ -11,6 +11,7 @@ import ToolsPage from './pages/ToolsPage';
 import AccountPage from './pages/AccountPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import CategoryManagePage from './pages/CategoryManagePage';
 
 const App: React.FC = () => {
   return (
@@ -27,6 +28,7 @@ const App: React.FC = () => {
           <Route path="/tips" element={<TipsPage />} />
           <Route path="/tools" element={<ToolsPage />} />
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/category-manage" element={<CategoryManagePage />} />
         </Route>
       </Routes>
     </BrowserRouter>
