@@ -72,10 +72,12 @@ export async function updateCategoryAllocation(
   projectId: string,
   categoryId: string,
   allocated: number,
+  name?: string,
+  color?: string,
 ): Promise<BudgetCategory> {
   const data: BudgetCategoryApiResponse = await apiPut(
     `/api/projects/${projectId}/budget/${categoryId}`,
-    { allocated },
+    { allocated, name, color },
   );
   return fromApiCategory(data);
 }

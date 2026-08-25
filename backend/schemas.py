@@ -79,6 +79,8 @@ class BudgetUpdate(BaseModel):
 
 class CategoryAllocationUpdate(BaseModel):
     allocated: float
+    name: Optional[str] = None
+    color: Optional[str] = None
 
 
 # ---- Todo ----

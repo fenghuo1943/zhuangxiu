@@ -256,7 +256,8 @@ export function setCategoryAllocation(categoryId: string, allocated: number) {
   persist();
 
   if (isAuthenticated()) {
-    apiUpdateCategoryAllocation(globalState.activeProjectId, _bkCatId(categoryId), allocated).catch(() => {});
+    const cat = globalState.budget.categories.find(c => c.id === categoryId);
+    apiUpdateCategoryAllocation(globalState.activeProjectId, _bkCatId(categoryId), allocated, cat?.name, cat?.color).catch(() => {});
   }
 }
 
@@ -275,9 +276,11 @@ export function adjustAdjacentBudgets(leftId: string, rightId: string, newLeft: 
 
   if (isAuthenticated()) {
     const pid = globalState.activeProjectId;
+    const leftCat = globalState.budget.categories.find(c => c.id === leftId);
+    const rightCat = globalState.budget.categories.find(c => c.id === rightId);
     Promise.all([
-      apiUpdateCategoryAllocation(pid, _bkCatId(leftId), newLeft),
-      apiUpdateCategoryAllocation(pid, _bkCatId(rightId), newRight),
+      apiUpdateCategoryAllocation(pid, _bkCatId(leftId), newLeft, leftCat?.name, leftCat?.color),
+      apiUpdateCategoryAllocation(pid, _bkCatId(rightId), newRight, rightCat?.name, rightCat?.color),
     ]).catch(() => {});
   }
 }

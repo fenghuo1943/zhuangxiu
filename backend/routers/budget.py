@@ -109,15 +109,38 @@ async def update_budget(project_id: str, data: BudgetUpdate, user: User = Depend
             )
             cat = cat_result.scalar_one_or_none()
             if not cat:
+                # Use provided name/color, or fall back to defaults based on category key
+                DEFAULT_NAMES = {
+                    'hard': '硬装工程',
+                    'material': '主材选购',
+                    'equipment': '设备系统',
+                    'soft': '软装家电',
+                    'service': '服务杂项',
+                }
+                DEFAULT_COLORS = {
+                    'hard': '#e45b3f',
+                    'material': '#5f9f77',
+                    'equipment': '#5c7fa8',
+                    'soft': '#be7b2f',
+                    'service': '#9b928b',
+                }
+                cat_name = cat_data.name or DEFAULT_NAMES.get(cat_data.id, cat_data.id)
+                cat_color = cat_data.color or DEFAULT_COLORS.get(cat_data.id, "#999")
                 cat = BudgetCategory(
                     id=db_cat_id,
                     project_id=sid,
-                    name=cat_data.name or cat_data.id,
-                    color=cat_data.color or "#999",
+                    name=cat_name,
+                    color=cat_color,
                     allocated=0.0,
                     spent=0.0,
                 )
                 db.add(cat)
+            else:
+                # Update existing category name/color if provided
+                if cat_data.name:
+                    cat.name = cat_data.name
+                if cat_data.color:
+                    cat.color = cat_data.color
             cat.allocated = cat_data.allocated
 
     await db.commit()
@@ -139,11 +162,33 @@ async def update_category_allocation(project_id: str, category_id: str, data: Ca
     result = await db.execute(select(BudgetCategory).where(BudgetCategory.id == db_category_id, BudgetCategory.project_id == sid))
     cat = result.scalar_one_or_none()
     if not cat:
-        # If category doesn't exist yet, auto-create it
-        # Extract the frontend category key from the ID
+        # If category doesn't exist yet, auto-create it with proper name and color
+        # Use provided name/color, or fall back to defaults based on category key
+        DEFAULT_NAMES = {
+            'hard': '硬装工程',
+            'material': '主材选购',
+            'equipment': '设备系统',
+            'soft': '软装家电',
+            'service': '服务杂项',
+        }
+        DEFAULT_COLORS = {
+            'hard': '#e45b3f',
+            'material': '#5f9f77',
+            'equipment': '#5c7fa8',
+            'soft': '#be7b2f',
+            'service': '#9b928b',
+        }
         frontend_key = db_category_id.rsplit("_", 1)[-1] if "_" in db_category_id else db_category_id
-        cat = BudgetCategory(id=db_category_id, project_id=sid, name=frontend_key, color="#999", allocated=0.0, spent=0.0)
+        cat_name = data.name or DEFAULT_NAMES.get(frontend_key, frontend_key)
+        cat_color = data.color or DEFAULT_COLORS.get(frontend_key, "#999")
+        cat = BudgetCategory(id=db_category_id, project_id=sid, name=cat_name, color=cat_color, allocated=0.0, spent=0.0)
         db.add(cat)
+    else:
+        # Update existing category name/color if provided
+        if data.name:
+            cat.name = data.name
+        if data.color:
+            cat.color = data.color
     cat.allocated = data.allocated
     await db.commit()
     await db.refresh(cat)

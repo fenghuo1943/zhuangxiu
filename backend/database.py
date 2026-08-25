@@ -141,6 +141,53 @@ async def _recalc_all_spent(session):
     await session.commit()
 
 
+async def _fix_budget_categories(session):
+    """Fix budget categories with wrong names or colors (English names, same colors)."""
+    from sqlalchemy import select as _sel, update as _upd
+    from .models import BudgetCategory
+
+    # Default names and colors for categories
+    CATEGORY_DEFAULTS = {
+        'hard': ('硬装工程', '#e45b3f'),
+        'material': ('主材选购', '#5f9f77'),
+        'equipment': ('设备系统', '#5c7fa8'),
+        'soft': ('软装家电', '#be7b2f'),
+        'service': ('服务杂项', '#9b928b'),
+    }
+
+    result = await session.execute(_sel(BudgetCategory))
+    categories = result.scalars().all()
+
+    updated = 0
+    for cat in categories:
+        # Extract the frontend category key from the DB ID (e.g. "p1_<hash>_hard" -> "hard")
+        parts = cat.id.rsplit("_", 1)
+        if len(parts) < 2:
+            continue
+        cat_key = parts[-1]
+
+        if cat_key in CATEGORY_DEFAULTS:
+            default_name, default_color = CATEGORY_DEFAULTS[cat_key]
+            needs_update = False
+
+            # Fix English names
+            if cat.name == cat_key or cat.name in ['service', 'soft']:
+                cat.name = default_name
+                needs_update = True
+
+            # Fix same/missing colors (if color is #999 or same as another category)
+            if cat.color == '#999' or cat.color == '#666':
+                cat.color = default_color
+                needs_update = True
+
+            if needs_update:
+                updated += 1
+
+    if updated > 0:
+        await session.commit()
+        print(f"Fixed {updated} budget categories with wrong names/colors")
+
+
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -157,6 +204,9 @@ async def init_db():
             await seed_purchase_references(session)
             await seed_flow_stages(session)
             await seed_tips(session)
+
+            # Fix existing budget categories with wrong names or colors
+            await _fix_budget_categories(session)
 
             # Recalculate spent for all budget categories on startup
             await _recalc_all_spent(session)
