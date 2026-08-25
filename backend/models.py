@@ -46,6 +46,7 @@ class Project(Base):
     stage_notes = relationship("StageNote", back_populates="project", cascade="all, delete-orphan")
     custom_flow_steps = relationship("CustomFlowStep", back_populates="project", cascade="all, delete-orphan")
     compare_items = relationship("ProjectCompareItem", back_populates="project", cascade="all, delete-orphan")
+    sub_categories = relationship("ExpenseSubCategory", back_populates="project", cascade="all, delete-orphan")
 
 
 class Budget(Base):
@@ -68,6 +69,23 @@ class BudgetCategory(Base):
     spent = Column(Float, default=0.0)
 
     project = relationship("Project", back_populates="categories")
+
+
+class ExpenseSubCategory(Base):
+    """账单子分类表 - 存储在数据库中，支持多设备同步"""
+    __tablename__ = "expense_sub_categories"
+    __table_args__ = (
+        Index("idx_subcategories_project_category", "project_id", "category_id"),
+        {"comment": "账单子分类表"},
+    )
+    id = _pk()
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
+    # NULL = 默认分类（所有项目可见）；非NULL = 项目专属分类
+    name = Column(String(50), nullable=False)
+    category_id = Column(String(50), nullable=False)  # 归属哪个大分类（hard/material/equipment/soft/service）
+    is_default = Column(Boolean, default=False)  # 是否为默认分类（默认分类不允许删除）
+
+    project = relationship("Project", back_populates="sub_categories")
 
 
 class Todo(Base):

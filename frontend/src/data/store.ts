@@ -27,6 +27,12 @@ import {
   updateCategoryAllocation as apiUpdateCategoryAllocation,
 } from '../api/budget';
 import { pushState, listProjects } from '../api/sync';
+import {
+  fetchSubCategories as apiFetchSubCategories,
+  createSubCategory as apiCreateSubCategory,
+  updateSubCategory as apiUpdateSubCategory,
+  deleteSubCategoryApi,
+} from '../api/subcategories';
 
 /** Guard: throws if user is not logged in. Call at the top of every mutation. */
 function assertLoggedIn(): void {
@@ -2630,6 +2636,7 @@ export async function syncFromServerAfterLogin(): Promise<void> {
     await loadPurchasedFromBackend();
     await loadProjectCompareIdsFromBackend();
     await loadCompareItemsFromBackend();
+    await loadSubCategoriesFromBackend();  // 加载子分类（默认+项目专属）
   } catch {
     // Server unreachable — keep local data
   }
@@ -2664,12 +2671,37 @@ export function getCurrentStageName(): string {
 
 // ==================== Expense SubCategory Actions ====================
 
+/**
+ * 从后端加载子分类（默认分类 + 当前项目专属分类）
+ * 合并后替换本地 state.expenseSubCategories
+ */
+export async function loadSubCategoriesFromBackend(): Promise<void> {
+  if (!isAuthenticated()) return;
+  try {
+    const projectId = globalState.activeProjectId || 'p1';
+    const subs = await apiFetchSubCategories(projectId);
+    globalState = {
+      ...globalState,
+      expenseSubCategories: subs,
+    };
+    notify();
+    persist();
+  } catch (e) {
+    console.error('Failed to load subcategories from backend:', e);
+  }
+}
+
 export function addSubCategory(name: string, categoryId: string): ExpenseSubCategory {
   assertLoggedIn();
+  const projectId = globalState.activeProjectId || 'p1';
+
+  // 乐观更新本地 state
+  const tempId = `sub_${Date.now()}`;
   const sub: ExpenseSubCategory = {
-    id: `sub_${Date.now()}`,
+    id: tempId,
     name: name.trim(),
     categoryId,
+    isDefault: false,
   };
   globalState = {
     ...globalState,
@@ -2677,21 +2709,80 @@ export function addSubCategory(name: string, categoryId: string): ExpenseSubCate
   };
   notify();
   persist();
+
+  // 异步同步到后端
+  apiCreateSubCategory(projectId, name, categoryId)
+    .then(created => {
+      // 用后端返回的真实 ID 替换临时 ID
+      globalState = {
+        ...globalState,
+        expenseSubCategories: globalState.expenseSubCategories.map(s =>
+          s.id === tempId ? { ...s, id: created.id } : s
+        ),
+      };
+      notify();
+      persist();
+    })
+    .catch(e => {
+      console.error('Failed to create subcategory on backend:', e);
+      // 回滚：移除临时添加的子分类
+      globalState = {
+        ...globalState,
+        expenseSubCategories: globalState.expenseSubCategories.filter(s => s.id !== tempId),
+      };
+      notify();
+      persist();
+    });
+
   return sub;
 }
 
-export function deleteSubCategory(subId: string) {
+export function deleteSubCategory(subId: string): { success: boolean; error?: string } {
   assertLoggedIn();
+  const projectId = globalState.activeProjectId || 'p1';
+  const sub = globalState.expenseSubCategories.find(s => s.id === subId);
+
+  // 检查是否为默认分类
+  if (sub?.isDefault) {
+    return { success: false, error: '默认分类不允许删除' };
+  }
+
+  // 乐观更新本地 state
   globalState = {
     ...globalState,
     expenseSubCategories: globalState.expenseSubCategories.filter(s => s.id !== subId),
   };
   notify();
   persist();
+
+  // 异步同步到后端
+  deleteSubCategoryApi(projectId, subId)
+    .catch(e => {
+      console.error('Failed to delete subcategory on backend:', e);
+      // 回滚：重新添加被删除的子分类
+      if (sub) {
+        globalState = {
+          ...globalState,
+          expenseSubCategories: [...globalState.expenseSubCategories, sub],
+        };
+        notify();
+        persist();
+      }
+    });
+
+  return { success: true };
 }
 
-export function renameSubCategory(subId: string, name: string) {
+export function renameSubCategory(subId: string, name: string): { success: boolean; error?: string } {
   assertLoggedIn();
+  const projectId = globalState.activeProjectId || 'p1';
+  const sub = globalState.expenseSubCategories.find(s => s.id === subId);
+
+  if (!sub) {
+    return { success: false, error: '子分类不存在' };
+  }
+
+  // 乐观更新本地 state
   globalState = {
     ...globalState,
     expenseSubCategories: globalState.expenseSubCategories.map(s =>
@@ -2700,10 +2791,35 @@ export function renameSubCategory(subId: string, name: string) {
   };
   notify();
   persist();
+
+  // 异步同步到后端
+  apiUpdateSubCategory(projectId, subId, { name })
+    .catch(e => {
+      console.error('Failed to rename subcategory on backend:', e);
+      // 回滚：恢复原名称
+      globalState = {
+        ...globalState,
+        expenseSubCategories: globalState.expenseSubCategories.map(s =>
+          s.id === subId ? { ...s, name: sub.name } : s
+        ),
+      };
+      notify();
+      persist();
+    });
+
+  return { success: true };
 }
 
-export function moveSubCategory(subId: string, toCategoryId: string) {
+export function moveSubCategory(subId: string, toCategoryId: string): { success: boolean; error?: string } {
   assertLoggedIn();
+  const projectId = globalState.activeProjectId || 'p1';
+  const sub = globalState.expenseSubCategories.find(s => s.id === subId);
+
+  if (!sub) {
+    return { success: false, error: '子分类不存在' };
+  }
+
+  // 乐观更新本地 state
   globalState = {
     ...globalState,
     expenseSubCategories: globalState.expenseSubCategories.map(s =>
@@ -2712,6 +2828,23 @@ export function moveSubCategory(subId: string, toCategoryId: string) {
   };
   notify();
   persist();
+
+  // 异步同步到后端
+  apiUpdateSubCategory(projectId, subId, { categoryId: toCategoryId })
+    .catch(e => {
+      console.error('Failed to move subcategory on backend:', e);
+      // 回滚：恢复原分类
+      globalState = {
+        ...globalState,
+        expenseSubCategories: globalState.expenseSubCategories.map(s =>
+          s.id === subId ? { ...s, categoryId: sub.categoryId } : s
+        ),
+      };
+      notify();
+      persist();
+    });
+
+  return { success: true };
 }
 
 export function getSubCategoriesByCategory(categoryId: string): ExpenseSubCategory[] {

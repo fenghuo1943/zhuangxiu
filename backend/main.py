@@ -9,12 +9,17 @@ from sqlalchemy.orm import selectinload
 from .database import init_db, get_db
 from .models import FlowStage as FlowStageModel
 from .schemas import FlowStageOut
-from .routers import auth, projects, budget, todos, expenses, flow, purchase, compare, sync, knowledge, upload, tips
+from .routers import auth, projects, budget, todos, expenses, flow, purchase, compare, sync, knowledge, upload, tips, subcategories
+from .seed_subcategories import seed_subcategories
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    # Seed default subcategories
+    from .database import async_session
+    async with async_session() as db:
+        await seed_subcategories(db)
     yield
 
 
@@ -57,6 +62,7 @@ app.include_router(sync.router)
 app.include_router(knowledge.router)
 app.include_router(upload.router)
 app.include_router(tips.router)
+app.include_router(subcategories.router)
 
 # Mount static files for uploaded images
 _public_dir = Path(__file__).resolve().parent.parent / "frontend" / "public"

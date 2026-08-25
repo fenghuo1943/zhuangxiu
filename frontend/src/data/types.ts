@@ -80,6 +80,7 @@ export interface ExpenseSubCategory {
   id: string;
   name: string;
   categoryId: string;
+  isDefault?: boolean;  // 是否为默认分类（默认分类不允许删除）
 }
 
 export interface ExpenseGroup {

@@ -4,7 +4,7 @@ import {
   useStore, addExpense, deleteExpense, updateExpense,
   getSubCategoriesByCategory, renameGroup, deleteSubCategory,
   addSubCategory, renameSubCategory, moveSubCategory,
-  loadBudgetAndExpensesFromBackend,
+  loadBudgetAndExpensesFromBackend, loadSubCategoriesFromBackend,
 } from '../data/store';
 import type { Expense } from '../data/types';
 import {
@@ -168,6 +168,7 @@ const ExpensePage: React.FC = () => {
   // Load budget & expenses from backend on mount
   useEffect(() => {
     loadBudgetAndExpensesFromBackend();
+    loadSubCategoriesFromBackend();  // 加载子分类（默认+项目专属）
   }, []);
 
   const openAddModal = () => {
@@ -494,6 +495,10 @@ const ExpensePage: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                 <div style={{ fontSize: 13, color: '#666', lineHeight: 1.55 }}>
                   点选小分类后点击目标大分类即可移入，也可以直接拖拽小分类到目标大分类。
+                  <br />
+                  <span style={{ fontSize: 11, color: '#999' }}>
+                    💡 标记为"默认"的分类为系统预设，所有项目可见且不可删除；其他分类为当前项目专属。
+                  </span>
                 </div>
                 <button
                   className="btn btn-outline btn-sm"
@@ -567,6 +572,7 @@ const ExpensePage: React.FC = () => {
                       ) : (
                         subs.map(sub => {
                           const isSelected = selectedSubId === sub.id;
+                          const isDefault = sub.isDefault;
                           return (
                             <div
                               key={sub.id}
@@ -577,8 +583,9 @@ const ExpensePage: React.FC = () => {
                                 color: color,
                                 boxShadow: isSelected ? `0 0 0 2px ${color}30` : undefined,
                               }}
-                              draggable
+                              draggable={!isDefault}
                               onDragStart={e => {
+                                if (isDefault) return;
                                 e.dataTransfer.setData('text/plain', sub.id);
                                 e.dataTransfer.effectAllowed = 'move';
                                 setSelectedSubId(null);
@@ -593,19 +600,38 @@ const ExpensePage: React.FC = () => {
                                 <circle cx="12" cy="12" r="3.5" />
                               </svg>
                               <span>{sub.name}</span>
-                              <button
-                                className="group-tag-del"
-                                title="删除"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  if (confirm(`删除小项「${sub.name}」?`)) {
-                                    if (selectedSubId === sub.id) setSelectedSubId(null);
-                                    deleteSubCategory(sub.id);
-                                  }
-                                }}
-                              >
-                                ×
-                              </button>
+                              {isDefault && (
+                                <span
+                                  style={{
+                                    fontSize: 9,
+                                    padding: '1px 4px',
+                                    borderRadius: 3,
+                                    background: `${color}20`,
+                                    color: color,
+                                    marginLeft: 4,
+                                  }}
+                                >
+                                  默认
+                                </span>
+                              )}
+                              {!isDefault && (
+                                <button
+                                  className="group-tag-del"
+                                  title="删除"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    if (confirm(`删除小项「${sub.name}」?`)) {
+                                      if (selectedSubId === sub.id) setSelectedSubId(null);
+                                      const result = deleteSubCategory(sub.id);
+                                      if (!result.success) {
+                                        alert(result.error || '删除失败');
+                                      }
+                                    }
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              )}
                             </div>
                           );
                         })

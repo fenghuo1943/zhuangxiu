@@ -443,3 +443,22 @@ class TipOut(BaseModel):
     updated_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+
+# ---- Expense SubCategory ----
+class SubCategoryCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=50)
+    category_id: str = Field(..., max_length=50)  # 归属哪个大分类
+
+class SubCategoryUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=50)
+    category_id: Optional[str] = Field(None, max_length=50)  # 移动到其他大分类
+
+class SubCategoryOut(BaseModel):
+    id: str
+    project_id: Optional[str] = None  # NULL = 默认分类
+    name: str
+    category_id: str
+    is_default: bool = False
+
+    model_config = {"from_attributes": True}
