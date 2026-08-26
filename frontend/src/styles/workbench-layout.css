@@ -1,0 +1,344 @@
+/**
+ * 侧栏工作台布局样式
+ * 作用域: :root[data-desktop-layout="desktop-sidebar-workbench"]
+ */
+
+/* ---- 壳层整体 ---- */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--fresh-bg);
+}
+
+/* ---- 左侧栏 ---- */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 248px;
+  background: #fff;
+  border-right: 1px solid var(--fresh-line);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  overflow-y: auto;
+  transition: width 0.2s ease;
+}
+
+/* 品牌区 */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-brand {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--fresh-line);
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-brand-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--fresh-heading);
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--theme-primary);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-brand-text {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-brand-text small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--fresh-muted);
+}
+
+/* 项目切换器 */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-project {
+  padding: 12px 16px;
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--fresh-line);
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-project-select {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--fresh-line);
+  border-radius: 6px;
+  background: var(--fresh-bg);
+  font-size: 13px;
+  color: var(--fresh-heading);
+  cursor: pointer;
+  min-width: 0;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-project-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--fresh-line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fresh-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-project-add:hover {
+  background: var(--fresh-bg);
+  color: var(--theme-primary);
+  border-color: var(--theme-primary);
+}
+
+/* 导航区域 */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-nav {
+  flex: 1;
+  padding: 12px 0;
+  overflow-y: auto;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-nav-group {
+  padding: 0 12px;
+  margin-bottom: 8px;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-nav-group-title {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fresh-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--fresh-body);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s;
+  margin-bottom: 2px;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-nav-item:hover {
+  background: var(--fresh-bg);
+  color: var(--theme-primary);
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-nav-item.active {
+  background: var(--theme-primary-soft);
+  color: var(--theme-primary);
+  font-weight: 600;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  flex-shrink: 0;
+}
+
+/* 底部账号区 */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-bottom {
+  padding: 12px 16px;
+  border-top: 1px solid var(--fresh-line);
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-user-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--fresh-body);
+  font-size: 13px;
+  transition: all 0.15s;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-user-link:hover {
+  background: var(--fresh-bg);
+  color: var(--theme-primary);
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-login-link {
+  color: var(--theme-primary);
+  font-weight: 500;
+}
+
+/* ---- 右侧内容区 ---- */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-content {
+  flex: 1;
+  margin-left: 248px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 页头 */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-page-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 72px;
+  padding: 16px 32px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--fresh-line);
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-page-header-left {
+  min-width: 0;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-page-eyebrow {
+  font-size: 12px;
+  color: var(--fresh-muted);
+  margin-bottom: 2px;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--fresh-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-header-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* 主内容区 */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-main {
+  flex: 1;
+  padding: 28px 32px 48px;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ---- 响应式：768-1099px 收窄左栏 ---- */
+@media (min-width: 768px) and (max-width: 1099px) {
+  :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-sidebar {
+    width: 208px;
+  }
+
+  :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-content {
+    margin-left: 208px;
+  }
+
+  :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-brand-text small,
+  :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-nav-label {
+    /* 保留可访问名称，仅视觉缩短 */
+  }
+
+  :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-page-header {
+    padding: 16px 20px;
+  }
+
+  :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-main {
+    padding: 20px 20px 40px;
+  }
+}
+
+/* ---- 焦点样式 ---- */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-nav-item:focus-visible,
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-brand-link:focus-visible,
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-user-link:focus-visible,
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-project-select:focus-visible,
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-project-add:focus-visible {
+  outline: 2px solid var(--theme-primary);
+  outline-offset: 2px;
+}
+
+/* ---- 首页布局 ---- */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 首屏 7:5 双栏 */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-hero {
+  display: grid;
+  grid-template-columns: 7fr 5fr;
+  gap: 20px;
+}
+
+/* 四项核心指标 */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-metric-card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--fresh-line);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 20px;
+}
+
+/* 下方 8:4 双栏 */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-bottom {
+  display: grid;
+  grid-template-columns: 8fr 4fr;
+  gap: 20px;
+}
+
+/* 响应式：中等屏幕 */
+@media (max-width: 1200px) {
+  :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 响应式：较小桌面 */
+@media (max-width: 1024px) {
+  :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-hero {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-bottom {
+    grid-template-columns: 1fr;
+  }
+}

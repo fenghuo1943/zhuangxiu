@@ -1,6 +1,7 @@
 """后端接口测试：用户主题偏好 API"""
 import pytest
 from backend.schemas import ThemePreferenceUpdate, ThemePreferenceOut, PRESET_COLORS
+from backend.routers.user_preferences import _migrate_desktop_layout
 
 
 def test_preset_colors_constant():
@@ -34,13 +35,27 @@ def test_theme_preference_update_valid_custom():
         "color_mode": "custom",
         "preset_color_id": None,
         "primary_color": "#FF5733",
-        "desktop_layout": "desktop-focus",
+        "desktop_layout": "desktop-sidebar-workbench",
         "mobile_layout": "mobile-compact",
     }
     model = ThemePreferenceUpdate(**payload)
     assert model.color_mode == "custom"
     assert model.preset_color_id is None
     assert model.primary_color == "#FF5733"
+    assert model.desktop_layout == "desktop-sidebar-workbench"
+
+
+def test_theme_preference_update_valid_sidebar_workbench():
+    """测试有效的侧栏工作台布局"""
+    payload = {
+        "color_mode": "preset",
+        "preset_color_id": "jade",
+        "primary_color": "#3F8F70",
+        "desktop_layout": "desktop-sidebar-workbench",
+        "mobile_layout": "mobile-default",
+    }
+    model = ThemePreferenceUpdate(**payload)
+    assert model.desktop_layout == "desktop-sidebar-workbench"
 
 
 def test_theme_preference_update_reject_invalid_color():
@@ -76,6 +91,19 @@ def test_theme_preference_update_reject_unknown_layout():
         "preset_color_id": "coral",
         "primary_color": "#E45B3F",
         "desktop_layout": "unknown-layout",
+        "mobile_layout": "mobile-default",
+    }
+    with pytest.raises(Exception):
+        ThemePreferenceUpdate(**payload)
+
+
+def test_theme_preference_update_reject_old_desktop_focus():
+    """拒绝旧的 desktop-focus 布局 ID"""
+    payload = {
+        "color_mode": "preset",
+        "preset_color_id": "coral",
+        "primary_color": "#E45B3F",
+        "desktop_layout": "desktop-focus",
         "mobile_layout": "mobile-default",
     }
     with pytest.raises(Exception):
@@ -120,3 +148,26 @@ def test_all_preset_colors_valid():
         }
         model = ThemePreferenceUpdate(**payload)
         assert model.primary_color == color
+
+
+# ---- 旧值迁移测试 ----
+
+def test_migrate_desktop_layout_valid_default():
+    """合法值 desktop-default 保持不变"""
+    assert _migrate_desktop_layout("desktop-default") == "desktop-default"
+
+
+def test_migrate_desktop_layout_valid_sidebar_workbench():
+    """合法值 desktop-sidebar-workbench 保持不变"""
+    assert _migrate_desktop_layout("desktop-sidebar-workbench") == "desktop-sidebar-workbench"
+
+
+def test_migrate_desktop_layout_old_focus():
+    """旧值 desktop-focus 回退为 desktop-default"""
+    assert _migrate_desktop_layout("desktop-focus") == "desktop-default"
+
+
+def test_migrate_desktop_layout_unknown():
+    """未知值回退为 desktop-default"""
+    assert _migrate_desktop_layout("unknown-layout") == "desktop-default"
+    assert _migrate_desktop_layout("") == "desktop-default"

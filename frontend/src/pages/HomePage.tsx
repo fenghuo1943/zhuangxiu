@@ -15,7 +15,7 @@ import {
   BackupPanel,
 } from '../components/dashboard';
 import DefaultHomeLayout from '../components/layouts/DefaultHomeLayout';
-import DesktopFocusHomeLayout from '../components/layouts/DesktopFocusHomeLayout';
+import DesktopSidebarWorkbenchHomeLayout from '../components/layouts/DesktopSidebarWorkbenchHomeLayout';
 import MobileCompactHomeLayout from '../components/layouts/MobileCompactHomeLayout';
 
 const HomePage: React.FC = () => {
@@ -27,8 +27,8 @@ const HomePage: React.FC = () => {
 
   const renderLayout = () => {
     switch (layoutId) {
-      case 'desktop-focus':
-        return <DesktopFocusHomeLayout />;
+      case 'desktop-sidebar-workbench':
+        return <DesktopSidebarWorkbenchHomeLayout />;
       case 'mobile-compact':
         return <MobileCompactHomeLayout />;
       case 'desktop-default':

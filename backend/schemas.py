@@ -499,7 +499,7 @@ PRESET_COLORS = {
 }
 
 # 合法布局 ID
-VALID_DESKTOP_LAYOUTS = {"desktop-default", "desktop-focus"}
+VALID_DESKTOP_LAYOUTS = {"desktop-default", "desktop-sidebar-workbench"}
 VALID_MOBILE_LAYOUTS = {"mobile-default", "mobile-compact"}
 
 
@@ -507,7 +507,7 @@ class ThemePreferenceUpdate(BaseModel):
     color_mode: Literal["preset", "custom"]
     preset_color_id: Optional[Literal["coral", "jade", "ocean", "violet", "amber"]] = None
     primary_color: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
-    desktop_layout: Literal["desktop-default", "desktop-focus"]
+    desktop_layout: Literal["desktop-default", "desktop-sidebar-workbench"]
     mobile_layout: Literal["mobile-default", "mobile-compact"]
 
     @model_validator(mode='after')

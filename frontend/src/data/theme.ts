@@ -4,7 +4,7 @@
 
 // ---- 类型定义 ----
 export type ThemeColorMode = 'preset' | 'custom';
-export type DesktopLayoutId = 'desktop-default' | 'desktop-focus';
+export type DesktopLayoutId = 'desktop-default' | 'desktop-sidebar-workbench';
 export type MobileLayoutId = 'mobile-default' | 'mobile-compact';
 export type PresetColorId = 'coral' | 'jade' | 'ocean' | 'violet' | 'amber';
 
@@ -59,7 +59,7 @@ export interface LayoutMeta {
 
 export const DESKTOP_LAYOUTS: LayoutMeta[] = [
   { id: 'desktop-default', name: '全景总览', description: '保持当前布局' },
-  { id: 'desktop-focus', name: '专注工作台', description: '待办、预算等高频组件前置' },
+  { id: 'desktop-sidebar-workbench', name: '侧栏工作台', description: '左侧导航、顶部页头与页面工作区，适合持续管理装修项目' },
 ];
 
 export const MOBILE_LAYOUTS: LayoutMeta[] = [

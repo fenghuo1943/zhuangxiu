@@ -27,11 +27,17 @@ interface ThemePreferenceInput {
  * 将 API 响应转换为前端类型
  */
 function mapResponseToPreference(res: ThemePreferenceResponse): ThemePreference {
+  // 旧值迁移：desktop-focus 回退为 desktop-default
+  let desktopLayout = res.desktop_layout;
+  if (desktopLayout === 'desktop-focus' || desktopLayout !== 'desktop-default' && desktopLayout !== 'desktop-sidebar-workbench') {
+    desktopLayout = 'desktop-default';
+  }
+
   return {
     colorMode: res.color_mode,
     presetColorId: res.preset_color_id,
     primaryColor: res.primary_color,
-    desktopLayout: res.desktop_layout as ThemePreference['desktopLayout'],
+    desktopLayout: desktopLayout as ThemePreference['desktopLayout'],
     mobileLayout: res.mobile_layout as ThemePreference['mobileLayout'],
     updatedAt: res.updated_at,
   };
