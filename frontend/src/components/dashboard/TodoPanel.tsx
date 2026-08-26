@@ -32,14 +32,64 @@ export const TodoPanel: React.FC = () => {
     setNewStartDate('');
   };
 
-  // 格式化日期显示
-  const formatDateRange = (todo: Todo): string => {
+  // 格式化日期为中文格式 (MM-DD -> X月X日)
+  const formatDateCN = (date: string): string => {
+    const parts = date.split('-');
+    if (parts.length < 2) return date;
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    return `${month}月${day}日`;
+  };
+
+  // 获取待办日期状态
+  const getTodoDateStatus = (todo: Todo): 'overdue' | 'active' | 'upcoming' | 'none' => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const end = todo.plannedEndDate;
+    const start = todo.plannedStartDate;
+
+    // 有结束日期且已过期
+    if (end) {
+      const endDate = new Date(end);
+      endDate.setHours(0, 0, 0, 0);
+      if (endDate < today) return 'overdue';
+    }
+
+    // 有开始日期且今天之后才开始
+    if (start) {
+      const startDate = new Date(start);
+      startDate.setHours(0, 0, 0, 0);
+      if (startDate > today) return 'upcoming';
+    }
+
+    // 有开始或结束日期，且在进行中
+    if (start || end) return 'active';
+
+    return 'none';
+  };
+
+  // 获取日期状态对应的颜色
+  const getDateStatusColor = (status: 'overdue' | 'active' | 'upcoming' | 'none'): string => {
+    switch (status) {
+      case 'overdue': return '#e45b3f'; // 红色 - 已过期
+      case 'active': return '#5f9f77'; // 绿色 - 进行中
+      case 'upcoming': return '#d4a843'; // 黄色 - 未开始
+      case 'none': return 'var(--fresh-subtle)'; // 灰色 - 无日期
+    }
+  };
+
+  // 格式化日期范围显示
+  const formatDateRange = (todo: Todo): { text: string; color: string } => {
     const start = todo.plannedStartDate;
     const end = todo.plannedEndDate;
-    if (!start && !end) return '无截止日期';
-    if (start && !end) return `${start}-未定`;
-    if (!start && end) return `未定-${end}`;
-    return `${start}-${end}`;
+    const status = getTodoDateStatus(todo);
+    const color = getDateStatusColor(status);
+
+    if (!start && !end) return { text: '无截止日期', color };
+    if (start && !end) return { text: `${formatDateCN(start)}-未定`, color };
+    if (!start && end) return { text: `未定-${formatDateCN(end)}`, color };
+    return { text: `${formatDateCN(start)}-${formatDateCN(end)}`, color };
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -161,9 +211,9 @@ export const TodoPanel: React.FC = () => {
                     <div className="fresh-todo-meta">
                       {stage && <span className="fresh-todo-stage" style={{ color: 'var(--fresh-subtle)' }}>{stage.name}</span>}
                       {flowStep && <span className="fresh-todo-flow-step" style={{ color: 'var(--fresh-coral)' }}>#{flowStep.order} {flowStep.title}</span>}
-                      <span className="fresh-todo-date" style={{ color: 'var(--fresh-subtle)' }}>
+                      <span className="fresh-todo-date" style={{ color: formatDateRange(todo).color }}>
                         <IconCalendar size={12} />
-                        {formatDateRange(todo)}
+                        {formatDateRange(todo).text}
                       </span>
                     </div>
                   </div>
@@ -208,9 +258,9 @@ export const TodoPanel: React.FC = () => {
                         <div className="fresh-todo-meta">
                           {stage && <span className="fresh-todo-stage" style={{ color: 'var(--fresh-subtle)' }}>{stage.name}</span>}
                           {flowStep && <span className="fresh-todo-flow-step" style={{ color: 'var(--fresh-coral)' }}>#{flowStep.order} {flowStep.title}</span>}
-                          <span className="fresh-todo-date" style={{ color: 'var(--fresh-subtle)' }}>
+                          <span className="fresh-todo-date" style={{ color: formatDateRange(todo).color }}>
                             <IconCalendar size={12} />
-                            {formatDateRange(todo)}
+                            {formatDateRange(todo).text}
                           </span>
                         </div>
                       </div>
