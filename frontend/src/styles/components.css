@@ -57,7 +57,7 @@
 .fresh-brand .fresh-iconbox {
   color: #fff;
   background: var(--fresh-coral);
-  box-shadow: 0 10px 24px rgba(228, 91, 63, .2);
+  box-shadow: 0 10px 24px var(--theme-primary-shadow);
 }
 
 .fresh-navlinks {
@@ -119,7 +119,7 @@
   font-size: 13px;
   font-weight: 820;
   text-decoration: none;
-  box-shadow: 0 12px 26px rgba(228, 91, 63, .18);
+  box-shadow: 0 12px 26px var(--theme-primary-shadow);
 }
 
 .fresh-user-link:hover { text-decoration: none; opacity: .92; }
@@ -191,7 +191,7 @@
 .btn-primary {
   color: #fff;
   background: var(--fresh-coral);
-  box-shadow: 0 10px 22px rgba(228, 91, 63, .17);
+  box-shadow: 0 10px 22px var(--theme-primary-shadow);
 }
 
 .btn-primary:hover { background: var(--fresh-coral-deep); }
@@ -308,7 +308,7 @@
 
 .input:focus {
   border-color: var(--fresh-coral);
-  box-shadow: 0 0 0 3px rgba(228, 91, 63, .08);
+  box-shadow: 0 0 0 3px var(--theme-primary-ring);
 }
 
 input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 18px; cursor: pointer; }
@@ -423,7 +423,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(228, 91, 63, .12), rgba(228, 91, 63, 0));
+  background: radial-gradient(circle, var(--theme-primary-ring), transparent);
   pointer-events: none;
 }
 
@@ -682,7 +682,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 .home-step.current::before {
   border-color: var(--fresh-coral);
   background: #fff;
-  box-shadow: 0 0 0 7px rgba(228, 91, 63, .12);
+  box-shadow: 0 0 0 7px var(--theme-primary-ring);
 }
 
 .home-step span {
@@ -894,10 +894,10 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 .budget-slider-handle:hover,
 .budget-slider-handle.dragging {
   border-color: var(--fresh-coral-deep);
-  box-shadow: 0 1px 8px rgba(228,91,63,.3);
+  box-shadow: 0 1px 8px var(--theme-primary-shadow);
 }
 .budget-slider-handle:focus-visible {
-  box-shadow: 0 0 0 3px rgba(228,91,63,.2);
+  box-shadow: 0 0 0 3px var(--theme-primary-ring);
 }
 
 /* Grip lines inside handle */
@@ -2058,7 +2058,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 .flow-step-wrapper.editing .flow-step-card {
   border-color: var(--fresh-coral);
-  box-shadow: 0 0 0 2px rgba(228, 91, 63, .1);
+  box-shadow: 0 0 0 2px var(--theme-primary-ring);
 }
 
 .flow-step-card {
@@ -3231,14 +3231,14 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   border-radius: 50%;
   background: var(--fresh-coral);
   color: #fff;
-  box-shadow: 0 14px 32px rgba(228, 91, 63, .32);
+  box-shadow: 0 14px 32px var(--theme-primary-shadow);
   display: grid;
   place-items: center;
   cursor: pointer;
   transition: transform .2s, box-shadow .2s;
 }
 
-.fab:hover { transform: scale(1.06); box-shadow: 0 18px 40px rgba(228, 91, 63, .4); }
+.fab:hover { transform: scale(1.06); box-shadow: 0 18px 40px var(--theme-primary-shadow); }
 .fab:active { transform: scale(.96); }
 
 /* ==================== Purchase Page v2 (matching reference HTML) ==================== */
@@ -3349,7 +3349,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 }
 
 .purchase-shopping-toggle-btn.active {
-  color: #e45b3f;
+  color: var(--theme-primary);
   background: #fff;
   box-shadow: 0 4px 12px rgba(55, 42, 31, .07);
 }
@@ -3360,7 +3360,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 }
 
 .purchase-shopping-total strong {
-  color: #e45b3f;
+  color: var(--theme-primary);
   font-size: 17px;
   font-weight: 800;
 }
@@ -3454,7 +3454,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 .purchase-shopping-row-price {
   font-size: 13px;
   font-weight: 650;
-  color: #e45b3f;
+  color: var(--theme-primary);
   white-space: nowrap;
 }
 
@@ -3556,7 +3556,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 .purchase-go-link {
   font-size: 13px;
-  color: #e45b3f;
+  color: var(--theme-primary);
   text-decoration: none;
 }
 
@@ -3593,8 +3593,8 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 .purchase-quick-add-v2 input:focus,
 .purchase-quick-add-v2 select:focus {
-  border-color: #e45b3f;
-  box-shadow: 0 0 0 3px rgba(228, 91, 63, .08);
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 3px var(--theme-primary-ring);
 }
 
 .purchase-quick-add-v2 button {
@@ -3672,7 +3672,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #e45b3f;
+  color: var(--theme-primary);
   background: #fff0ea;
   flex: 0 0 auto;
 }
@@ -3734,7 +3734,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #e45b3f;
+  background: var(--theme-primary);
 }
 
 .purchase-sub-name {
@@ -3830,8 +3830,8 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 .purchase-ref-delete:hover {
   background: #fff0ea;
-  border-color: #e45b3f;
-  color: #e45b3f;
+  border-color: var(--theme-primary);
+  color: var(--theme-primary);
 }
 
 /* ── Custom add within subgroup ── */
@@ -3980,7 +3980,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   max-width: 130px;
 }
 .compare-filter:focus {
-  border-color: #e45b3f;
+  border-color: var(--theme-primary);
 }
 
 .compare-filter-row {
@@ -4383,7 +4383,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
     border-radius: 50%;
     background: var(--fresh-coral);
     color: #fff;
-    box-shadow: 0 14px 32px rgba(228, 91, 63, .32);
+    box-shadow: 0 14px 32px var(--theme-primary-shadow);
     display: grid;
     place-items: center;
     cursor: pointer;
@@ -4844,7 +4844,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   background: var(--fresh-coral);
   border-color: var(--fresh-coral);
   color: #fff;
-  box-shadow: 0 6px 14px rgba(228, 91, 63, .18);
+  box-shadow: 0 6px 14px var(--theme-primary-shadow);
 }
 .tips-chips .chip-custom { border-style: dashed; }
 

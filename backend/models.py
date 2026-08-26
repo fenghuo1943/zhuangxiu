@@ -22,6 +22,8 @@ class User(Base):
     created_at = Column(DateTime, default=_now)
 
     projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")
+    preference = relationship("UserPreference", back_populates="user", uselist=False,
+                              cascade="all, delete-orphan")
 
 
 class Project(Base):
@@ -346,3 +348,19 @@ class Tip(Base):
     updated_at = Column(DateTime, default=_now, onupdate=_now)
 
     user = relationship("User")
+
+
+class UserPreference(Base):
+    """用户主题与布局偏好"""
+    __tablename__ = "user_preferences"
+    __table_args__ = {"comment": "用户主题与布局偏好"}
+
+    user_id = Column(String(36), ForeignKey("users.id"), primary_key=True)
+    color_mode = Column(String(20), nullable=False, default="preset")
+    preset_color_id = Column(String(30), nullable=True, default="coral")
+    primary_color = Column(String(7), nullable=False, default="#E45B3F")
+    desktop_layout = Column(String(40), nullable=False, default="desktop-default")
+    mobile_layout = Column(String(40), nullable=False, default="mobile-default")
+    updated_at = Column(DateTime, default=_now, onupdate=_now, nullable=False)
+
+    user = relationship("User", back_populates="preference")

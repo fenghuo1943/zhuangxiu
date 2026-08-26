@@ -120,6 +120,25 @@ async def _migrate_integration(conn):
     except (sqlite3.OperationalError, Exception):
         pass
 
+    # --- v11: create user_preferences table (idempotent) ---
+    try:
+        await conn.run_sync(
+            lambda c: c.exec_driver_sql(
+                "CREATE TABLE IF NOT EXISTS user_preferences ("
+                "user_id VARCHAR(36) PRIMARY KEY, "
+                "color_mode VARCHAR(20) NOT NULL DEFAULT 'preset', "
+                "preset_color_id VARCHAR(30), "
+                "primary_color VARCHAR(7) NOT NULL DEFAULT '#E45B3F', "
+                "desktop_layout VARCHAR(40) NOT NULL DEFAULT 'desktop-default', "
+                "mobile_layout VARCHAR(40) NOT NULL DEFAULT 'mobile-default', "
+                "updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                "FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE"
+                ")"
+            )
+        )
+    except (sqlite3.OperationalError, Exception):
+        pass
+
 
 async def _recalc_all_spent(session):
     """Recalculate spent for all budget categories across all projects on startup."""

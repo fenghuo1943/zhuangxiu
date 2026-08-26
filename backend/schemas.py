@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, model_validator
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import date as DateValue, datetime
 
 
@@ -484,5 +484,48 @@ class SubCategoryOut(BaseModel):
     name: str
     category_id: str
     is_default: bool = False
+
+    model_config = {"from_attributes": True}
+
+
+# ---- Theme Preference ----
+# 预设颜色映射（服务端权威）
+PRESET_COLORS = {
+    "coral": "#E45B3F",
+    "jade": "#3F8F70",
+    "ocean": "#3B82C4",
+    "violet": "#7C5CC4",
+    "amber": "#C98525",
+}
+
+# 合法布局 ID
+VALID_DESKTOP_LAYOUTS = {"desktop-default", "desktop-focus"}
+VALID_MOBILE_LAYOUTS = {"mobile-default", "mobile-compact"}
+
+
+class ThemePreferenceUpdate(BaseModel):
+    color_mode: Literal["preset", "custom"]
+    preset_color_id: Optional[Literal["coral", "jade", "ocean", "violet", "amber"]] = None
+    primary_color: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
+    desktop_layout: Literal["desktop-default", "desktop-focus"]
+    mobile_layout: Literal["mobile-default", "mobile-compact"]
+
+    @model_validator(mode='after')
+    def validate_consistency(self) -> 'ThemePreferenceUpdate':
+        if self.color_mode == "preset":
+            if not self.preset_color_id:
+                raise ValueError("preset 模式必须提供 preset_color_id")
+            # 验证预设颜色与服务端常量一致
+            expected_color = PRESET_COLORS.get(self.preset_color_id)
+            if not expected_color or self.primary_color.upper() != expected_color.upper():
+                raise ValueError(f"预设颜色 {self.preset_color_id} 与服务端映射不一致")
+        else:  # custom
+            if self.preset_color_id is not None:
+                raise ValueError("custom 模式不能携带 preset_color_id")
+        return self
+
+
+class ThemePreferenceOut(ThemePreferenceUpdate):
+    updated_at: datetime
 
     model_config = {"from_attributes": True}

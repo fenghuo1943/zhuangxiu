@@ -4,20 +4,27 @@
   --fresh-card: #ffffff;
   --fresh-soft: #f6f1ec;
 
-  /* Primary - Coral/Orange-Red */
-  --fresh-coral: #e45b3f;
-  --fresh-coral-deep: #c94f36;
-  --fresh-coral-soft: #fff0ea;
+  /* Theme Primary (动态变量，由 JS 设置) */
+  --theme-primary: #e45b3f;
+  --theme-primary-deep: #c94f36;
+  --theme-primary-soft: #fff0ea;
+  --theme-primary-ring: rgba(228, 91, 63, 0.12);
+  --theme-primary-shadow: rgba(228, 91, 63, 0.17);
 
-  /* Accent - Mint Green */
+  /* Primary - Coral/Orange-Red (映射到 theme 变量) */
+  --fresh-coral: var(--theme-primary);
+  --fresh-coral-deep: var(--theme-primary-deep);
+  --fresh-coral-soft: var(--theme-primary-soft);
+
+  /* Accent - Mint Green (语义色，不随主题变化) */
   --fresh-green: #5f9f77;
   --fresh-green-soft: #eef7f1;
 
-  /* Accent - Blue */
+  /* Accent - Blue (语义色，不随主题变化) */
   --fresh-blue: #5c7fa8;
   --fresh-blue-soft: #eef4fb;
 
-  /* Accent - Amber/Warning */
+  /* Accent - Amber/Warning (语义色，不随主题变化) */
   --fresh-amber: #be7b2f;
   --fresh-amber-soft: #fff8e8;
 
@@ -33,7 +40,7 @@
   --fresh-shadow-sm: 0 8px 22px rgba(55, 42, 31, .045);
   --fresh-shadow: 0 16px 38px rgba(55, 42, 31, .07);
   --fresh-shadow-lg: 0 24px 70px rgba(55, 42, 31, .12);
-  --fresh-shadow-button: 0 10px 22px rgba(228, 91, 63, .17);
+  --fresh-shadow-button: 0 10px 22px var(--theme-primary-shadow);
 
   /* Aliases */
   --primary: var(--fresh-coral);
