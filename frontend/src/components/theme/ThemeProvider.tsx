@@ -11,6 +11,25 @@ import {
   generateThemeColors,
 } from '../../data/theme';
 
+/**
+ * 从 localStorage 获取缓存的主题偏好（防止闪烁）
+ */
+function getCachedThemePreference(): ThemePreference {
+  try {
+    const saved = localStorage.getItem('theme_preference');
+    if (saved) {
+      const pref = JSON.parse(saved);
+      // 校验必要字段
+      if (pref.primaryColor && pref.desktopLayout && pref.mobileLayout) {
+        return pref;
+      }
+    }
+  } catch (e) {
+    // JSON 解析失败，返回默认值
+  }
+  return DEFAULT_THEME_PREFERENCE;
+}
+
 // ---- Context 类型 ----
 interface ThemeContextValue {
   /** 当前已应用的配置 */
@@ -59,6 +78,13 @@ function applyThemeToDOM(preference: ThemePreference) {
   // 设置布局 data 属性
   root.dataset.desktopLayout = preference.desktopLayout;
   root.dataset.mobileLayout = preference.mobileLayout;
+
+  // 同步保存到 localStorage，防止刷新闪烁
+  try {
+    localStorage.setItem('theme_preference', JSON.stringify(preference));
+  } catch (e) {
+    // localStorage 不可用时静默失败
+  }
 }
 
 /**
@@ -92,7 +118,8 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const { isLoggedIn, loading: authLoading } = useAuth();
-  const [preference, setPreference] = useState<ThemePreference>(DEFAULT_THEME_PREFERENCE);
+  // 从 localStorage 初始化，防止刷新时闪烁
+  const [preference, setPreference] = useState<ThemePreference>(getCachedThemePreference);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,6 +133,12 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const resetThemeToDefault = useCallback(() => {
     setPreference(DEFAULT_THEME_PREFERENCE);
     resetDOMToDefault();
+    // 清理 localStorage
+    try {
+      localStorage.removeItem('theme_preference');
+    } catch (e) {
+      // localStorage 不可用时静默失败
+    }
   }, []);
 
   // 从服务端刷新主题
@@ -140,11 +173,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       setLoading(false);
     }
   }, [isLoggedIn, authLoading, refreshTheme, resetThemeToDefault]);
-
-  // 初始应用默认主题
-  useEffect(() => {
-    applyThemeToDOM(DEFAULT_THEME_PREFERENCE);
-  }, []);
 
   const value: ThemeContextValue = {
     preference,
