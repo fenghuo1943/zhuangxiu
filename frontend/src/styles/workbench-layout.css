@@ -322,6 +322,20 @@
   gap: 16px;
 }
 
+/* 装修进度 + 阶段路线 同一行 */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-progress-route {
+  display: grid;
+  grid-template-columns: 2fr 5fr;
+  gap: 20px;
+}
+
+/* 三项核心指标 */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-metrics-three {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
 :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-metric-card {
   background: #fff;
   border-radius: 12px;
@@ -342,11 +356,23 @@
   :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-metrics {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-metrics-three {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* 响应式：较小桌面 */
 @media (max-width: 1024px) {
   :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-hero {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-progress-route {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-metrics-three {
     grid-template-columns: 1fr;
   }
 

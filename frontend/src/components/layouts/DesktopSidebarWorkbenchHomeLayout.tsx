@@ -1,9 +1,10 @@
 /**
  * 侧栏工作台首页布局
  * 特点：行动优先的项目工作台
- * - 首屏 7:5 双栏：问候/当前阶段/快捷入口 + 今日优先事项
- * - 四项核心指标
- * - 下方 8:4 双栏：施工路线/进度 + 最近动态
+ * - 首屏 7:5 双栏：问候/当前阶段/快捷入口 + 最近待办
+ * - 装修进度 + 阶段路线 同一行
+ * - 三项核心指标：预算/待办/采购
+ * - 最近动态
  */
 import React from 'react';
 import {
@@ -30,11 +31,14 @@ const DesktopSidebarWorkbenchHomeLayout: React.FC = () => {
         </div>
       </section>
 
-      {/* 四项核心指标 */}
-      <section className="wb-home-metrics">
-        <div className="wb-metric-card">
-          <ProgressCard />
-        </div>
+      {/* 装修进度 + 阶段路线 同一行 */}
+      <section className="wb-home-progress-route">
+        <ProgressCard />
+        <StageRoute />
+      </section>
+
+      {/* 三项核心指标 */}
+      <section className="wb-home-metrics-three">
         <div className="wb-metric-card">
           <BudgetPanel />
         </div>
@@ -46,12 +50,9 @@ const DesktopSidebarWorkbenchHomeLayout: React.FC = () => {
         </div>
       </section>
 
-      {/* 下方 8:4 双栏：施工路线 + 最近动态 */}
+      {/* 最近动态 */}
       <section className="wb-home-bottom">
         <div className="wb-home-bottom-main">
-          <StageRoute />
-        </div>
-        <div className="wb-home-bottom-side">
           <ExpenseSummary />
         </div>
       </section>
