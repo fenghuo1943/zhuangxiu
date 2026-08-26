@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useStore, addTodo, toggleTodo, deleteTodo } from '../../data/store';
+import { useStore, addTodo, toggleTodo, deleteTodo, getOrderedFlowSteps, getFirstUndoneStepId } from '../../data/store';
 import { Card, CardHeader, CardBody } from '../common/Card';
 import { EmptyState } from '../common/EmptyState';
 import { IconCheck, IconTrash, IconCalendar } from '../common/Icons';
@@ -11,16 +11,20 @@ export const TodoPanel: React.FC = () => {
   const [mode, setMode] = useState<TodoMode>('detailed');
   const [newTitle, setNewTitle] = useState('');
   const [newStageId, setNewStageId] = useState('stage_prepare');
+  const [newFlowStepId, setNewFlowStepId] = useState(getFirstUndoneStepId());
   const [newDueDate, setNewDueDate] = useState('');
 
   const projectTodos = state.todos.filter(t => t.projectId === state.activeProjectId);
   const pendingTodos = projectTodos.filter(t => !t.completed);
   const completedTodos = projectTodos.filter(t => t.completed);
 
+  const flowSteps = getOrderedFlowSteps(state.flowType);
+  const currentStepId = getFirstUndoneStepId();
+
   const handleAdd = () => {
     const title = newTitle.trim();
     if (!title) return;
-    addTodo(title, newStageId, newDueDate || undefined);
+    addTodo(title, newStageId, newDueDate || undefined, newFlowStepId || undefined);
     setNewTitle('');
     setNewDueDate('');
   };
@@ -84,6 +88,20 @@ export const TodoPanel: React.FC = () => {
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
+              <select
+                className="input todo-flow-step-select"
+                name="todoFlowStep"
+                value={newFlowStepId}
+                onChange={(e) => setNewFlowStepId(e.target.value)}
+                title="选择阶段路线"
+              >
+                <option value="">不关联阶段</option>
+                {flowSteps.map(step => (
+                  <option key={step.id} value={step.id}>
+                    {step.order}. {step.title}{step.id === currentStepId ? ' (当前)' : ''}
+                  </option>
+                ))}
+              </select>
               <input
                 type="date"
                 className="input todo-date-input"
@@ -110,6 +128,7 @@ export const TodoPanel: React.FC = () => {
             {/* Pending */}
             {pendingTodos.map(todo => {
               const stage = state.stages.find(s => s.id === todo.stageId);
+              const flowStep = todo.flowStepId ? flowSteps.find(s => s.id === todo.flowStepId) : null;
               return (
                 <div key={todo.id} className={`fresh-todo ${todo.completed ? 'done' : ''}`}>
                   <input
@@ -123,6 +142,7 @@ export const TodoPanel: React.FC = () => {
                     <span className="fresh-todo-title">{todo.title}</span>
                     <div className="fresh-todo-meta">
                       {stage && <span className="fresh-todo-stage" style={{ color: 'var(--fresh-subtle)' }}>{stage.name}</span>}
+                      {flowStep && <span className="fresh-todo-flow-step" style={{ color: 'var(--fresh-coral)' }}>#{flowStep.order} {flowStep.title}</span>}
                       {todo.dueDate && (
                         <span className="fresh-todo-date" style={{ color: 'var(--fresh-subtle)' }}>
                           <IconCalendar size={12} />

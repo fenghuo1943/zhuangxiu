@@ -1117,6 +1117,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 .todo-add-row .input { flex: 1; min-width: 120px; }
 .todo-add-row .btn { justify-content: center; }
 .todo-stage-select { max-width: 160px; }
+.todo-flow-step-select { max-width: 200px; }
 .todo-date-input { max-width: 150px; }
 
 .todo-list { display: grid; gap: 8px; }
@@ -1622,7 +1623,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .home-step--view-all b { font-size: 10px; max-width: none; }
 
   .todo-add-row { flex-direction: column; }
-  .todo-add-row .input, .todo-stage-select, .todo-date-input { max-width: none; width: 100%; }
+  .todo-add-row .input, .todo-stage-select, .todo-flow-step-select, .todo-date-input { max-width: none; width: 100%; }
 
   #homeTodoCard .card-bd { display: flex; flex-direction: column; }
   #homeTodoCard .todo-add-row { order: 2; }

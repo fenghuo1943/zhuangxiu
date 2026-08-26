@@ -36,6 +36,7 @@ export interface Todo {
   projectId: string;
   title: string;
   stageId: string;
+  flowStepId?: string;  // 关联的阶段路线步骤
   dueDate?: string;
   completed: boolean;
   createdAt: string;

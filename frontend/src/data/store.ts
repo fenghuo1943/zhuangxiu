@@ -308,13 +308,14 @@ export function getBudgetUsageRate(): number {
 
 // ==================== Todo Actions ====================
 
-export function addTodo(title: string, stageId: string, dueDate?: string) {
+export function addTodo(title: string, stageId: string, dueDate?: string, flowStepId?: string) {
   assertLoggedIn();
   const todo: Todo = {
     id: `todo_${Date.now()}`,
     projectId: globalState.activeProjectId,
     title,
     stageId,
+    flowStepId,
     dueDate,
     completed: false,
     createdAt: new Date().toISOString(),
