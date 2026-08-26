@@ -14,7 +14,7 @@ export const TodoPanel: React.FC = () => {
   const [newTitle, setNewTitle] = useState('');
   const [newStageId, setNewStageId] = useState('stage_prepare');
   const [newFlowStepId, setNewFlowStepId] = useState(getFirstUndoneStepId());
-  const [newDueDate, setNewDueDate] = useState('');
+  const [newStartDate, setNewStartDate] = useState('');
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
 
   const projectTodos = state.todos.filter(t => t.projectId === state.activeProjectId);
@@ -27,9 +27,19 @@ export const TodoPanel: React.FC = () => {
   const handleAdd = () => {
     const title = newTitle.trim();
     if (!title) return;
-    addTodo(title, newStageId, newDueDate || undefined, newFlowStepId || undefined);
+    addTodo(title, newStageId, newFlowStepId || undefined, newStartDate || undefined);
     setNewTitle('');
-    setNewDueDate('');
+    setNewStartDate('');
+  };
+
+  // 格式化日期显示
+  const formatDateRange = (todo: Todo): string => {
+    const start = todo.plannedStartDate;
+    const end = todo.plannedEndDate;
+    if (!start && !end) return '无截止日期';
+    if (start && !end) return `${start}-未定`;
+    if (!start && end) return `未定-${end}`;
+    return `${start}-${end}`;
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -108,9 +118,10 @@ export const TodoPanel: React.FC = () => {
               <input
                 type="date"
                 className="input todo-date-input"
-                name="todoDate"
-                value={newDueDate}
-                onChange={(e) => setNewDueDate(e.target.value)}
+                name="todoStartDate"
+                value={newStartDate}
+                onChange={(e) => setNewStartDate(e.target.value)}
+                title="计划开始日期"
               />
             </>
           )}
@@ -150,12 +161,10 @@ export const TodoPanel: React.FC = () => {
                     <div className="fresh-todo-meta">
                       {stage && <span className="fresh-todo-stage" style={{ color: 'var(--fresh-subtle)' }}>{stage.name}</span>}
                       {flowStep && <span className="fresh-todo-flow-step" style={{ color: 'var(--fresh-coral)' }}>#{flowStep.order} {flowStep.title}</span>}
-                      {todo.dueDate && (
-                        <span className="fresh-todo-date" style={{ color: 'var(--fresh-subtle)' }}>
-                          <IconCalendar size={12} />
-                          {todo.dueDate}
-                        </span>
-                      )}
+                      <span className="fresh-todo-date" style={{ color: 'var(--fresh-subtle)' }}>
+                        <IconCalendar size={12} />
+                        {formatDateRange(todo)}
+                      </span>
                     </div>
                   </div>
                   <div className="fresh-actions">
@@ -199,6 +208,10 @@ export const TodoPanel: React.FC = () => {
                         <div className="fresh-todo-meta">
                           {stage && <span className="fresh-todo-stage" style={{ color: 'var(--fresh-subtle)' }}>{stage.name}</span>}
                           {flowStep && <span className="fresh-todo-flow-step" style={{ color: 'var(--fresh-coral)' }}>#{flowStep.order} {flowStep.title}</span>}
+                          <span className="fresh-todo-date" style={{ color: 'var(--fresh-subtle)' }}>
+                            <IconCalendar size={12} />
+                            {formatDateRange(todo)}
+                          </span>
                         </div>
                       </div>
                       <div className="fresh-actions">
