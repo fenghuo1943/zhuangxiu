@@ -250,9 +250,7 @@
 :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-main {
   flex: 1;
   padding: 28px 32px 48px;
-  max-width: 1440px;
   width: 100%;
-  margin: 0 auto;
 }
 
 /* ---- 响应式：768-1099px 收窄左栏 ---- */
