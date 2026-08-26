@@ -1,20 +1,17 @@
 import React from 'react';
-import { useStore, getBudgetRemaining, getBudgetUsageRate } from '../../data/store';
+import { useStore } from '../../data/store';
 import { Card, CardHeader, CardBody } from '../common/Card';
-import { IconStar, IconDollar, IconShopping, IconCheck, IconPiggy } from '../common/Icons';
+import { IconStar, IconCheck } from '../common/Icons';
 
 export const TodayFocus: React.FC = () => {
   const state = useStore();
-  const remaining = getBudgetRemaining();
-  const usageRate = getBudgetUsageRate();
-  const pendingTodos = state.todos.filter(t => t.projectId === state.activeProjectId && !t.completed).length;
-  const pendingPurchase = state.selectedPurchaseIds.length + state.syncedModelIds.length;
-  const hasBudget = state.budget.total > 0;
-  const recentExpense = state.recentExpenses[0];
-  const priorityItem = hasBudget ? null : '设置总预算';
+  const topPendingTodos = state.todos
+    .filter(t => t.projectId === state.activeProjectId && !t.completed)
+    .slice(0, 3);
 
-  const formatBudget = (n: number) =>
-    n >= 1e4 ? `¥${(n / 1e4).toFixed(1)}万` : `¥${n.toLocaleString()}`;
+  const scrollToTodos = () => {
+    document.getElementById('homeTodoCard')?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   return (
     <>
@@ -25,75 +22,60 @@ export const TodayFocus: React.FC = () => {
             <span className="iconbox iconbox-amber">
               <IconStar size={16} />
             </span>
-            <h3>今日重点</h3>
+            <h3>最近待办</h3>
           </div>
+          <button className="btn btn-outline btn-sm" onClick={scrollToTodos}>
+            全部待办
+          </button>
         </CardHeader>
         <CardBody>
-          {priorityItem && (
-            <div className="focus-priority">
-              <span className="focus-label">优先处理</span>
-              <p className="focus-text">{priorityItem}</p>
+          {topPendingTodos.length > 0 ? (
+            <div className="focus-todo-list">
+              {topPendingTodos.map(todo => (
+                <div key={todo.id} className="focus-todo-item">
+                  <IconCheck size={14} className="focus-todo-icon" />
+                  <span className="focus-todo-text">{todo.title}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="focus-empty">
+              <IconCheck size={14} />
+              <span>暂无待办事项</span>
             </div>
           )}
-          <div className="focus-stats">
-            <div className="focus-stat">
-              <span>待办</span>
-              <b>{pendingTodos}</b>
-            </div>
-            <div className="focus-stat">
-              <span>待购</span>
-              <b>{pendingPurchase}</b>
-            </div>
-            <div className="focus-stat">
-              <span>预算余额</span>
-              <b>{hasBudget ? formatBudget(remaining) : '--'}</b>
-            </div>
-            <div className="focus-stat">
-              <span>使用率</span>
-              <b>{usageRate}%</b>
-            </div>
-          </div>
         </CardBody>
       </Card>
 
       {/* Mobile: 3 Summary Cards */}
       <div className="mobile-summary-cards">
-        <div className="metric-card">
-          <div className="metric-card-body">
-            <div className="metric-card-header">
-              <span className="iconbox iconbox-green">
-                <IconPiggy size={14} />
-              </span>
-              <span>预算余额</span>
+        {topPendingTodos.length > 0 ? (
+          topPendingTodos.map(todo => (
+            <div key={todo.id} className="metric-card">
+              <div className="metric-card-body">
+                <div className="metric-card-header">
+                  <span className="iconbox iconbox-amber">
+                    <IconCheck size={14} />
+                  </span>
+                  <span>待办事项</span>
+                </div>
+                <b>{todo.title}</b>
+              </div>
             </div>
-            <b>{hasBudget ? formatBudget(remaining) : '--'}</b>
-            <em>{hasBudget ? `${usageRate}% 已用` : '未设置预算'}</em>
-          </div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-card-body">
-            <div className="metric-card-header">
-              <span className="iconbox iconbox-blue">
-                <IconShopping size={14} />
-              </span>
-              <span>待办 / 待购</span>
+          ))
+        ) : (
+          <div className="metric-card">
+            <div className="metric-card-body">
+              <div className="metric-card-header">
+                <span className="iconbox iconbox-amber">
+                  <IconCheck size={14} />
+                </span>
+                <span>待办事项</span>
+              </div>
+              <b>暂无待办</b>
             </div>
-            <b>{pendingTodos}项 / {pendingPurchase}件</b>
-            <em>待办 / 待购</em>
           </div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-card-body">
-            <div className="metric-card-header">
-              <span className="iconbox iconbox-coral">
-                <IconDollar size={14} />
-              </span>
-              <span>最近支出</span>
-            </div>
-            <b>{recentExpense ? `¥${recentExpense.amount.toLocaleString()}` : '--'}</b>
-            <em>{recentExpense ? (recentExpense.date || recentExpense.title) : '暂无记录'}</em>
-          </div>
-        </div>
+        )}
       </div>
     </>
   );

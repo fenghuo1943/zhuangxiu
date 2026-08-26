@@ -1209,6 +1209,44 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 .focus-stat span { display: block; font-size: 11px; color: var(--fresh-subtle); }
 .focus-stat b { display: block; margin-top: 4px; font-size: 20px; color: var(--fresh-text); font-weight: 800; }
 
+.focus-todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.focus-todo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--fresh-line);
+  border-radius: 10px;
+  background: var(--fresh-bg);
+}
+
+.focus-todo-icon {
+  color: var(--fresh-subtle);
+  flex-shrink: 0;
+}
+
+.focus-todo-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fresh-text);
+  line-height: 1.4;
+}
+
+.focus-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px;
+  color: var(--fresh-subtle);
+  font-size: 13px;
+}
+
 /* ==================== Expense & Purchase Summary ==================== */
 .purchase-summary-list { text-align: left; padding: 0; }
 .purchase-count { font-size: 13px; color: var(--fresh-muted); }

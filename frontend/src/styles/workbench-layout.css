@@ -299,6 +299,20 @@
   display: grid;
   grid-template-columns: 7fr 5fr;
   gap: 20px;
+  align-items: stretch;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-hero-main,
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-hero-side {
+  display: flex;
+  flex-direction: column;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-hero-main > .card,
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-hero-side > .card,
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-hero-main > .hero-card,
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-hero-side > .hero-card {
+  height: 100%;
 }
 
 /* 四项核心指标 */
