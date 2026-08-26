@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { useStore, addTodo, toggleTodo, deleteTodo, getOrderedFlowSteps, getFirstUndoneStepId } from '../../data/store';
+import React, { useState, useCallback, useRef } from 'react';
+import { useStore, addTodo, toggleTodo, deleteTodo, reorderTodos, getOrderedFlowSteps, getFirstUndoneStepId } from '../../data/store';
 import type { Todo } from '../../data/types';
 import { Card, CardHeader, CardBody } from '../common/Card';
 import { EmptyState } from '../common/EmptyState';
-import { IconCheck, IconTrash, IconCalendar } from '../common/Icons';
+import { IconCheck, IconTrash, IconCalendar, IconDrag } from '../common/Icons';
 import { TodoDetail } from './TodoDetail';
 
 type TodoMode = 'detailed' | 'simple';
@@ -16,9 +16,16 @@ export const TodoPanel: React.FC = () => {
   const [newFlowStepId, setNewFlowStepId] = useState(getFirstUndoneStepId());
   const [newStartDate, setNewStartDate] = useState('');
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const projectTodos = state.todos.filter(t => t.projectId === state.activeProjectId);
-  const pendingTodos = projectTodos.filter(t => !t.completed);
+  const pendingTodos = projectTodos.filter(t => !t.completed).sort((a, b) => {
+    if (a.order !== undefined && b.order !== undefined) return a.order - b.order;
+    if (a.order !== undefined) return -1;
+    if (b.order !== undefined) return 1;
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
   const completedTodos = projectTodos.filter(t => t.completed);
 
   const flowSteps = getOrderedFlowSteps(state.flowType);
@@ -95,6 +102,24 @@ export const TodoPanel: React.FC = () => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleAdd();
   };
+
+  // 拖拽处理函数
+  const handleDragStart = useCallback((index: number) => {
+    setDragIndex(index);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    if (dragIndex !== null && dragOverIndex !== null && dragIndex !== dragOverIndex) {
+      reorderTodos(dragIndex, dragOverIndex);
+    }
+    setDragIndex(null);
+    setDragOverIndex(null);
+  }, [dragIndex, dragOverIndex]);
 
   const currentStage = state.stages;
 
@@ -190,11 +215,24 @@ export const TodoPanel: React.FC = () => {
         ) : (
           <div id="todoList" className="todo-list">
             {/* Pending */}
-            {pendingTodos.map(todo => {
+            {pendingTodos.map((todo, index) => {
               const stage = state.stages.find(s => s.id === todo.stageId);
               const flowStep = todo.flowStepId ? flowSteps.find(s => s.id === todo.flowStepId) : null;
               return (
-                <div key={todo.id} className={`fresh-todo ${todo.completed ? 'done' : ''}`}>
+                <div
+                  key={todo.id}
+                  className={`fresh-todo ${todo.completed ? 'done' : ''} ${dragIndex === index ? 'dragging' : ''} ${dragOverIndex === index ? 'drag-over' : ''}`}
+                  draggable
+                  onDragStart={() => handleDragStart(index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <div
+                    className="fresh-drag-handle"
+                    title="拖拽排序"
+                  >
+                    <IconDrag size={14} />
+                  </div>
                   <input
                     type="checkbox"
                     name={`todo-complete-${todo.id}`}

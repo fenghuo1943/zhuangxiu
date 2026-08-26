@@ -413,6 +413,35 @@ export function deleteTodoSubItem(todoId: string, subItemId: string) {
   persist();
 }
 
+export function reorderTodos(fromIndex: number, toIndex: number) {
+  assertLoggedIn();
+  const projectTodos = globalState.todos.filter(t => t.projectId === globalState.activeProjectId);
+  const otherTodos = globalState.todos.filter(t => t.projectId !== globalState.activeProjectId);
+
+  // 获取当前排序或按创建时间排序
+  const sortedTodos = [...projectTodos].sort((a, b) => {
+    if (a.order !== undefined && b.order !== undefined) return a.order - b.order;
+    if (a.order !== undefined) return -1;
+    if (b.order !== undefined) return 1;
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+
+  // 移除要移动的元素
+  const [movedTodo] = sortedTodos.splice(fromIndex, 1);
+  // 插入到新位置
+  sortedTodos.splice(toIndex, 0, movedTodo);
+
+  // 更新 order 字段
+  const updatedProjectTodos = sortedTodos.map((t, index) => ({
+    ...t,
+    order: index,
+  }));
+
+  globalState = { ...globalState, todos: [...otherTodos, ...updatedProjectTodos] };
+  notify();
+  persist();
+}
+
 // ==================== Purchase Actions ====================
 
 export function togglePurchaseRef(itemId: string, deleteExpense: boolean = false) {

@@ -52,6 +52,7 @@ export interface Todo {
   completed: boolean;
   createdAt: string;
   subItems?: TodoSubItem[];  // 子项列表
+  order?: number;  // 排序字段
 }
 
 export interface PurchaseItem {

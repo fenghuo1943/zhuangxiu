@@ -1124,7 +1124,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 .fresh-todo {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) auto;
+  grid-template-columns: 24px 24px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: flex-start;
   padding: 11px 12px;
@@ -1136,6 +1136,23 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 .fresh-todo:hover { background: #fff9f5; }
 .fresh-todo.done { opacity: .55; }
+.fresh-todo.dragging { opacity: .5; }
+.fresh-todo.drag-over { border-color: var(--fresh-coral); }
+
+.fresh-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--fresh-subtle);
+  cursor: grab;
+  opacity: 0.5;
+  transition: opacity .15s;
+}
+
+.fresh-todo:hover .fresh-drag-handle { opacity: 1; }
+.fresh-drag-handle:active { cursor: grabbing; }
 
 .fresh-todo-content { min-width: 0; }
 .fresh-todo-title { font-size: 14px; font-weight: 550; color: var(--fresh-text); line-height: 1.45; }
