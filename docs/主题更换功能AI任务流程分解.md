@@ -72,12 +72,12 @@ T1 现状核对与常量设计
 
 ```text
 预设色：coral / jade / ocean / violet / amber
-桌面布局：desktop-default / desktop-focus
+桌面布局：desktop-default / desktop-sidebar-workbench
 移动布局：mobile-default / mobile-compact
 默认值：preset / coral / #E45B3F / desktop-default / mobile-default
 ```
 
-**约束：** `desktop-focus` 与 `mobile-compact` 的具体组件内容需由布局实现任务决定；本任务不得伪造未确定的视觉设计。
+**约束：** `desktop-sidebar-workbench` 与 `mobile-compact` 的具体组件内容需由布局实现任务决定；侧栏工作台遵循《侧栏工作台主题布局设计指导方案》，本任务不得伪造未确定的视觉设计。
 
 **完成条件：** 已列出需替换的“主题主色硬编码”位置，且区分了不可替换的成功、警告、危险等语义状态色。
 
@@ -242,9 +242,9 @@ T1 现状核对与常量设计
 
 ---
 
-### T9：布局注册、桌面新布局与移动新布局
+### T9：移除专注工作台、注册侧栏工作台与移动新布局
 
-**目标：** 接入布局 id 并至少交付 `desktop-focus`、`mobile-compact` 两种可用新布局；同时允许未来布局改变组件集合。
+**目标：** 删除 `desktop-focus` 的类型、元数据、服务端白名单与首页组合组件；接入并交付 `desktop-sidebar-workbench`、`mobile-compact` 两种可用新布局；同时允许未来布局改变组件集合。
 
 **修改/新增：** `HomePage.tsx`、相应布局组合组件（推荐 `frontend/src/components/layouts/`）及样式文件。
 
@@ -264,7 +264,7 @@ function HomePage() {
 **实现要求：**
 
 - 未识别布局 id 必须回退到相应端默认布局；
-- `desktop-focus` 在 `>=768px` 呈现，`mobile-compact` 在 `<768px` 呈现；切换断点不应显示错误端布局；
+- `desktop-sidebar-workbench` 在 `>=768px` 呈现，`mobile-compact` 在 `<768px` 呈现；切换断点不应显示错误端布局；
 - 每个布局中同一业务组件只渲染一次，避免双重请求、重复状态或重复操作入口；
 - 若存在不同 DOM 顺序，使用不同布局组件保障键盘/读屏顺序，不依赖 CSS `order` 反转；
 - 布局内允许隐藏/替换组件，但仍需根据该布局产品设计保证关键功能入口可达；
@@ -316,4 +316,3 @@ pytest
 4. 为新布局添加断点、无障碍和溢出验证；
 5. 回归现有布局，确认新 id 不影响原用户已保存的偏好；
 6. 若后续需求是“用户自由拖拽组件”，改为为目标页面单独设计排序数据与交互，不复用主题设置页。
-
