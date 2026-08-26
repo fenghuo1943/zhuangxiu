@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { AppState, Todo, BudgetCategory, Expense, PurchaseItem, CompareItem, PriceModel, ChannelQuote, FlowStep, StageNote, CustomFlowStep, ExpenseSubCategory, ExpenseGroup, PurchaseReferenceItem } from './types';
+import type { AppState, Todo, TodoSubItem, BudgetCategory, Expense, PurchaseItem, CompareItem, PriceModel, ChannelQuote, FlowStep, StageNote, CustomFlowStep, ExpenseSubCategory, ExpenseGroup, PurchaseReferenceItem } from './types';
 import {
   DEFAULT_STAGES,
   DEFAULT_BUDGET_CATEGORIES,
@@ -359,6 +359,55 @@ export function updateTodo(todoId: string, updates: Partial<Todo>) {
   const todos = globalState.todos.map(t =>
     t.id === todoId ? { ...t, ...updates } : t
   );
+  globalState = { ...globalState, todos };
+  notify();
+  persist();
+}
+
+export function addTodoSubItem(todoId: string, title: string) {
+  assertLoggedIn();
+  const subItem: TodoSubItem = {
+    id: `sub_${Date.now()}`,
+    title,
+    completed: false,
+  };
+  const todos = globalState.todos.map(t => {
+    if (t.id === todoId) {
+      return { ...t, subItems: [...(t.subItems || []), subItem] };
+    }
+    return t;
+  });
+  globalState = { ...globalState, todos };
+  notify();
+  persist();
+}
+
+export function toggleTodoSubItem(todoId: string, subItemId: string) {
+  assertLoggedIn();
+  const todos = globalState.todos.map(t => {
+    if (t.id === todoId && t.subItems) {
+      return {
+        ...t,
+        subItems: t.subItems.map(s =>
+          s.id === subItemId ? { ...s, completed: !s.completed } : s
+        ),
+      };
+    }
+    return t;
+  });
+  globalState = { ...globalState, todos };
+  notify();
+  persist();
+}
+
+export function deleteTodoSubItem(todoId: string, subItemId: string) {
+  assertLoggedIn();
+  const todos = globalState.todos.map(t => {
+    if (t.id === todoId && t.subItems) {
+      return { ...t, subItems: t.subItems.filter(s => s.id !== subItemId) };
+    }
+    return t;
+  });
   globalState = { ...globalState, todos };
   notify();
   persist();

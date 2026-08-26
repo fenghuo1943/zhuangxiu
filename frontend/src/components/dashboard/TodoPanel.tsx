@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useStore, addTodo, toggleTodo, deleteTodo, getOrderedFlowSteps, getFirstUndoneStepId } from '../../data/store';
+import type { Todo } from '../../data/types';
 import { Card, CardHeader, CardBody } from '../common/Card';
 import { EmptyState } from '../common/EmptyState';
 import { IconCheck, IconTrash, IconCalendar } from '../common/Icons';
+import { TodoDetail } from './TodoDetail';
 
 type TodoMode = 'detailed' | 'simple';
 
@@ -13,6 +15,7 @@ export const TodoPanel: React.FC = () => {
   const [newStageId, setNewStageId] = useState('stage_prepare');
   const [newFlowStepId, setNewFlowStepId] = useState(getFirstUndoneStepId());
   const [newDueDate, setNewDueDate] = useState('');
+  const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
 
   const projectTodos = state.todos.filter(t => t.projectId === state.activeProjectId);
   const pendingTodos = projectTodos.filter(t => !t.completed);
@@ -138,7 +141,11 @@ export const TodoPanel: React.FC = () => {
                     onChange={() => toggleTodo(todo.id)}
                     aria-label={`标记${todo.title}为${todo.completed ? '未完成' : '已完成'}`}
                   />
-                  <div className="fresh-todo-content">
+                  <div
+                    className="fresh-todo-content"
+                    onClick={() => setSelectedTodo(todo)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <span className="fresh-todo-title">{todo.title}</span>
                     <div className="fresh-todo-meta">
                       {stage && <span className="fresh-todo-stage" style={{ color: 'var(--fresh-subtle)' }}>{stage.name}</span>}
@@ -171,35 +178,52 @@ export const TodoPanel: React.FC = () => {
                 <div className="todo-section-divider">
                   <span>已完成 ({completedTodos.length})</span>
                 </div>
-                {completedTodos.map(todo => (
-                  <div key={todo.id} className="fresh-todo done">
-                    <input
-                      type="checkbox"
-                      name={`todo-complete-${todo.id}`}
-                      checked={todo.completed}
-                      onChange={() => toggleTodo(todo.id)}
-                      aria-label={`取消${todo.title}的完成状态`}
-                    />
-                    <div className="fresh-todo-content">
-                      <span className="fresh-todo-title">{todo.title}</span>
-                    </div>
-                    <div className="fresh-actions">
-                      <button
-                        className="fresh-icon-btn"
-                        onClick={() => deleteTodo(todo.id)}
-                        aria-label={`删除${todo.title}`}
-                        title="删除"
+                {completedTodos.map(todo => {
+                  const stage = state.stages.find(s => s.id === todo.stageId);
+                  const flowStep = todo.flowStepId ? flowSteps.find(s => s.id === todo.flowStepId) : null;
+                  return (
+                    <div key={todo.id} className="fresh-todo done">
+                      <input
+                        type="checkbox"
+                        name={`todo-complete-${todo.id}`}
+                        checked={todo.completed}
+                        onChange={() => toggleTodo(todo.id)}
+                        aria-label={`取消${todo.title}的完成状态`}
+                      />
+                      <div
+                        className="fresh-todo-content"
+                        onClick={() => setSelectedTodo(todo)}
+                        style={{ cursor: 'pointer' }}
                       >
-                        <IconTrash size={14} />
-                      </button>
+                        <span className="fresh-todo-title">{todo.title}</span>
+                        <div className="fresh-todo-meta">
+                          {stage && <span className="fresh-todo-stage" style={{ color: 'var(--fresh-subtle)' }}>{stage.name}</span>}
+                          {flowStep && <span className="fresh-todo-flow-step" style={{ color: 'var(--fresh-coral)' }}>#{flowStep.order} {flowStep.title}</span>}
+                        </div>
+                      </div>
+                      <div className="fresh-actions">
+                        <button
+                          className="fresh-icon-btn"
+                          onClick={() => deleteTodo(todo.id)}
+                          aria-label={`删除${todo.title}`}
+                          title="删除"
+                        >
+                          <IconTrash size={14} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </>
             )}
           </div>
         )}
       </CardBody>
+
+      {/* 详情弹窗 */}
+      {selectedTodo && (
+        <TodoDetail todo={selectedTodo} onClose={() => setSelectedTodo(null)} />
+      )}
     </Card>
   );
 };

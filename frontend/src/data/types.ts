@@ -31,15 +31,27 @@ export interface Budget {
   categories: BudgetCategory[];
 }
 
+export interface TodoSubItem {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
 export interface Todo {
   id: string;
   projectId: string;
   title: string;
   stageId: string;
   flowStepId?: string;  // 关联的阶段路线步骤
+  description?: string;  // 补充说明
+  plannedStartDate?: string;  // 计划开始日期
+  plannedEndDate?: string;  // 计划结束日期
+  actualStartDate?: string;  // 实际开始日期
+  actualEndDate?: string;  // 实际结束日期
   dueDate?: string;
   completed: boolean;
   createdAt: string;
+  subItems?: TodoSubItem[];  // 子项列表
 }
 
 export interface PurchaseItem {
