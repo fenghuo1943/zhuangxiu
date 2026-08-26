@@ -3,8 +3,8 @@
  * 特点：行动优先的项目工作台
  * - 首屏 7:5 双栏：问候/当前阶段/快捷入口 + 最近待办
  * - 装修进度 + 阶段路线 同一行
- * - 三项核心指标：预算/待办/采购
- * - 最近动态
+ * - 预算设置与阶段分配(2/3) + 待购清单与记账概览(1/3)
+ * - 待办清单（最后）
  */
 import React from 'react';
 import {
@@ -37,24 +37,20 @@ const DesktopSidebarWorkbenchHomeLayout: React.FC = () => {
         <StageRoute />
       </section>
 
-      {/* 三项核心指标 */}
-      <section className="wb-home-metrics-three">
-        <div className="wb-metric-card">
+      {/* 预算设置与阶段分配(2/3) + 待购清单与记账概览(1/3) */}
+      <section className="wb-home-budget-side">
+        <div className="wb-home-budget-main">
           <BudgetPanel />
         </div>
-        <div className="wb-metric-card">
-          <TodoPanel />
-        </div>
-        <div className="wb-metric-card">
+        <div className="wb-home-budget-side-stack">
           <PurchaseSummary />
+          <ExpenseSummary />
         </div>
       </section>
 
-      {/* 最近动态 */}
-      <section className="wb-home-bottom">
-        <div className="wb-home-bottom-main">
-          <ExpenseSummary />
-        </div>
+      {/* 待办清单 */}
+      <section className="wb-home-todo">
+        <TodoPanel />
       </section>
     </div>
   );

@@ -336,6 +336,24 @@
   gap: 16px;
 }
 
+/* 预算设置与阶段分配(2/3) + 待购清单与记账概览(1/3) */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-budget-side {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-budget-side-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 待办清单 */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-todo {
+  width: 100%;
+}
+
 :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-metric-card {
   background: #fff;
   border-radius: 12px;
@@ -373,6 +391,10 @@
   }
 
   :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-metrics-three {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-budget-side {
     grid-template-columns: 1fr;
   }
 
