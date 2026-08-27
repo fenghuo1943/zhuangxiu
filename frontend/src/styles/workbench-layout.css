@@ -281,7 +281,8 @@
 :root[data-desktop-layout="desktop-sidebar-workbench"] .flow-page,
 :root[data-desktop-layout="desktop-sidebar-workbench"] .expense-page,
 :root[data-desktop-layout="desktop-sidebar-workbench"] .purchase-page-v2,
-:root[data-desktop-layout="desktop-sidebar-workbench"] .compare-page {
+:root[data-desktop-layout="desktop-sidebar-workbench"] .compare-page,
+:root[data-desktop-layout="desktop-sidebar-workbench"] .diary-page {
   width: 100%;
   margin: 0;
   max-width: none;

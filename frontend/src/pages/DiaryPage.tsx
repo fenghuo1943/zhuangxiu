@@ -36,6 +36,10 @@ const DiaryPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // ---- Image Preview ----
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 获取阶段选项
@@ -299,11 +303,12 @@ const DiaryPage: React.FC = () => {
                   </div>
                 </div>
                 {diary.images && diary.images.length > 0 && (
-                  <div className="diary-card-cover">
-                    <img src={diary.images[0]} alt={diary.title} loading="lazy" />
-                    {diary.images.length > 1 && (
-                      <span className="diary-card-cover-count">+{diary.images.length - 1}</span>
-                    )}
+                  <div className="diary-card-images-grid">
+                    {diary.images.map((img, idx) => (
+                      <div key={idx} className="diary-card-image-item" onClick={(e) => { e.stopPropagation(); setPreviewImages(diary.images || []); setPreviewIndex(idx); }}>
+                        <img src={img} alt={`${diary.title} - ${idx + 1}`} loading="lazy" />
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -393,7 +398,6 @@ const DiaryPage: React.FC = () => {
                   ))}
                   {formImages.length < 9 && (
                     <label className="diary-img-add">
-                      <IconImage size={20} />
                       <span>{uploading ? '上传中…' : '添加图片'}</span>
                       <input
                         ref={fileInputRef}
@@ -427,6 +431,33 @@ const DiaryPage: React.FC = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Preview Modal */}
+      {previewImages.length > 0 && (
+        <div className="diary-preview-overlay" onClick={() => setPreviewImages([])}>
+          <button className="diary-preview-close" onClick={() => setPreviewImages([])}>
+            <IconX size={24} />
+          </button>
+          <div className="diary-preview-content" onClick={e => e.stopPropagation()}>
+            <img src={previewImages[previewIndex]} alt="预览图片" />
+            {previewImages.length > 1 && (
+              <>
+                {previewIndex > 0 && (
+                  <button className="diary-preview-nav diary-preview-prev" onClick={() => setPreviewIndex(previewIndex - 1)}>
+                    ‹
+                  </button>
+                )}
+                {previewIndex < previewImages.length - 1 && (
+                  <button className="diary-preview-nav diary-preview-next" onClick={() => setPreviewIndex(previewIndex + 1)}>
+                    ›
+                  </button>
+                )}
+                <div className="diary-preview-counter">{previewIndex + 1} / {previewImages.length}</div>
+              </>
+            )}
           </div>
         </div>
       )}
