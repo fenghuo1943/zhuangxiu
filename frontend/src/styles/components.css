@@ -1153,6 +1153,29 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 }
 
 /* ==================== Todo Panel ==================== */
+.todo-filters {
+  display: flex;
+  gap: 8px;
+  margin-right: 10px;
+}
+
+.todo-filter-select {
+  min-width: 100px;
+  max-width: 120px;
+  padding: 5px 8px;
+  font-size: 12px;
+  border: 1px solid var(--fresh-line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--fresh-text);
+  cursor: pointer;
+}
+
+.todo-filter-select:focus {
+  border-color: var(--fresh-coral);
+  outline: none;
+}
+
 .mode-switch {
   display: inline-flex;
   gap: 3px;

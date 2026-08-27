@@ -19,14 +19,28 @@ export const TodoPanel: React.FC = () => {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
+  // 筛选状态
+  const [filterStageId, setFilterStageId] = useState<string>('all');
+  const [filterFlowStepId, setFilterFlowStepId] = useState<string>('all');
+
   const projectTodos = state.todos.filter(t => t.projectId === state.activeProjectId);
-  const pendingTodos = projectTodos.filter(t => !t.completed).sort((a, b) => {
+
+  // 筛选后的待办列表
+  const filteredTodos = projectTodos.filter(t => {
+    // 筛选分类
+    if (filterStageId !== 'all' && t.stageId !== filterStageId) return false;
+    // 筛选阶段路线
+    if (filterFlowStepId !== 'all' && t.flowStepId !== filterFlowStepId) return false;
+    return true;
+  });
+
+  const pendingTodos = filteredTodos.filter(t => !t.completed).sort((a, b) => {
     if (a.order !== undefined && b.order !== undefined) return a.order - b.order;
     if (a.order !== undefined) return -1;
     if (b.order !== undefined) return 1;
     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
   });
-  const completedTodos = projectTodos.filter(t => t.completed);
+  const completedTodos = filteredTodos.filter(t => t.completed);
 
   const flowSteps = getOrderedFlowSteps(state.flowType);
   const currentStepId = getFirstUndoneStepId();
@@ -136,6 +150,32 @@ export const TodoPanel: React.FC = () => {
           </div>
         </div>
         <div className="card-header-actions">
+          <div className="todo-filters">
+            <select
+              className="input todo-filter-select"
+              value={filterStageId}
+              onChange={(e) => setFilterStageId(e.target.value)}
+              title="筛选分类"
+            >
+              <option value="all">全部分类</option>
+              {state.stages.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <select
+              className="input todo-filter-select"
+              value={filterFlowStepId}
+              onChange={(e) => setFilterFlowStepId(e.target.value)}
+              title="筛选阶段"
+            >
+              <option value="all">全部阶段</option>
+              {flowSteps.map(step => (
+                <option key={step.id} value={step.id}>
+                  {step.order}. {step.title}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="mode-switch">
             <button
               className={`mode-btn ${mode === 'detailed' ? 'active' : ''}`}
