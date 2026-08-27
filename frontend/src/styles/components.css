@@ -4406,14 +4406,14 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   gap: 20px;
   align-items: center;
   margin-bottom: 16px;
-  padding: 24px 28px;
+  padding: 14px 20px;
   border: 1px solid var(--fresh-line);
   border-radius: 18px;
   background: linear-gradient(135deg, #fffefd, #f5f7fd);
   box-shadow: 0 10px 26px rgba(55, 42, 31, .05);
 }
 
-.compare-header-content h1 { margin: 8px 0 6px; font-size: 24px; color: var(--fresh-text); }
+.compare-header-content h1 { margin: 0; font-size: 24px; color: var(--fresh-text); }
 .compare-header-content p { color: var(--fresh-muted); font-size: 13px; max-width: 500px; }
 .compare-header-stats { display: flex; gap: 10px; align-items: stretch; }
 .compare-header-stats .flow-stat { width: 100px; text-align: center; }
