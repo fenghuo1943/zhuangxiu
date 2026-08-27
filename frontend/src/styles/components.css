@@ -3622,6 +3622,98 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   margin-bottom: 16px;
 }
 
+/* ── Tab switcher + Stats ── */
+.purchase-tab-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--fresh-border);
+  padding-bottom: 12px;
+}
+
+.purchase-tab-switcher {
+  display: flex;
+  gap: 8px;
+}
+
+.purchase-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--fresh-border);
+  border-radius: 8px;
+  background: var(--fresh-surface);
+  color: var(--fresh-body);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.purchase-tab-btn:hover {
+  background: var(--fresh-bg);
+  border-color: var(--theme-primary);
+  color: var(--theme-primary);
+}
+
+.purchase-tab-btn.active {
+  background: var(--theme-primary);
+  border-color: var(--theme-primary);
+  color: #fff;
+}
+
+.purchase-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--fresh-coral);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.purchase-tab-btn.active .purchase-tab-badge {
+  background: #fff;
+  color: var(--theme-primary);
+}
+
+/* ── Tab stats ── */
+.purchase-tab-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.purchase-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.purchase-stat-value {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.purchase-stat-label {
+  font-size: 12px;
+  color: var(--fresh-muted);
+}
+
+.purchase-stat-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--fresh-border);
+}
+
 /* ── Shopping List Card ── */
 .purchase-shopping-card {
   background: white;

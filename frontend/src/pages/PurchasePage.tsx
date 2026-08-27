@@ -93,6 +93,9 @@ const PurchasePage: React.FC = () => {
   const [expandedParents, setExpandedParents] = useState<Set<number>>(new Set());
   const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set());
 
+  // 页面切换状态：'shopping' = 待购清单，'reference' = 采购参考库
+  const [activeTab, setActiveTab] = useState<'shopping' | 'reference'>('shopping');
+
   // Quick-add state
   const [quickName, setQuickName] = useState('');
   const [quickStage, setQuickStage] = useState('0_0');
@@ -553,29 +556,69 @@ const PurchasePage: React.FC = () => {
         </div>
         <p className="purchase-subtitle">按装修阶段整理需要采购的物品，勾选后自动同步到首页待购清单。</p>
 
-        {/* ── Summary bar ── */}
-        <div className="purchase-summary">
-          <div className="purchase-summary-left">
-            <div className="purchase-summary-item">
-              <div className="purchase-summary-value" style={{ color: '#e45b3f' }}>{totalItems}</div>
-              <div className="purchase-summary-label">参考物品</div>
-            </div>
-            <div className="purchase-summary-item">
-              <div className="purchase-summary-value" style={{ color: '#48bb78' }}>{selectedItems}</div>
-              <div className="purchase-summary-label">已选待购</div>
-            </div>
-            <div className="purchase-summary-item">
-              <div className="purchase-summary-value" style={{ color: '#e45b3f' }}>{pendingShoppingCount}</div>
-              <div className="purchase-summary-label">当前待购</div>
-            </div>
-            <div className="purchase-summary-item">
-              <div className="purchase-summary-value" style={{ color: '#999' }}>{purchasedShoppingCount}</div>
-              <div className="purchase-summary-label">当前已购</div>
-            </div>
+        {/* ── Tab switcher + Stats ── */}
+        <div className="purchase-tab-container">
+          <div className="purchase-tab-switcher">
+            <button
+              type="button"
+              className={`purchase-tab-btn${activeTab === 'shopping' ? ' active' : ''}`}
+              onClick={() => setActiveTab('shopping')}
+            >
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+              </svg>
+              待购清单
+              {pendingShoppingCount > 0 && <span className="purchase-tab-badge">{pendingShoppingCount}</span>}
+            </button>
+            <button
+              type="button"
+              className={`purchase-tab-btn${activeTab === 'reference' ? ' active' : ''}`}
+              onClick={() => setActiveTab('reference')}
+            >
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+              </svg>
+              采购参考库
+            </button>
+          </div>
+          <div className="purchase-tab-stats">
+            {activeTab === 'reference' ? (
+              <>
+                <span className="purchase-stat-item">
+                  <span className="purchase-stat-value" style={{ color: '#e45b3f' }}>{totalItems}</span>
+                  <span className="purchase-stat-label">参考物品</span>
+                </span>
+                <span className="purchase-stat-divider"></span>
+                <span className="purchase-stat-item">
+                  <span className="purchase-stat-value" style={{ color: '#48bb78' }}>{selectedItems}</span>
+                  <span className="purchase-stat-label">已选待购</span>
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="purchase-stat-item">
+                  <span className="purchase-stat-value" style={{ color: '#e45b3f' }}>{pendingShoppingCount}</span>
+                  <span className="purchase-stat-label">待购</span>
+                </span>
+                <span className="purchase-stat-divider"></span>
+                <span className="purchase-stat-item">
+                  <span className="purchase-stat-value" style={{ color: '#999' }}>{purchasedShoppingCount}</span>
+                  <span className="purchase-stat-label">已购</span>
+                </span>
+                <span className="purchase-stat-divider"></span>
+                <span className="purchase-stat-item">
+                  <span className="purchase-stat-value" style={{ color: '#4a90d9' }}>
+                    ¥{(shoppingListView === 'pending' ? pendingCost : purchasedCost).toLocaleString()}
+                  </span>
+                  <span className="purchase-stat-label">{shoppingListView === 'pending' ? '预估' : '已购'}</span>
+                </span>
+              </>
+            )}
           </div>
         </div>
 
-        {/* ── 待购清单卡片 ── */}
+        {/* ── 待购清单卡片（仅在 shopping tab 显示） ── */}
+        {activeTab === 'shopping' && (
         <div className="purchase-shopping-card">
           <div className="purchase-shopping-hd">
             <div className="purchase-shopping-hd-left">
@@ -1021,286 +1064,292 @@ const PurchasePage: React.FC = () => {
             )}
           </div>
         </div>
-
-        {/* ── Search ── */}
-        <div style={{ marginBottom: 14 }}>
-          <input
-            name="purchaseSearch"
-            className="input"
-            type="text"
-            placeholder="搜索材料名称..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            style={{ width: '100%', padding: '10px 14px', fontSize: 13 }}
-          />
-        </div>
-
-        {/* ── Search results count ── */}
-        {searchQuery.trim() && (
-          <div style={{ fontSize: 12, color: '#666', marginBottom: 12, marginTop: -8 }}>
-            找到 {searchMatchCount} 个结果
-          </div>
         )}
 
-        {/* ── Quick-add ── */}
-        <div className="purchase-quick-add-v2">
-          <input
-            name="purchaseQuickName"
-            className="purchase-quick-name"
-            type="text"
-            placeholder="添加待购物品，例如：浴室柜"
-            value={quickName}
-            onChange={e => setQuickName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
-            style={{ minWidth: 0 }}
-          />
-          <select name="purchaseQuickStage" className="purchase-quick-stage" value={quickStage} onChange={e => setQuickStage(e.target.value)}>
-            {quickStageOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          <span className="purchase-quick-cat-group">
-            <select
-              name="purchaseQuickCategory"
-              value={quickCategory}
-              onChange={e => { setQuickCategory(e.target.value); setQuickSubCategory(''); }}
-              style={{ fontSize: 12 }}
-              title="预算分类（可选）"
-            >
-              <option value="">分类(可选)</option>
-              {state.budget.categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
-            <select
-              name="purchaseQuickSubCategory"
-              value={quickSubCategory}
-              onChange={e => setQuickSubCategory(e.target.value)}
-              style={{ fontSize: 12 }}
-              title="子分类（可选）"
-              disabled={!quickCategory}
-            >
-              <option value="">子分类(可选)</option>
-              {quickSubCategories.map(sub => (
-                <option key={sub.id} value={sub.id}>{sub.name}</option>
-              ))}
-            </select>
-          </span>
-          <span className="purchase-quick-row">
-            <input
-              name="purchaseQuickQty"
-              type="number"
-              min="1"
-              value={quickQty}
-              onChange={e => setQuickQty(e.target.value)}
-              placeholder="数量"
-            />
-            <input
-              name="purchaseQuickPrice"
-              type="number"
-              min="0"
-              step="0.01"
-              value={quickPrice}
-              onChange={e => setQuickPrice(e.target.value)}
-              placeholder="价格(可选)"
-              style={{ fontSize: 12 }}
-              title="设置价格后将自动创建未支付账单"
-            />
-          </span>
-          <button className="btn btn-primary purchase-quick-btn" type="button" onClick={handleQuickAdd}>添加</button>
-        </div>
-
-        {/* ── Bulk actions ── */}
-        <div className="purchase-bulk-actions">
-          <button type="button" onClick={expandAll}>全部展开</button>
-          <button type="button" onClick={collapseAll}>全部折叠</button>
-        </div>
-
-        {/* ── Stage cards ── */}
-        <div className="purchase-cards">
-          {filteredRefs.length === 0 && searchQuery.trim() ? (
-            <div style={{ textAlign: 'center', color: '#999', padding: 32 }}>
-              <div style={{ fontSize: 40, marginBottom: 8 }}>📦</div>
-              <div>未找到相关材料</div>
+        {/* ── 采购参考库内容（仅在 reference tab 显示） ── */}
+        {activeTab === 'reference' && (
+          <>
+            {/* ── Search ── */}
+            <div style={{ marginBottom: 14 }}>
+              <input
+                name="purchaseSearch"
+                className="input"
+                type="text"
+                placeholder="搜索材料名称..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{ width: '100%', padding: '10px 14px', fontSize: 13 }}
+              />
             </div>
-          ) : (
-            filteredRefs.map((stage, pi) => {
-              const iconCfg = STAGE_ICONS[pi] || { id: 'prep', tone: '' };
-              const IconComp = stageIconComponents[iconCfg.id] || IconPrep;
-              const isParentOpen = searchQuery.trim() ? true : expandedParents.has(pi);
 
-              let pTotal = 0, pSelected = 0;
-              stage.subs.forEach(sub => sub.items.forEach(it => {
-                pTotal++;
-                if (isSelected(it.id)) pSelected++;
-              }));
+            {/* ── Search results count ── */}
+            {searchQuery.trim() && (
+              <div style={{ fontSize: 12, color: '#666', marginBottom: 12, marginTop: -8 }}>
+                找到 {searchMatchCount} 个结果
+              </div>
+            )}
 
-              return (
-                <div key={stage.parent} className="purchase-parent-card">
-                  <div
-                    className="purchase-parent-header"
-                    onClick={() => !searchQuery.trim() && toggleParent(pi)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="purchase-parent-left">
-                      <div className={`purchase-stage-icon ${iconCfg.tone}`}>
-                        <IconComp size={18} />
+            {/* ── Quick-add ── */}
+            <div className="purchase-quick-add-v2">
+              <input
+                name="purchaseQuickName"
+                className="purchase-quick-name"
+                type="text"
+                placeholder="添加待购物品，例如：浴室柜"
+                value={quickName}
+                onChange={e => setQuickName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
+                style={{ minWidth: 0 }}
+              />
+              <select name="purchaseQuickStage" className="purchase-quick-stage" value={quickStage} onChange={e => setQuickStage(e.target.value)}>
+                {quickStageOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <span className="purchase-quick-cat-group">
+                <select
+                  name="purchaseQuickCategory"
+                  value={quickCategory}
+                  onChange={e => { setQuickCategory(e.target.value); setQuickSubCategory(''); }}
+                  style={{ fontSize: 12 }}
+                  title="预算分类（可选）"
+                >
+                  <option value="">分类(可选)</option>
+                  {state.budget.categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+                <select
+                  name="purchaseQuickSubCategory"
+                  value={quickSubCategory}
+                  onChange={e => setQuickSubCategory(e.target.value)}
+                  style={{ fontSize: 12 }}
+                  title="子分类（可选）"
+                  disabled={!quickCategory}
+                >
+                  <option value="">子分类(可选)</option>
+                  {quickSubCategories.map(sub => (
+                    <option key={sub.id} value={sub.id}>{sub.name}</option>
+                  ))}
+                </select>
+              </span>
+              <span className="purchase-quick-row">
+                <input
+                  name="purchaseQuickQty"
+                  type="number"
+                  min="1"
+                  value={quickQty}
+                  onChange={e => setQuickQty(e.target.value)}
+                  placeholder="数量"
+                />
+                <input
+                  name="purchaseQuickPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={quickPrice}
+                  onChange={e => setQuickPrice(e.target.value)}
+                  placeholder="价格(可选)"
+                  style={{ fontSize: 12 }}
+                  title="设置价格后将自动创建未支付账单"
+                />
+              </span>
+              <button className="btn btn-primary purchase-quick-btn" type="button" onClick={handleQuickAdd}>添加</button>
+            </div>
+
+            {/* ── Bulk actions ── */}
+            <div className="purchase-bulk-actions">
+              <button type="button" onClick={expandAll}>全部展开</button>
+              <button type="button" onClick={collapseAll}>全部折叠</button>
+            </div>
+
+            {/* ── Stage cards ── */}
+            <div className="purchase-cards">
+              {filteredRefs.length === 0 && searchQuery.trim() ? (
+                <div style={{ textAlign: 'center', color: '#999', padding: 32 }}>
+                  <div style={{ fontSize: 40, marginBottom: 8 }}>📦</div>
+                  <div>未找到相关材料</div>
+                </div>
+              ) : (
+                filteredRefs.map((stage, pi) => {
+                  const iconCfg = STAGE_ICONS[pi] || { id: 'prep', tone: '' };
+                  const IconComp = stageIconComponents[iconCfg.id] || IconPrep;
+                  const isParentOpen = searchQuery.trim() ? true : expandedParents.has(pi);
+
+                  let pTotal = 0, pSelected = 0;
+                  stage.subs.forEach(sub => sub.items.forEach(it => {
+                    pTotal++;
+                    if (isSelected(it.id)) pSelected++;
+                  }));
+
+                  return (
+                    <div key={stage.parent} className="purchase-parent-card">
+                      <div
+                        className="purchase-parent-header"
+                        onClick={() => !searchQuery.trim() && toggleParent(pi)}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="purchase-parent-left">
+                          <div className={`purchase-stage-icon ${iconCfg.tone}`}>
+                            <IconComp size={18} />
+                          </div>
+                          <div className="purchase-parent-info">
+                            <div className="purchase-parent-name">{stage.parent}</div>
+                            <div className="purchase-parent-count">{pSelected}/{pTotal} 已选入待购</div>
+                          </div>
+                        </div>
+                        <span className="purchase-arrow">
+                          <IconChevron size={16} open={isParentOpen} />
+                        </span>
                       </div>
-                      <div className="purchase-parent-info">
-                        <div className="purchase-parent-name">{stage.parent}</div>
-                        <div className="purchase-parent-count">{pSelected}/{pTotal} 已选入待购</div>
-                      </div>
-                    </div>
-                    <span className="purchase-arrow">
-                      <IconChevron size={16} open={isParentOpen} />
-                    </span>
-                  </div>
 
-                  {isParentOpen && (
-                    <div className="purchase-parent-body">
-                      {stage.subs.map((sub, si) => {
-                        const subKey = `${pi}_${si}`;
-                        const isSubOpen = searchQuery.trim() ? true : expandedSubs.has(subKey);
-                        const sSelected = sub.items.filter(it => isSelected(it.id)).length;
+                      {isParentOpen && (
+                        <div className="purchase-parent-body">
+                          {stage.subs.map((sub, si) => {
+                            const subKey = `${pi}_${si}`;
+                            const isSubOpen = searchQuery.trim() ? true : expandedSubs.has(subKey);
+                            const sSelected = sub.items.filter(it => isSelected(it.id)).length;
 
-                        return (
-                          <div key={subKey} className="purchase-sub-card">
-                            <div
-                              className="purchase-sub-header"
-                              onClick={() => !searchQuery.trim() && toggleSub(subKey)}
-                              role="button"
-                              tabIndex={0}
-                            >
-                              <div className="purchase-sub-left">
-                                <span className="purchase-sub-dot" />
-                                <span className="purchase-sub-name">{sub.name}</span>
-                                <span className="purchase-sub-count">{sSelected}/{sub.items.length}</span>
-                              </div>
-                              <span className="purchase-arrow">
-                                <IconChevron size={14} open={isSubOpen} />
-                              </span>
-                            </div>
-
-                            {isSubOpen && (
-                              <div className="purchase-sub-body">
-                                {sub.items.map(item => (
-                                  <div
-                                    key={item.id}
-                                    className={`purchase-ref-item ${isSelected(item.id) ? 'selected' : ''}`}
-                                    onClick={(e) => {
-                                      if ((e.target as HTMLElement).closest('input,button')) return;
-                                      handleToggle(item.id);
-                                    }}
-                                  >
-                                    <input
-                                      name={`purchase-select-${item.id}`}
-                                      type="checkbox"
-                                      checked={isSelected(item.id)}
-                                      onChange={() => handleToggle(item.id)}
-                                      onClick={e => e.stopPropagation()}
-                                    />
-                                    <span className="purchase-ref-name">{item.name}</span>
-                                    <span className="purchase-ref-spec">{item.spec || ''}</span>
-                                    <input
-                                      name={`purchase-ref-qty-${item.id}`}
-                                      type="number"
-                                      min="0"
-                                      value={item.qty}
-                                      onChange={e => handleQtyChange(item.id, e.target.value)}
-                                      onClick={e => e.stopPropagation()}
-                                      className="purchase-ref-qty-input"
-                                    />
-                                    <span className="purchase-ref-unit">{item.unit || '个'}</span>
-                                    <span className={`purchase-ref-tag ${isSelected(item.id) ? 'tag-selected' : 'tag-default'}`}>
-                                      {isSelected(item.id) ? '已选' : '参考'}
-                                    </span>
-                                    {isItemPurchased(item.id) && (
-                                      <span className="purchase-ref-tag tag-purchased">已购</span>
-                                    )}
-                                    <button
-                                      type="button"
-                                      className="purchase-ref-delete"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDelete(item.id, item.name);
-                                      }}
-                                    >
-                                      删除
-                                    </button>
+                            return (
+                              <div key={subKey} className="purchase-sub-card">
+                                <div
+                                  className="purchase-sub-header"
+                                  onClick={() => !searchQuery.trim() && toggleSub(subKey)}
+                                  role="button"
+                                  tabIndex={0}
+                                >
+                                  <div className="purchase-sub-left">
+                                    <span className="purchase-sub-dot" />
+                                    <span className="purchase-sub-name">{sub.name}</span>
+                                    <span className="purchase-sub-count">{sSelected}/{sub.items.length}</span>
                                   </div>
-                                ))}
+                                  <span className="purchase-arrow">
+                                    <IconChevron size={14} open={isSubOpen} />
+                                  </span>
+                                </div>
 
-                                {/* ── Custom item add within subgroup ── */}
-                                {!searchQuery.trim() && (
-                                  <div className="purchase-add-custom">
-                                    <input
-                                      name={`custom-add-name-${subKey}`}
-                                      type="text"
-                                      placeholder="自定义物品"
-                                      value={getCustomInput(subKey).name}
-                                      onChange={e => setCustomInput(subKey, 'name', e.target.value)}
-                                      onKeyDown={e => e.key === 'Enter' && handleCustomAdd(pi, si)}
-                                    />
-                                    <input
-                                      name={`custom-add-spec-${subKey}`}
-                                      type="text"
-                                      placeholder="规格"
-                                      value={getCustomInput(subKey).spec}
-                                      onChange={e => setCustomInput(subKey, 'spec', e.target.value)}
-                                      onKeyDown={e => e.key === 'Enter' && handleCustomAdd(pi, si)}
-                                      style={{ width: 80 }}
-                                    />
-                                    <input
-                                      name={`custom-add-qty-${subKey}`}
-                                      type="number"
-                                      placeholder="数量"
-                                      value={getCustomInput(subKey).qty}
-                                      onChange={e => setCustomInput(subKey, 'qty', e.target.value)}
-                                      onKeyDown={e => e.key === 'Enter' && handleCustomAdd(pi, si)}
-                                      style={{ width: 50 }}
-                                    />
-                                    <select
-                                      name={`custom-add-category-${subKey}`}
-                                      value={getCustomInput(subKey).category}
-                                      onChange={e => setCustomInput(subKey, 'category', e.target.value)}
-                                      style={{ fontSize: 11, maxWidth: 100 }}
-                                      title="预算分类（可选）"
-                                    >
-                                      <option value="">分类</option>
-                                      {state.budget.categories.map(cat => (
-                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                      ))}
-                                    </select>
-                                    <input
-                                      name={`custom-add-price-${subKey}`}
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      placeholder="价格"
-                                      value={getCustomInput(subKey).price}
-                                      onChange={e => setCustomInput(subKey, 'price', e.target.value)}
-                                      onKeyDown={e => e.key === 'Enter' && handleCustomAdd(pi, si)}
-                                      style={{ width: 70 }}
-                                      title="设置价格后将自动创建未支付账单"
-                                    />
-                                    <button className="btn btn-primary btn-sm" type="button" onClick={() => handleCustomAdd(pi, si)}>
-                                      添加
-                                    </button>
+                                {isSubOpen && (
+                                  <div className="purchase-sub-body">
+                                    {sub.items.map(item => (
+                                      <div
+                                        key={item.id}
+                                        className={`purchase-ref-item ${isSelected(item.id) ? 'selected' : ''}`}
+                                        onClick={(e) => {
+                                          if ((e.target as HTMLElement).closest('input,button')) return;
+                                          handleToggle(item.id);
+                                        }}
+                                      >
+                                        <input
+                                          name={`purchase-select-${item.id}`}
+                                          type="checkbox"
+                                          checked={isSelected(item.id)}
+                                          onChange={() => handleToggle(item.id)}
+                                          onClick={e => e.stopPropagation()}
+                                        />
+                                        <span className="purchase-ref-name">{item.name}</span>
+                                        <span className="purchase-ref-spec">{item.spec || ''}</span>
+                                        <input
+                                          name={`purchase-ref-qty-${item.id}`}
+                                          type="number"
+                                          min="0"
+                                          value={item.qty}
+                                          onChange={e => handleQtyChange(item.id, e.target.value)}
+                                          onClick={e => e.stopPropagation()}
+                                          className="purchase-ref-qty-input"
+                                        />
+                                        <span className="purchase-ref-unit">{item.unit || '个'}</span>
+                                        <span className={`purchase-ref-tag ${isSelected(item.id) ? 'tag-selected' : 'tag-default'}`}>
+                                          {isSelected(item.id) ? '已选' : '参考'}
+                                        </span>
+                                        {isItemPurchased(item.id) && (
+                                          <span className="purchase-ref-tag tag-purchased">已购</span>
+                                        )}
+                                        <button
+                                          type="button"
+                                          className="purchase-ref-delete"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDelete(item.id, item.name);
+                                          }}
+                                        >
+                                          删除
+                                        </button>
+                                      </div>
+                                    ))}
+
+                                    {/* ── Custom item add within subgroup ── */}
+                                    {!searchQuery.trim() && (
+                                      <div className="purchase-add-custom">
+                                        <input
+                                          name={`custom-add-name-${subKey}`}
+                                          type="text"
+                                          placeholder="自定义物品"
+                                          value={getCustomInput(subKey).name}
+                                          onChange={e => setCustomInput(subKey, 'name', e.target.value)}
+                                          onKeyDown={e => e.key === 'Enter' && handleCustomAdd(pi, si)}
+                                        />
+                                        <input
+                                          name={`custom-add-spec-${subKey}`}
+                                          type="text"
+                                          placeholder="规格"
+                                          value={getCustomInput(subKey).spec}
+                                          onChange={e => setCustomInput(subKey, 'spec', e.target.value)}
+                                          onKeyDown={e => e.key === 'Enter' && handleCustomAdd(pi, si)}
+                                          style={{ width: 80 }}
+                                        />
+                                        <input
+                                          name={`custom-add-qty-${subKey}`}
+                                          type="number"
+                                          placeholder="数量"
+                                          value={getCustomInput(subKey).qty}
+                                          onChange={e => setCustomInput(subKey, 'qty', e.target.value)}
+                                          onKeyDown={e => e.key === 'Enter' && handleCustomAdd(pi, si)}
+                                          style={{ width: 50 }}
+                                        />
+                                        <select
+                                          name={`custom-add-category-${subKey}`}
+                                          value={getCustomInput(subKey).category}
+                                          onChange={e => setCustomInput(subKey, 'category', e.target.value)}
+                                          style={{ fontSize: 11, maxWidth: 100 }}
+                                          title="预算分类（可选）"
+                                        >
+                                          <option value="">分类</option>
+                                          {state.budget.categories.map(cat => (
+                                            <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                          ))}
+                                        </select>
+                                        <input
+                                          name={`custom-add-price-${subKey}`}
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          placeholder="价格"
+                                          value={getCustomInput(subKey).price}
+                                          onChange={e => setCustomInput(subKey, 'price', e.target.value)}
+                                          onKeyDown={e => e.key === 'Enter' && handleCustomAdd(pi, si)}
+                                          style={{ width: 70 }}
+                                          title="设置价格后将自动创建未支付账单"
+                                        />
+                                        <button className="btn btn-primary btn-sm" type="button" onClick={() => handleCustomAdd(pi, si)}>
+                                          添加
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
+                  );
+                })
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Purchase Modal (price + category input) ── */}
