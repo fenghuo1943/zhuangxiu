@@ -4,7 +4,6 @@
  * - 首屏 7:5 双栏：问候/当前阶段/快捷入口 + 最近待办
  * - 装修进度 + 阶段路线 同一行
  * - 预算设置与阶段分配(2/3) + 待购清单与记账概览(1/3)
- * - 待办清单（最后）
  */
 import React from 'react';
 import {
@@ -41,16 +40,12 @@ const DesktopSidebarWorkbenchHomeLayout: React.FC = () => {
       <section className="wb-home-budget-side">
         <div className="wb-home-budget-main">
           <BudgetPanel />
+          <TodoPanel />
         </div>
         <div className="wb-home-budget-side-stack">
           <PurchaseSummary />
           <ExpenseSummary />
         </div>
-      </section>
-
-      {/* 待办清单 */}
-      <section className="wb-home-todo">
-        <TodoPanel />
       </section>
     </div>
   );

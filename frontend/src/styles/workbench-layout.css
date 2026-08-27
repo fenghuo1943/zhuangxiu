@@ -349,9 +349,10 @@
   gap: 20px;
 }
 
-/* 待办清单 */
-:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-todo {
-  width: 100%;
+:root[data-desktop-layout="desktop-sidebar-workbench"] .wb-home-budget-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-metric-card {
