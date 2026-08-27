@@ -17,16 +17,20 @@ export interface CategoryResult {
 
 // key = "stage_parent||subgroup_name"
 const STAGE_SUBGROUP_MAP: Record<string, CategoryResult> = {
-  // 开工前准备
-  '开工前准备||临时设施':   { categoryId: 'service',   subCategoryId: 'fucai' },
-  '开工前准备||前置准备':   { categoryId: 'equipment', subCategoryId: 'jingshui' },
-
-  // 水电阶段
+  // 水电阶段（含原开工前准备）
+  '水电阶段||临时设施':   { categoryId: 'service',   subCategoryId: 'fucai' },
+  '水电阶段||前置准备':   { categoryId: 'equipment', subCategoryId: 'jingshui' },
   '水电阶段||电线':         { categoryId: 'hard',      subCategoryId: 'shuidian' },
   '水电阶段||线管配件':     { categoryId: 'hard',      subCategoryId: 'shuidian' },
   '水电阶段||配电箱':       { categoryId: 'hard',      subCategoryId: 'shuidian' },
   '水电阶段||水管配件':     { categoryId: 'hard',      subCategoryId: 'shuidian' },
   '水电阶段||开关插座':     { categoryId: 'hard',      subCategoryId: 'shuidian' },
+
+  // 拆改阶段
+  '拆改阶段||拆除工具':     { categoryId: 'hard',      subCategoryId: 'chaigai' },
+  '拆改阶段||保护材料':     { categoryId: 'hard',      subCategoryId: 'chaigai' },
+  '拆改阶段||新建墙体':     { categoryId: 'hard',      subCategoryId: 'chaigai' },
+  '拆改阶段||门窗改造':     { categoryId: 'hard',      subCategoryId: 'chaigai' },
 
   // 瓦工阶段
   '瓦工阶段||水泥沙砖':     { categoryId: 'hard',      subCategoryId: 'wagong' },
@@ -57,8 +61,8 @@ const STAGE_SUBGROUP_MAP: Record<string, CategoryResult> = {
 };
 
 const STAGE_DEFAULTS: Record<string, CategoryResult> = {
-  '开工前准备': { categoryId: 'service',   subCategoryId: null },
   '水电阶段':   { categoryId: 'hard',      subCategoryId: 'shuidian' },
+  '拆改阶段':   { categoryId: 'hard',      subCategoryId: 'chaigai' },
   '瓦工阶段':   { categoryId: 'hard',      subCategoryId: 'wagong' },
   '木工阶段':   { categoryId: 'hard',      subCategoryId: 'mugong' },
   '油漆阶段':   { categoryId: 'hard',      subCategoryId: 'youqi' },

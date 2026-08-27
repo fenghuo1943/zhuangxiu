@@ -1,8 +1,8 @@
 """Seed the purchase reference tables with the comprehensive renovation shopping list.
 
 Data mirrors the reference HTML (采购.html) DEFAULT_DATA structure:
-- 7 stages (开工前准备 through 软装阶段)
-- 23 subgroups
+- 7 stages (水电阶段 through 软装阶段)
+- 25 subgroups
 - 131 reference items
 
 IDs use deterministic prefixes (stage_0..6, sub_0_0..6_1, item_0_0_0..6_1_3)
@@ -17,7 +17,7 @@ from .models import PurchaseRefStage, PurchaseRefSubgroup, PurchaseRefItem
 
 PURCHASE_DATA = [
     {
-        "parent": "开工前准备",
+        "parent": "水电阶段",
         "subs": [
             {
                 "name": "临时设施",
@@ -39,11 +39,6 @@ PURCHASE_DATA = [
                     {"name": "前置过滤器", "spec": "", "qty": 1, "unit": "个"},
                 ],
             },
-        ],
-    },
-    {
-        "parent": "水电阶段",
-        "subs": [
             {
                 "name": "电线",
                 "category_id": "hard",
@@ -123,6 +118,63 @@ PURCHASE_DATA = [
                     {"name": "单开双控", "spec": "", "qty": 5, "unit": "个"},
                     {"name": "双开双控", "spec": "", "qty": 3, "unit": "个"},
                     {"name": "防水盒", "spec": "卫生间用", "qty": 6, "unit": "个"},
+                ],
+            },
+        ],
+    },
+    {
+        "parent": "拆改阶段",
+        "subs": [
+            {
+                "name": "拆除工具",
+                "category_id": "hard",
+                "sub_category_id": "chaigai",
+                "items": [
+                    {"name": "电锤", "spec": "大功率", "qty": 1, "unit": "把"},
+                    {"name": "角磨机", "spec": "切割用", "qty": 1, "unit": "把"},
+                    {"name": "撬棍", "spec": "", "qty": 2, "unit": "根"},
+                    {"name": "锤子", "spec": "", "qty": 2, "unit": "把"},
+                    {"name": "防护眼镜", "spec": "", "qty": 4, "unit": "副"},
+                    {"name": "防尘口罩", "spec": "N95", "qty": 20, "unit": "个"},
+                    {"name": "手套", "spec": "防滑耐磨", "qty": 10, "unit": "双"},
+                ],
+            },
+            {
+                "name": "保护材料",
+                "category_id": "hard",
+                "sub_category_id": "chaigai",
+                "items": [
+                    {"name": "地面保护膜", "spec": "编织布+珍珠棉", "qty": 50, "unit": "平方"},
+                    {"name": "门窗保护套", "spec": "", "qty": 10, "unit": "个"},
+                    {"name": "墙面保护板", "spec": "EPE珍珠棉", "qty": 30, "unit": "平方"},
+                    {"name": "美纹纸胶带", "spec": "", "qty": 20, "unit": "卷"},
+                    {"name": "垃圾袋", "spec": "加厚", "qty": 50, "unit": "个"},
+                    {"name": "编织袋", "spec": "装垃圾用", "qty": 30, "unit": "个"},
+                ],
+            },
+            {
+                "name": "新建墙体",
+                "category_id": "hard",
+                "sub_category_id": "chaigai",
+                "items": [
+                    {"name": "红砖", "spec": "240×115×53mm", "qty": 200, "unit": "块"},
+                    {"name": "水泥", "spec": "32.5号", "qty": 5, "unit": "袋"},
+                    {"name": "河沙", "spec": "", "qty": 2, "unit": "方"},
+                    {"name": "植筋胶", "spec": "墙体加固用", "qty": 2, "unit": "支"},
+                    {"name": "钢丝网", "spec": "挂网用", "qty": 10, "unit": "平方"},
+                    {"name": "拉结筋", "spec": "φ6钢筋", "qty": 20, "unit": "根"},
+                ],
+            },
+            {
+                "name": "门窗改造",
+                "category_id": "hard",
+                "sub_category_id": "chaigai",
+                "items": [
+                    {"name": "过梁", "spec": "预制混凝土", "qty": 3, "unit": "根"},
+                    {"name": "门框", "spec": "细木工板", "qty": 3, "unit": "块"},
+                    {"name": "发泡剂", "spec": "填缝用", "qty": 5, "unit": "罐"},
+                    {"name": "密封胶", "spec": "防霉", "qty": 5, "unit": "支"},
+                    {"name": "膨胀螺栓", "spec": "固定用", "qty": 30, "unit": "个"},
                 ],
             },
         ],

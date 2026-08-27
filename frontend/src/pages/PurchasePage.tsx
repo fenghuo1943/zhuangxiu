@@ -16,8 +16,8 @@ import { getItemCategory } from '../utils/categoryMapping';
 
 // ── Stage icon config ──────────────────────────────────────────────
 const STAGE_ICONS: Record<number, { id: string; tone: string }> = {
-  0: { id: 'prep', tone: '' },
-  1: { id: 'bolt', tone: 'tone-blue' },
+  0: { id: 'bolt', tone: 'tone-blue' },
+  1: { id: 'wreck', tone: 'tone-amber' },
   2: { id: 'grid', tone: 'tone-amber' },
   3: { id: 'hammer', tone: 'tone-green' },
   4: { id: 'paint', tone: '' },
@@ -82,9 +82,15 @@ const IconSofa = ({ size = 18 }: { size?: number }) => (
   </svg>
 );
 
+const IconWreck = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m18 4 3 3-6 6-3-3 6-6ZM15 7l-1.5-1.5"/><path d="M9 12 4.5 16.5l3 3L12 15"/><path d="m5 19-2 2"/><path d="m19 5 2-2"/>
+  </svg>
+);
+
 const stageIconComponents: Record<string, React.FC<{ size?: number }>> = {
   prep: IconPrep, bolt: IconBolt, grid: IconGrid, hammer: IconHammer,
-  paint: IconPaint, package: IconPackage, sofa: IconSofa,
+  paint: IconPaint, package: IconPackage, sofa: IconSofa, wreck: IconWreck,
 };
 
 const PurchasePage: React.FC = () => {
