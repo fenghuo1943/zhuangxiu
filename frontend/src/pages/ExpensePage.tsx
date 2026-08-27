@@ -142,7 +142,7 @@ const ExpensePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set(['hard', 'material', 'equipment', 'soft', 'service']));
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [importMsg, setImportMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -253,6 +253,13 @@ const ExpensePage: React.FC = () => {
     });
     return sorted;
   }, [filteredExpenses]);
+
+  // 默认展开所有日期
+  useEffect(() => {
+    if (Object.keys(expensesByDate).length > 0) {
+      setExpandedCats(new Set(Object.keys(expensesByDate)));
+    }
+  }, [expensesByDate]);
 
   const handleImportJSON = () => {
     const input = document.createElement('input');
@@ -434,13 +441,28 @@ const ExpensePage: React.FC = () => {
                 className="input"
                 style={{ fontSize: 12, padding: '6px 10px', minWidth: 100 }}
                 value={categoryFilter}
-                onChange={e => setCategoryFilter(e.target.value)}
+                onChange={e => { setCategoryFilter(e.target.value); setSubCategoryFilter(''); }}
               >
                 <option value="">全部分类</option>
                 {Object.entries(CATEGORY_NAMES).map(([id, name]) => (
                   <option key={id} value={id}>{name}</option>
                 ))}
               </select>
+              {categoryFilter && (
+                <select
+                  className="input"
+                  style={{ fontSize: 12, padding: '6px 10px', minWidth: 100 }}
+                  value={subCategoryFilter}
+                  onChange={e => setSubCategoryFilter(e.target.value)}
+                >
+                  <option value="">全部子分类</option>
+                  {state.expenseSubCategories
+                    .filter(sub => sub.categoryId === categoryFilter)
+                    .map(sub => (
+                      <option key={sub.id} value={sub.id}>{sub.name}</option>
+                    ))}
+                </select>
+              )}
               <button className="btn btn-primary btn-sm show-mobile" onClick={openAddModal}>
                 <IconPlus size={14} /> 记一笔
               </button>
