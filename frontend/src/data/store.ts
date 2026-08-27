@@ -1260,8 +1260,14 @@ export function addPurchaseToCompare(item: {
 
 // ==================== Expense Actions ====================
 
+function _categoryKey(categoryId: string): string {
+  return categoryId.split('_').pop() || categoryId;
+}
+
 function _bkCatId(frontendCatId: string): string {
-  return `${globalState.activeProjectId}_${frontendCatId}`;
+  // Budget APIs accept the frontend key.  This prevents a legacy scoped ID
+  // from being prefixed a second time by the backend.
+  return _categoryKey(frontendCatId);
 }
 
 export function addExpense(expense: Omit<Expense, 'id' | 'createdAt'>) {
@@ -2115,11 +2121,10 @@ export async function loadBudgetAndExpensesFromBackend(): Promise<void> {
   try {
     // Load budget
     const budgetData = await fetchBudget(pid);
-    // Map backend category IDs (proj_xxx_hard) to frontend IDs (hard)
-    const prefix = `${pid}_`;
+    // Frontend state must only contain keys such as "hard" and "equipment".
     const categories = budgetData.categories.map(c => ({
       ...c,
-      id: c.id.startsWith(prefix) ? c.id.slice(prefix.length) : c.id,
+      id: _categoryKey(c.id),
     }));
     // Deduplicate categories by ID (keep last occurrence to prefer newer data)
     const seen = new Set<string>();

@@ -165,7 +165,8 @@ async def import_state(project_id: str, data: AppStateSync, user: User = Depends
     if data.budget:
         db.add(Budget(project_id=sid, total=data.budget.get("total", 0.0)))
         for c in data.budget.get("categories", []):
-            db.add(BudgetCategory(id=f"{sid}_{c['id']}", project_id=sid, name=c["name"], color=c.get("color", "#999"), allocated=c.get("allocated", 0.0), spent=c.get("spent", 0.0)))
+            category_key = str(c["id"]).rsplit("_", 1)[-1]
+            db.add(BudgetCategory(id=f"{sid}_{category_key}", project_id=sid, name=c["name"], color=c.get("color", "#999"), allocated=c.get("allocated", 0.0), spent=c.get("spent", 0.0)))
 
     # Import flow
     if data.flow_progress:

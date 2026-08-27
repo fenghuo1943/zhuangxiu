@@ -151,11 +151,13 @@ async def _recalc_all_spent(session):
     expenses = result.scalars().all()
     totals: dict[str, float] = {}
     for e in expenses:
-        totals[e.category_id] = totals.get(e.category_id, 0.0) + e.amount
+        category_key = e.category_id.rsplit("_", 1)[-1]
+        totals[category_key] = totals.get(category_key, 0.0) + e.amount
 
     cat_result = await session.execute(_sel(BudgetCategory))
     for cat in cat_result.scalars():
-        cat.spent = totals.get(cat.id, 0.0)
+        category_key = cat.id.rsplit("_", 1)[-1]
+        cat.spent = totals.get(category_key, 0.0)
 
     await session.commit()
 

@@ -9,6 +9,14 @@ from ..auth import get_current_user
 router = APIRouter(prefix="/api/projects/{project_id}/budget", tags=["Budget"])
 
 
+def _category_key(raw_category_id: str, sid: str | None = None) -> str:
+    """Return a canonical frontend category key from a scoped or legacy ID."""
+    category_id = (raw_category_id or "").strip()
+    if sid and category_id.startswith(f"{sid}_"):
+        category_id = category_id[len(sid) + 1:]
+    return category_id.rsplit("_", 1)[-1]
+
+
 def _scoped_id(raw_project_id: str, user_id: str) -> str:
     """Scope a frontend project ID to the current user for data isolation.
 
@@ -54,6 +62,7 @@ def _frontend_cat_id(db_cat: BudgetCategory, sid: str):
     elif "_" in cat.id:
         # 回退格式：<hash>_hard → hard（数据库中可能存储了不带项目前缀的ID）
         cat.id = cat.id.rsplit("_", 1)[-1]
+    cat.id = _category_key(cat.id, sid)
     return cat
 
 
@@ -69,18 +78,25 @@ async def get_budget(project_id: str, user: User = Depends(get_current_user), db
     seen_frontend_keys: dict[str, BudgetCategory] = {}
     stale_ids: list[str] = []
     for c in categories:
-        frontend_key = c.id[len(prefix):] if c.id.startswith(prefix) else c.id.rsplit("_", 1)[-1]
+        frontend_key = _category_key(c.id, sid)
         if frontend_key in seen_frontend_keys:
             # Duplicate — keep the correctly scoped one (starts with sid_), mark the other stale
             existing = seen_frontend_keys[frontend_key]
-            if c.id.startswith(prefix) and not existing.id.startswith(prefix):
+            canonical_id = f"{sid}_{frontend_key}"
+            if c.id == canonical_id and existing.id != canonical_id:
                 stale_ids.append(existing.id)
                 seen_frontend_keys[frontend_key] = c
             else:
                 stale_ids.append(c.id)
         else:
             seen_frontend_keys[frontend_key] = c
-    if stale_ids:
+    repaired_ids = False
+    for frontend_key, cat in seen_frontend_keys.items():
+        canonical_id = f"{sid}_{frontend_key}"
+        if cat.id != canonical_id:
+            cat.id = canonical_id
+            repaired_ids = True
+    if stale_ids or repaired_ids:
         for stale_id in stale_ids:
             await db.execute(delete(BudgetCategory).where(BudgetCategory.id == stale_id, BudgetCategory.project_id == sid))
         await db.commit()
@@ -107,7 +123,8 @@ async def update_budget(project_id: str, data: BudgetUpdate, user: User = Depend
     if data.categories:
         for cat_data in data.categories:
             # Build scoped category ID: sid_frontendKey
-            db_cat_id = f"{sid}_{cat_data.id}"
+            cat_key = _category_key(cat_data.id, sid)
+            db_cat_id = f"{sid}_{cat_key}"
             cat_result = await db.execute(
                 select(BudgetCategory).where(BudgetCategory.id == db_cat_id, BudgetCategory.project_id == sid)
             )
@@ -128,8 +145,8 @@ async def update_budget(project_id: str, data: BudgetUpdate, user: User = Depend
                     'soft': '#be7b2f',
                     'service': '#9b928b',
                 }
-                cat_name = cat_data.name or DEFAULT_NAMES.get(cat_data.id, cat_data.id)
-                cat_color = cat_data.color or DEFAULT_COLORS.get(cat_data.id, "#999")
+                cat_name = cat_data.name or DEFAULT_NAMES.get(cat_key, cat_key)
+                cat_color = cat_data.color or DEFAULT_COLORS.get(cat_key, "#999")
                 cat = BudgetCategory(
                     id=db_cat_id,
                     project_id=sid,
@@ -155,13 +172,8 @@ async def update_budget(project_id: str, data: BudgetUpdate, user: User = Depend
 @router.put("/{category_id}", response_model=BudgetCategoryOut)
 async def update_category_allocation(project_id: str, category_id: str, data: CategoryAllocationUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     sid = await _ensure_project(project_id, user, db)
-    # Map frontend category ID (e.g. "p1_hard") to scoped DB category ID (e.g. "p1_<hash>_hard")
-    if category_id.startswith(project_id + "_"):
-        cat_key = category_id[len(project_id) + 1:]
-    elif "_" in category_id:
-        cat_key = category_id.rsplit("_", 1)[-1]
-    else:
-        cat_key = category_id
+    # Accept a frontend key as well as legacy/full IDs, but persist only one prefix.
+    cat_key = _category_key(category_id, sid)
     db_category_id = f"{sid}_{cat_key}"
     result = await db.execute(select(BudgetCategory).where(BudgetCategory.id == db_category_id, BudgetCategory.project_id == sid))
     cat = result.scalar_one_or_none()
@@ -196,7 +208,7 @@ async def update_category_allocation(project_id: str, category_id: str, data: Ca
     cat.allocated = data.allocated
     await db.commit()
     await db.refresh(cat)
-    return cat
+    return _frontend_cat_id(cat, sid)
 
 
 @router.post("/recalc")
@@ -212,11 +224,12 @@ async def recalc_budget_spent(project_id: str, user: User = Depends(get_current_
     expenses = result.scalars().all()
     totals: dict[str, float] = {}
     for e in expenses:
-        totals[e.category_id] = totals.get(e.category_id, 0.0) + e.amount
+        key = _category_key(e.category_id)
+        totals[key] = totals.get(key, 0.0) + e.amount
 
     cat_result = await db.execute(select(BudgetCategory).where(BudgetCategory.project_id == sid))
     for cat in cat_result.scalars():
-        cat.spent = totals.get(cat.id, 0.0)
+        cat.spent = totals.get(_category_key(cat.id, sid), 0.0)
 
     await db.commit()
     return {"status": "ok", "recalculated": len(expenses)}
