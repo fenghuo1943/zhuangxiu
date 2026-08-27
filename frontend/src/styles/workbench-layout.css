@@ -277,8 +277,11 @@
   }
 }
 
-/* ---- 装修流程页面全宽 ---- */
-:root[data-desktop-layout="desktop-sidebar-workbench"] .flow-page {
+/* ---- 页面全宽（去除两侧margin） ---- */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .flow-page,
+:root[data-desktop-layout="desktop-sidebar-workbench"] .expense-page,
+:root[data-desktop-layout="desktop-sidebar-workbench"] .purchase-page-v2,
+:root[data-desktop-layout="desktop-sidebar-workbench"] .compare-page {
   width: 100%;
   margin: 0;
   max-width: none;
