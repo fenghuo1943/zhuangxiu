@@ -2929,6 +2929,13 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   grid-row: span 1;
 }
 
+.expense-total-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .expense-total-label {
   display: flex;
   align-items: center;
@@ -2938,10 +2945,16 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   font-weight: 720;
 }
 
+.expense-total-count {
+  font-size: 11px;
+  color: var(--fresh-subtle);
+  white-space: nowrap;
+}
+
 .expense-total-value {
   display: block;
-  margin-top: 8px;
-  font-size: 28px;
+  margin-top: 6px;
+  font-size: 24px;
   color: var(--fresh-coral);
   font-weight: 900;
 }
@@ -2972,8 +2985,8 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 .expense-cat-value {
   display: block;
-  margin-top: 2px;
-  font-size: 15px;
+  margin-top: 4px;
+  font-size: 18px;
   color: var(--fresh-text);
   font-weight: 800;
 }

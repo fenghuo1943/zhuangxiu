@@ -347,11 +347,13 @@ const ExpensePage: React.FC = () => {
         <div className="expense-summary-row">
           <div className="card expense-total-card">
             <div className="card-bd">
-              <span className="expense-total-label">
-                <IconDollar size={18} /> 总支出
-              </span>
+              <div className="expense-total-header">
+                <span className="expense-total-label">
+                  <IconDollar size={18} /> 总支出
+                </span>
+                <span className="expense-total-count">{filteredExpenses.length} 笔记录</span>
+              </div>
               <b className="expense-total-value">¥{formatAmount(totalSpent)}</b>
-              <span className="expense-total-sub">{filteredExpenses.length} 笔记录</span>
             </div>
           </div>
 
