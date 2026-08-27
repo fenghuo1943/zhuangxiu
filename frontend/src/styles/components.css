@@ -196,6 +196,17 @@
 
 .btn-primary:hover { background: var(--fresh-coral-deep); }
 
+.btn-secondary {
+  color: var(--fresh-text);
+  background: var(--fresh-bg);
+  border: 1px solid var(--fresh-line);
+}
+
+.btn-secondary:hover {
+  background: var(--fresh-line);
+  color: var(--fresh-heading);
+}
+
 .btn-outline {
   color: var(--fresh-muted);
   background: #fff;
@@ -1442,6 +1453,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 .todo-detail-footer .btn {
   min-width: 80px;
+  justify-content: center;
 }
 }
 
