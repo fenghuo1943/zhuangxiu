@@ -102,10 +102,11 @@ async def get_references(
                     price=item_price,
                 )
                 items.append(item_out)
-            if items:
-                subs.append(PurchaseRefSubgroupOut(name=sub.name, items=items))
-        if subs:
-            out.append(PurchaseRefStageOut(parent=stage.parent, subs=subs))
+            # 即使子分组中的参考物品已被全部删除，也要返回子分组。
+            # 前端的“新增参考物品”需要依赖这个层级定位目标子分组。
+            subs.append(PurchaseRefSubgroupOut(name=sub.name, items=items))
+        # 不要按是否存在物品过滤阶段；空阶段仍应可在采购参考库中选择并新增物品。
+        out.append(PurchaseRefStageOut(parent=stage.parent, subs=subs))
     return out
 
 
