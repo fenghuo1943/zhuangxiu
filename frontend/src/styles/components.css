@@ -1492,6 +1492,11 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   gap: 8px;
 }
 
+.focus-todo-list .fresh-todo {
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+}
+
 .focus-todo-item {
   display: flex;
   align-items: center;
