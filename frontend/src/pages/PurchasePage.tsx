@@ -16,13 +16,14 @@ import { getItemCategory } from '../utils/categoryMapping';
 
 // ── Stage icon config ──────────────────────────────────────────────
 const STAGE_ICONS: Record<number, { id: string; tone: string }> = {
-  0: { id: 'bolt', tone: 'tone-blue' },
-  1: { id: 'wreck', tone: 'tone-amber' },
-  2: { id: 'grid', tone: 'tone-amber' },
-  3: { id: 'hammer', tone: 'tone-green' },
-  4: { id: 'paint', tone: '' },
-  5: { id: 'package', tone: 'tone-blue' },
-  6: { id: 'sofa', tone: 'tone-green' },
+  0: { id: 'prep', tone: '' },         // 准备阶段
+  1: { id: 'wreck', tone: 'tone-amber' },   // 拆改阶段
+  2: { id: 'bolt', tone: 'tone-blue' },     // 水电阶段
+  3: { id: 'grid', tone: 'tone-amber' },    // 瓦工阶段
+  4: { id: 'hammer', tone: 'tone-green' },  // 木工阶段
+  5: { id: 'paint', tone: '' },         // 油漆阶段
+  6: { id: 'package', tone: 'tone-blue' },  // 安装阶段
+  7: { id: 'sofa', tone: 'tone-green' },    // 软装阶段
 };
 
 // ── Inline SVG icons (matching reference HTML) ─────────────────────
