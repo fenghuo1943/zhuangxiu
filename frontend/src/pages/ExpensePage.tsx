@@ -160,6 +160,7 @@ const ExpensePage: React.FC = () => {
   const [formStage, setFormStage] = useState('');
   const [formSubCategory, setFormSubCategory] = useState('');
   const [subCategoryFilter, setSubCategoryFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [activeView, setActiveView] = useState<'stats' | 'bills'>('bills');
 
   // Load budget & expenses from backend on mount
@@ -220,8 +221,11 @@ const ExpensePage: React.FC = () => {
     if (subCategoryFilter) {
       list = list.filter(e => e.subCategoryId === subCategoryFilter);
     }
+    if (categoryFilter) {
+      list = list.filter(e => e.categoryId === categoryFilter);
+    }
     return list;
-  }, [state.expenses, statusFilter, searchQuery, subCategoryFilter]);
+  }, [state.expenses, statusFilter, searchQuery, subCategoryFilter, categoryFilter]);
 
   const totalSpent = useMemo(() => filteredExpenses.reduce((sum, e) => sum + e.amount, 0), [filteredExpenses]);
 
@@ -231,6 +235,23 @@ const ExpensePage: React.FC = () => {
       grouped[cid] = filteredExpenses.filter(e => e.categoryId === cid);
     });
     return grouped;
+  }, [filteredExpenses]);
+
+  const expensesByDate = useMemo(() => {
+    const grouped: Record<string, Expense[]> = {};
+    filteredExpenses.forEach(e => {
+      if (!grouped[e.date]) {
+        grouped[e.date] = [];
+      }
+      grouped[e.date].push(e);
+    });
+    // 按日期降序排列
+    const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+    const sorted: Record<string, Expense[]> = {};
+    sortedDates.forEach(date => {
+      sorted[date] = grouped[date];
+    });
+    return sorted;
   }, [filteredExpenses]);
 
   const handleImportJSON = () => {
@@ -409,6 +430,17 @@ const ExpensePage: React.FC = () => {
                   {opt.label}
                 </button>
               ))}
+              <select
+                className="input"
+                style={{ fontSize: 12, padding: '6px 10px', minWidth: 100 }}
+                value={categoryFilter}
+                onChange={e => setCategoryFilter(e.target.value)}
+              >
+                <option value="">全部分类</option>
+                {Object.entries(CATEGORY_NAMES).map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
               <button className="btn btn-primary btn-sm show-mobile" onClick={openAddModal}>
                 <IconPlus size={14} /> 记一笔
               </button>
@@ -428,7 +460,7 @@ const ExpensePage: React.FC = () => {
               <button
                 className="btn btn-ghost btn-sm"
                 style={{ fontSize: 11, whiteSpace: 'nowrap' }}
-                onClick={() => setExpandedCats(new Set(['hard', 'material', 'equipment', 'soft', 'service']))}
+                onClick={() => setExpandedCats(new Set(Object.keys(expensesByDate)))}
               >
                 全部展开
               </button>
@@ -528,27 +560,29 @@ const ExpensePage: React.FC = () => {
               </div>
             ) : (
               <div className="expense-accordion">
-                {['hard', 'material', 'equipment', 'soft', 'service'].map(cid => {
-                  const catExpenses = expensesByCategory[cid] || [];
-                  if (catExpenses.length === 0) return null;
-                  const isOpen = expandedCats.has(cid);
-                  const catTotal = catExpenses.reduce((s, e) => s + e.amount, 0);
+                {Object.entries(expensesByDate).map(([date, dateExpenses]) => {
+                  if (dateExpenses.length === 0) return null;
+                  const isOpen = expandedCats.has(date);
+                  const dateTotal = dateExpenses.reduce((s, e) => s + e.amount, 0);
+                  const dateObj = new Date(date);
+                  const weekDay = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][dateObj.getDay()];
                   return (
-                    <div key={cid} className={`expense-cat-group ${isOpen ? 'open' : ''}`}>
+                    <div key={date} className={`expense-cat-group ${isOpen ? 'open' : ''}`}>
                       <div
                         className="expense-cat-header"
-                        onClick={() => toggleCat(cid)}
+                        onClick={() => toggleCat(date)}
                         role="button"
                         tabIndex={0}
                         aria-expanded={isOpen}
                       >
                         <div className="expense-cat-header-left">
-                          <span className="expense-cat-dot" style={{ background: CATEGORY_COLORS[cid] }} />
-                          <strong>{CATEGORY_NAMES[cid]}</strong>
-                          <span className="badge badge-default">{catExpenses.length} 笔</span>
+                          <span className="expense-cat-dot" style={{ background: '#6366f1' }} />
+                          <strong>{date}</strong>
+                          <span style={{ fontSize: 11, color: 'var(--fresh-subtle)' }}>{weekDay}</span>
+                          <span className="badge badge-default">{dateExpenses.length} 笔</span>
                         </div>
                         <div className="expense-cat-header-right">
-                          <b>¥{formatAmount(catTotal)}</b>
+                          <b>¥{formatAmount(dateTotal)}</b>
                           <span className={`expense-cat-chevron ${isOpen ? 'open' : ''}`}>
                             <IconChevronDown size={16} />
                           </span>
@@ -556,47 +590,21 @@ const ExpensePage: React.FC = () => {
                       </div>
                       {isOpen && (
                         <div className="expense-cat-body">
-                          {/* SubCategory chips */}
-                          {(() => {
-                            const subIds = [...new Set(catExpenses.map(e => e.subCategoryId).filter(Boolean))];
-                            if (subIds.length === 0) return null;
-                            return (
-                              <div className="expense-stage-chips">
-                                {subIds.map(sid => {
-                                  const sub = state.expenseSubCategories.find(s => s.id === sid);
-                                  const isActive = subCategoryFilter === sid;
-                                  return (
-                                    <button
-                                      key={sid!}
-                                      className={`expense-stage-chip ${isActive ? 'active' : ''}`}
-                                      onClick={(e) => { e.stopPropagation(); setSubCategoryFilter(isActive ? '' : sid!); }}
-                                    >
-                                      {sub?.name || sid}
-                                      {isActive && <IconX size={10} />}
-                                    </button>
-                                  );
-                                })}
-                                {subCategoryFilter && (
-                                  <button className="expense-stage-chip clear" onClick={(e) => { e.stopPropagation(); setSubCategoryFilter(''); }}>
-                                    清除筛选
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })()}
-                          {catExpenses.map(exp => (
+                          {dateExpenses.map(exp => (
                             <div key={exp.id} className={`expense-item ${deleteConfirm === exp.id ? 'deleting' : ''}`}>
                               <div className="expense-item-main">
                                 <div className="expense-item-info">
                                   <span className="expense-item-title">
                                     {exp.title}
+                                    <span className="expense-item-sub-tag" style={{ background: CATEGORY_COLORS[exp.categoryId] + '20', color: CATEGORY_COLORS[exp.categoryId] }}>
+                                      {CATEGORY_NAMES[exp.categoryId]}
+                                    </span>
                                     {exp.subCategoryId && (() => {
                                       const sub = state.expenseSubCategories.find(s => s.id === exp.subCategoryId);
                                       return sub ? <span className="expense-item-sub-tag">{sub.name}</span> : null;
                                     })()}
                                   </span>
                                   <div className="expense-item-meta-row">
-                                    <span className="expense-item-date">{exp.date}</span>
                                     {exp.stageId && (() => {
                                       const s = DEFAULT_STAGES.find(st => st.id === exp.stageId);
                                       return s ? <span className="expense-item-stage-tag">{s.name}</span> : null;
