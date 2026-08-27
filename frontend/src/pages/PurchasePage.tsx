@@ -552,9 +552,13 @@ const PurchasePage: React.FC = () => {
           <span className="purchase-stage-icon">
             <IconCart size={20} />
           </span>
-          <h1>采购参考库</h1>
+          <h1>{activeTab === 'shopping' ? '待购清单' : '采购参考库'}</h1>
         </div>
-        <p className="purchase-subtitle">按装修阶段整理需要采购的物品，勾选后自动同步到首页待购清单。</p>
+        <p className="purchase-subtitle">
+          {activeTab === 'shopping'
+            ? '管理已选择的待购物品，标记已购或移出清单。'
+            : '按装修阶段整理需要采购的物品，勾选后自动同步到首页待购清单。'}
+        </p>
 
         {/* ── Tab switcher + Stats ── */}
         <div className="purchase-tab-container">
@@ -622,14 +626,53 @@ const PurchasePage: React.FC = () => {
         <div className="purchase-shopping-card">
           <div className="purchase-shopping-hd">
             <div className="purchase-shopping-hd-left">
-              <div>
-                <h2 className="purchase-shopping-title">待购清单</h2>
-                <span className="purchase-shopping-sub">
-                  {totalShoppingCount > 0
-                    ? `${pendingShoppingCount} 待购 / ${purchasedShoppingCount} 已购`
-                    : '暂无待购物品'}
+              {/* 筛选下拉框 - 阶段 */}
+              <select
+                name="filterStage"
+                value={filterStage}
+                onChange={e => { setFilterStage(e.target.value); setFilterSubgroup(''); }}
+                style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
+              >
+                <option value="">全部阶段</option>
+                {stagesForFilter.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              {filterStage && (
+                <select
+                  name="filterSubgroup"
+                  value={filterSubgroup}
+                  onChange={e => setFilterSubgroup(e.target.value)}
+                  style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
+                >
+                  <option value="">全部子分组</option>
+                  {filteredSubgroups.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              )}
+              {/* 筛选下拉框 - 分类 */}
+              <select
+                name="filterCategory"
+                value={filterCategory}
+                onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
+                style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
+              >
+                <option value="">全部分类</option>
+                {state.budget.categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+              </select>
+              {filterCategory && (
+                <select
+                  name="filterSubCategory"
+                  value={filterSubCategory}
+                  onChange={e => setFilterSubCategory(e.target.value)}
+                  style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
+                >
+                  <option value="">全部子分类</option>
+                  {filteredSubCategories.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
+                </select>
+              )}
+              {(filterCategory || filterStage) && (
+                <span style={{ fontSize: 11, color: 'var(--fresh-muted)', display: 'flex', alignItems: 'center' }}>
+                  {filteredShoppingItems.length} 项
                 </span>
-              </div>
+              )}
             </div>
             <div className="purchase-shopping-hd-center">
               <div className="purchase-shopping-toggle">
@@ -657,62 +700,11 @@ const PurchasePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Filter bar — stage + category combined */}
-          <div className="purchase-shopping-filter" style={{ display: 'flex', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--fresh-border)', flexWrap: 'wrap', alignItems: 'center' }}>
-            {/* Stage filter */}
-            <select
-              name="filterStage"
-              value={filterStage}
-              onChange={e => { setFilterStage(e.target.value); setFilterSubgroup(''); }}
-              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
-            >
-              <option value="">全部阶段</option>
-              {stagesForFilter.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            {filterStage && (
-              <select
-                name="filterSubgroup"
-                value={filterSubgroup}
-                onChange={e => setFilterSubgroup(e.target.value)}
-                style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
-              >
-                <option value="">全部子分组</option>
-                {filteredSubgroups.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            )}
-            {/* Category filter */}
-            <select
-              name="filterCategory"
-              value={filterCategory}
-              onChange={e => { setFilterCategory(e.target.value); setFilterSubCategory(''); }}
-              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
-            >
-              <option value="">全部分类</option>
-              {state.budget.categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-            </select>
-            {filterCategory && (
-              <select
-                name="filterSubCategory"
-                value={filterSubCategory}
-                onChange={e => setFilterSubCategory(e.target.value)}
-                style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--fresh-border)', background: 'var(--fresh-surface)' }}
-              >
-                <option value="">全部子分类</option>
-                {filteredSubCategories.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
-              </select>
-            )}
-            {(filterCategory || filterStage) && (
-              <span style={{ fontSize: 11, color: 'var(--fresh-muted)', display: 'flex', alignItems: 'center' }}>
-                筛选结果: {filteredShoppingItems.length} 项
-              </span>
-            )}
-          </div>
-
           <div className="purchase-shopping-bd">
             {totalShoppingCount === 0 ? (
               <div style={{ textAlign: 'center', color: '#999', padding: '20px 0' }}>
                 <div style={{ fontSize: 32, marginBottom: 6 }}>📋</div>
-                <div style={{ fontSize: 13 }}>在下方采购参考库中勾选物品，即可加入待购清单</div>
+                <div style={{ fontSize: 13 }}>在采购参考库中勾选物品，即可加入待购清单</div>
               </div>
             ) : (
               <>

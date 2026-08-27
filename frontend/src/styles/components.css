@@ -3737,7 +3737,8 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 .purchase-shopping-hd-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .purchase-shopping-hd-center {
@@ -3926,9 +3927,24 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 /* ── Shopping card mobile ── */
 @media (max-width: 767px) {
   .purchase-shopping-hd {
-    grid-template-columns: auto 1fr auto;
-    gap: 6px;
+    grid-template-columns: 1fr;
+    gap: 10px;
     padding: 10px 14px;
+  }
+
+  .purchase-shopping-hd-left {
+    order: 2;
+    flex-wrap: wrap;
+  }
+
+  .purchase-shopping-hd-center {
+    order: 1;
+    justify-self: start;
+  }
+
+  .purchase-shopping-hd-right {
+    order: 3;
+    justify-self: start;
   }
 
   .purchase-shopping-hd-center {
@@ -3945,14 +3961,6 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   }
 
   .purchase-shopping-link {
-    display: none;
-  }
-
-  .purchase-shopping-title {
-    font-size: 14px;
-  }
-
-  .purchase-shopping-sub {
     display: none;
   }
 
