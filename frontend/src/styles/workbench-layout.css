@@ -277,6 +277,13 @@
   }
 }
 
+/* ---- 装修流程页面全宽 ---- */
+:root[data-desktop-layout="desktop-sidebar-workbench"] .flow-page {
+  width: 100%;
+  margin: 0;
+  max-width: none;
+}
+
 /* ---- 焦点样式 ---- */
 :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-nav-item:focus-visible,
 :root[data-desktop-layout="desktop-sidebar-workbench"] .wb-brand-link:focus-visible,
