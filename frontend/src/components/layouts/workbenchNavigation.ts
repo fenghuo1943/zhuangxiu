@@ -3,7 +3,7 @@
  * 唯一导航配置源，供 WorkbenchSidebar 消费
  */
 import React from 'react';
-import { IconHome, IconFlow, IconShopping, IconExpense, IconCompare, IconBook, IconUser, IconTools } from '../common/Icons';
+import { IconHome, IconFlow, IconShopping, IconExpense, IconCompare, IconBook, IconUser, IconTools, IconDiary } from '../common/Icons';
 
 export interface NavItem {
   id: string;
@@ -22,6 +22,7 @@ export const workbenchNavItems: NavItem[] = [
   { id: 'compare', label: '比价选品', href: '/compare', icon: React.createElement(IconCompare, { size: 18 }), group: 'workspace' },
   // 辅助工具
   { id: 'tools', label: '实用工具', href: '/tools', icon: React.createElement(IconTools, { size: 18 }), group: 'tools' },
+  { id: 'diary', label: '装修日记', href: '/diary', icon: React.createElement(IconDiary, { size: 18 }), group: 'tools' },
   { id: 'tips', label: '装修技巧', href: '/tips', icon: React.createElement(IconBook, { size: 18 }), group: 'tools' },
   { id: 'account', label: '我的', href: '/account', icon: React.createElement(IconUser, { size: 18 }), group: 'tools' },
 ];

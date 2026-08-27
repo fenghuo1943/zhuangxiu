@@ -49,6 +49,7 @@ class Project(Base):
     custom_flow_steps = relationship("CustomFlowStep", back_populates="project", cascade="all, delete-orphan")
     compare_items = relationship("ProjectCompareItem", back_populates="project", cascade="all, delete-orphan")
     sub_categories = relationship("ExpenseSubCategory", back_populates="project", cascade="all, delete-orphan")
+    diaries = relationship("RenovationDiary", back_populates="project", cascade="all, delete-orphan")
 
 
 class Budget(Base):
@@ -365,3 +366,24 @@ class UserPreference(Base):
     updated_at = Column(DateTime, default=_now, onupdate=_now, nullable=False)
 
     user = relationship("User", back_populates="preference")
+
+
+class RenovationDiary(Base):
+    """装修日记表"""
+    __tablename__ = "renovation_diaries"
+    __table_args__ = (
+        Index("idx_diaries_project_date", "project_id", "date"),
+        Index("idx_diaries_project_stage", "project_id", "stage_parent"),
+        {"comment": "装修日记表"},
+    )
+    id = Column(String(36), primary_key=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    date = Column(Date, nullable=False, index=True)
+    stage_parent = Column(String(100), nullable=False)
+    content = Column(Text, nullable=False, default="")
+    images = Column(JSON, default=list)
+    created_at = Column(DateTime, default=_now, nullable=False)
+    updated_at = Column(DateTime, default=_now, onupdate=_now, nullable=False)
+
+    project = relationship("Project", back_populates="diaries")

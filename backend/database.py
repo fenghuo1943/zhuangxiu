@@ -149,6 +149,27 @@ async def _migrate_integration(conn):
     except (sqlite3.OperationalError, Exception):
         pass
 
+    # --- v13: create renovation_diaries table (idempotent) ---
+    try:
+        await conn.run_sync(
+            lambda c: c.exec_driver_sql(
+                "CREATE TABLE IF NOT EXISTS renovation_diaries ("
+                "id VARCHAR(36) PRIMARY KEY, "
+                "project_id VARCHAR(36) NOT NULL, "
+                "title VARCHAR(200) NOT NULL, "
+                "date DATE NOT NULL, "
+                "stage_parent VARCHAR(100) NOT NULL, "
+                "content TEXT NOT NULL DEFAULT '', "
+                "images JSON, "
+                "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                "updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                "FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE"
+                ")"
+            )
+        )
+    except (sqlite3.OperationalError, Exception):
+        pass
+
 
 async def _recalc_all_spent(session):
     """Recalculate spent and unpaid_spent for all budget categories across all projects on startup."""

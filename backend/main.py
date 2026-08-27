@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from .database import init_db, get_db
 from .models import FlowStage as FlowStageModel
 from .schemas import FlowStageOut
-from .routers import auth, projects, budget, todos, expenses, flow, purchase, compare, sync, knowledge, upload, tips, subcategories, user_preferences
+from .routers import auth, projects, budget, todos, expenses, flow, purchase, compare, sync, knowledge, upload, tips, subcategories, user_preferences, diaries
 from .seed_subcategories import seed_subcategories
 
 
@@ -64,6 +64,7 @@ app.include_router(upload.router)
 app.include_router(tips.router)
 app.include_router(subcategories.router)
 app.include_router(user_preferences.router)
+app.include_router(diaries.router)
 
 # Mount static files for uploaded images
 _public_dir = Path(__file__).resolve().parent.parent / "frontend" / "public"

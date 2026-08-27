@@ -530,3 +530,32 @@ class ThemePreferenceOut(ThemePreferenceUpdate):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ---- Renovation Diary ----
+class DiaryCreate(BaseModel):
+    title: str = Field(..., max_length=200)
+    date: DateValue
+    stage_parent: str = Field(..., max_length=100)
+    content: str = Field("", max_length=10000)
+    images: list[str] = []
+
+class DiaryUpdate(BaseModel):
+    title: Optional[str] = Field(None, max_length=200)
+    date: Optional[DateValue] = None
+    stage_parent: Optional[str] = Field(None, max_length=100)
+    content: Optional[str] = Field(None, max_length=10000)
+    images: Optional[list[str]] = None
+
+class DiaryOut(BaseModel):
+    id: str
+    project_id: str
+    title: str
+    date: DateValue
+    stage_parent: str
+    content: str
+    images: list[str]
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}

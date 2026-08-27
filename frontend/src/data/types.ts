@@ -277,3 +277,17 @@ export interface Tip {
   created_at: string;
   updated_at?: string;
 }
+
+// ==================== Renovation Diary ====================
+
+export interface Diary {
+  id: string;
+  project_id: string;
+  title: string;
+  date: string;
+  stage_parent: string;
+  content: string;
+  images: string[];
+  created_at: string;
+  updated_at?: string;
+}
