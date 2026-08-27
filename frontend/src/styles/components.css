@@ -261,6 +261,7 @@
 .card-bd { padding: 16px 18px 18px; }
 
 .card-title-row { display: flex; align-items: center; gap: 10px; }
+#homeBudgetCard .card-title-row { justify-content: space-between; }
 .card-title-row h3 { font-size: 15px; font-weight: 600; }
 .card-subtitle { font-size: 11px; color: var(--fresh-subtle); font-weight: 650; }
 .card-header-actions { display: flex; align-items: center; gap: 8px; }
@@ -1052,6 +1053,69 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   width: 36px;
   text-align: right;
   flex-shrink: 0;
+}
+
+/* --- Unpaid Toggle (header) --- */
+.budget-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.budget-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.budget-toggle-checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.budget-toggle-slider {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  background: #ccc;
+  border-radius: 8px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.budget-toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.budget-toggle-checkbox:checked + .budget-toggle-slider {
+  background: var(--fresh-accent, #e45b3f);
+}
+.budget-toggle-checkbox:checked + .budget-toggle-slider::after {
+  transform: translateX(12px);
+}
+.budget-toggle-checkbox:focus-visible + .budget-toggle-slider {
+  outline: 2px solid var(--fresh-accent, #e45b3f);
+  outline-offset: 2px;
+}
+.budget-toggle-text {
+  font-size: 11px;
+  color: var(--fresh-text-secondary, #666);
+}
+.budget-unpaid-hint {
+  font-size: 10px;
+  color: #be7b2f;
+  background: rgba(190, 123, 47, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
 /* --- Empty State --- */

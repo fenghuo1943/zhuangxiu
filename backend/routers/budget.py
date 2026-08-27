@@ -101,9 +101,27 @@ async def get_budget(project_id: str, user: User = Depends(get_current_user), db
             await db.execute(delete(BudgetCategory).where(BudgetCategory.id == stale_id, BudgetCategory.project_id == sid))
         await db.commit()
         categories = list(seen_frontend_keys.values())
+
+    # Ensure unpaid_spent is up-to-date by recalculating from expenses
+    from ..models import Expense
+    exp_result = await db.execute(
+        select(Expense).where(Expense.project_id == sid, Expense.status == "unpaid")
+    )
+    unpaid_expenses = exp_result.scalars().all()
+    unpaid_totals: dict[str, float] = {}
+    for e in unpaid_expenses:
+        key = _category_key(e.category_id)
+        unpaid_totals[key] = unpaid_totals.get(key, 0.0) + e.amount
+
+    cats_out = []
+    for c in categories:
+        cat_out = _frontend_cat_id(c, sid)
+        cat_out.unpaid_spent = unpaid_totals.get(_category_key(c.id, sid), 0.0)
+        cats_out.append(cat_out)
+
     return BudgetOut(
         total=budget.total if budget else 0.0,
-        categories=[_frontend_cat_id(c, sid) for c in categories],
+        categories=cats_out,
     )
 
 
@@ -213,23 +231,28 @@ async def update_category_allocation(project_id: str, category_id: str, data: Ca
 
 @router.post("/recalc")
 async def recalc_budget_spent(project_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    """Recalculate budget category spent from actual paid/prepaid expenses."""
+    """Recalculate budget category spent (paid) and unpaid_spent from actual expenses."""
     from ..models import Expense
 
     sid = await _ensure_project(project_id, user, db)
 
     result = await db.execute(
-        select(Expense).where(Expense.project_id == sid, Expense.status.in_(["paid", "prepaid"]))
+        select(Expense).where(Expense.project_id == sid)
     )
     expenses = result.scalars().all()
-    totals: dict[str, float] = {}
+    paid_totals: dict[str, float] = {}
+    unpaid_totals: dict[str, float] = {}
     for e in expenses:
         key = _category_key(e.category_id)
-        totals[key] = totals.get(key, 0.0) + e.amount
+        if e.status in ("paid", "prepaid"):
+            paid_totals[key] = paid_totals.get(key, 0.0) + e.amount
+        elif e.status == "unpaid":
+            unpaid_totals[key] = unpaid_totals.get(key, 0.0) + e.amount
 
     cat_result = await db.execute(select(BudgetCategory).where(BudgetCategory.project_id == sid))
     for cat in cat_result.scalars():
-        cat.spent = totals.get(_category_key(cat.id, sid), 0.0)
+        cat.spent = paid_totals.get(_category_key(cat.id, sid), 0.0)
+        cat.unpaid_spent = unpaid_totals.get(_category_key(cat.id, sid), 0.0)
 
     await db.commit()
     return {"status": "ok", "recalculated": len(expenses)}

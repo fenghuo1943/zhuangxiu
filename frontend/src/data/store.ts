@@ -86,7 +86,7 @@ function getInitialState(): AppState {
         projects: parsed.projects || [{ id: 'p1', name: '新家装修', ownerName: '我', createdAt: new Date().toISOString(), currentStageId: 'stage_prepare' }],
         activeProjectId: parsed.activeProjectId || 'p1',
         stages: parsed.stages || DEFAULT_STAGES,
-        budget: parsed.budget || { total: 0, spent: 0, categories: DEFAULT_BUDGET_CATEGORIES.map(c => ({ ...c, allocated: 0, spent: 0 })) },
+        budget: parsed.budget || { total: 0, spent: 0, categories: DEFAULT_BUDGET_CATEGORIES.map(c => ({ ...c, allocated: 0, spent: 0, unpaid_spent: 0 })) },
         todos: parsed.todos || [],
         purchaseItems: parsed.purchaseItems || [],
         purchaseReferences: parsed.purchaseReferences || PURCHASE_REFERENCES,
@@ -107,6 +107,7 @@ function getInitialState(): AppState {
         compareItems: (parsed.compareItems || []).map(_normalizeStoredCompareItem),
         projectCompareItemIds: parsed.projectCompareItemIds || [],
         projectStates: parsed.projectStates || {},
+        showUnpaid: parsed.showUnpaid ?? false,
         expenseSubCategories: parsed.expenseSubCategories || DEFAULT_SUB_CATEGORIES,
         expenseGroups: parsed.expenseGroups || DEFAULT_EXPENSE_GROUPS,
       };
@@ -119,7 +120,7 @@ function getInitialState(): AppState {
     projects: [{ id: 'p1', name: '新家装修', ownerName: '我', createdAt: new Date().toISOString(), currentStageId: 'stage_prepare' }],
     activeProjectId: 'p1',
     stages: DEFAULT_STAGES,
-    budget: { total: 0, spent: 0, categories: DEFAULT_BUDGET_CATEGORIES.map(c => ({ ...c, allocated: 0, spent: 0 })) },
+    budget: { total: 0, spent: 0, categories: DEFAULT_BUDGET_CATEGORIES.map(c => ({ ...c, allocated: 0, spent: 0, unpaid_spent: 0 })) },
     todos: [],
     purchaseItems: [],
     purchaseReferences: PURCHASE_REFERENCES,
@@ -140,6 +141,7 @@ function getInitialState(): AppState {
     compareItems: [],
     projectCompareItemIds: [],
     projectStates: {},
+    showUnpaid: false,
     expenseSubCategories: DEFAULT_SUB_CATEGORIES,
     expenseGroups: DEFAULT_EXPENSE_GROUPS,
   };
@@ -306,6 +308,12 @@ export function getBudgetUsageRate(): number {
   return Math.round((globalState.budget.spent / globalState.budget.total) * 100);
 }
 
+export function toggleShowUnpaid() {
+  globalState = { ...globalState, showUnpaid: !globalState.showUnpaid };
+  notify();
+  persist();
+}
+
 // ==================== Todo Actions ====================
 
 export function addTodo(title: string, stageId: string, flowStepId?: string, plannedStartDate?: string) {
@@ -467,9 +475,15 @@ export function togglePurchaseRef(itemId: string, deleteExpense: boolean = false
       const expense = globalState.expenses.find(e => e.id === expenseId);
       if (expense) {
         const expenses = globalState.expenses.filter(e => e.id !== expenseId);
-        const categories = globalState.budget.categories.map(c =>
-          c.id === expense.categoryId ? { ...c, spent: Math.max(0, c.spent - expense.amount) } : c
-        );
+        const categories = globalState.budget.categories.map(c => {
+          if (c.id !== expense.categoryId) return c;
+          if (expense.status === 'paid' || expense.status === 'prepaid') {
+            return { ...c, spent: Math.max(0, c.spent - expense.amount) };
+          } else if (expense.status === 'unpaid') {
+            return { ...c, unpaid_spent: Math.max(0, c.unpaid_spent - expense.amount) };
+          }
+          return c;
+        });
         globalState = {
           ...globalState,
           expenses,
@@ -644,11 +658,15 @@ export function deletePurchaseRefItem(itemId: string, deleteExpense: boolean = f
     const expense = globalState.expenses.find(e => e.id === expenseId);
     if (expense) {
       expenses = expenses.filter(e => e.id !== expenseId);
-      if (expense.status === 'paid' || expense.status === 'prepaid') {
-        categories = categories.map(c =>
-          c.id === expense.categoryId ? { ...c, spent: Math.max(0, c.spent - expense.amount) } : c
-        );
-      }
+      categories = categories.map(c => {
+        if (c.id !== expense.categoryId) return c;
+        if (expense.status === 'paid' || expense.status === 'prepaid') {
+          return { ...c, spent: Math.max(0, c.spent - expense.amount) };
+        } else if (expense.status === 'unpaid') {
+          return { ...c, unpaid_spent: Math.max(0, c.unpaid_spent - expense.amount) };
+        }
+        return c;
+      });
     }
   }
   if (expenseId) {
@@ -959,9 +977,12 @@ export function purchaseItem(itemId: string, price: number, categoryId: string):
 
     // 更新预算：之前是 unpaid（未计入），现在计入
     if (oldExpense && oldExpense.status === 'unpaid') {
-      categories = categories.map(c =>
-        c.id === categoryId ? { ...c, spent: c.spent + price } : c
-      );
+      categories = categories.map(c => {
+        if (c.id === categoryId) {
+          return { ...c, spent: c.spent + price, unpaid_spent: Math.max(0, c.unpaid_spent - oldExpense.amount) };
+        }
+        return c;
+      });
     } else if (oldExpense) {
       // 之前已计入，调整金额和分类
       categories = categories.map(c => {
@@ -1078,7 +1099,9 @@ export function unpurchaseItem(itemId: string, deleteExpense: boolean) {
       // 从预算中减去（已支付 → 未支付）
       if (expense.status === 'paid' || expense.status === 'prepaid') {
         categories = categories.map(c =>
-          c.id === expense.categoryId ? { ...c, spent: Math.max(0, c.spent - expense.amount) } : c
+          c.id === expense.categoryId
+            ? { ...c, spent: Math.max(0, c.spent - expense.amount), unpaid_spent: c.unpaid_spent + expense.amount }
+            : c
         );
       }
       // 更新账单状态
@@ -1280,10 +1303,16 @@ export function addExpense(expense: Omit<Expense, 'id' | 'createdAt'>) {
   const expenses = [newExpense, ...globalState.expenses];
   const recentExpenses = expenses.slice(0, 5);
 
-  // Update category spent
-  const categories = globalState.budget.categories.map(c =>
-    c.id === expense.categoryId ? { ...c, spent: c.spent + expense.amount } : c
-  );
+  // Update category spent (paid/prepaid go to spent, unpaid goes to unpaid_spent)
+  const categories = globalState.budget.categories.map(c => {
+    if (c.id !== expense.categoryId) return c;
+    if (expense.status === 'paid' || expense.status === 'prepaid') {
+      return { ...c, spent: c.spent + expense.amount };
+    } else if (expense.status === 'unpaid') {
+      return { ...c, unpaid_spent: c.unpaid_spent + expense.amount };
+    }
+    return c;
+  });
 
   globalState = {
     ...globalState,
@@ -1319,9 +1348,15 @@ export function deleteExpense(expenseId: string) {
   const expenses = globalState.expenses.filter(e => e.id !== expenseId);
   const recentExpenses = expenses.slice(0, 5);
 
-  const categories = globalState.budget.categories.map(c =>
-    c.id === expense.categoryId ? { ...c, spent: Math.max(0, c.spent - expense.amount) } : c
-  );
+  const categories = globalState.budget.categories.map(c => {
+    if (c.id !== expense.categoryId) return c;
+    if (expense.status === 'paid' || expense.status === 'prepaid') {
+      return { ...c, spent: Math.max(0, c.spent - expense.amount) };
+    } else if (expense.status === 'unpaid') {
+      return { ...c, unpaid_spent: Math.max(0, c.unpaid_spent - expense.amount) };
+    }
+    return c;
+  });
 
   globalState = {
     ...globalState,
@@ -1340,10 +1375,38 @@ export function deleteExpense(expenseId: string) {
 
 export function updateExpenseStatus(expenseId: string, status: Expense['status']) {
   assertLoggedIn();
+  const oldExpense = globalState.expenses.find(e => e.id === expenseId);
+  if (!oldExpense) return;
+
   const expenses = globalState.expenses.map(e =>
     e.id === expenseId ? { ...e, status } : e
   );
-  globalState = { ...globalState, expenses };
+
+  // Move amounts between spent and unpaid_spent if status category changed
+  const oldIsPaid = oldExpense.status === 'paid' || oldExpense.status === 'prepaid';
+  const newIsPaid = status === 'paid' || status === 'prepaid';
+  const oldIsUnpaid = oldExpense.status === 'unpaid';
+  const newIsUnpaid = status === 'unpaid';
+
+  let categories = globalState.budget.categories;
+  if (oldIsPaid && newIsUnpaid) {
+    // paid → unpaid: move from spent to unpaid_spent
+    categories = categories.map(c =>
+      c.id === oldExpense.categoryId
+        ? { ...c, spent: Math.max(0, c.spent - oldExpense.amount), unpaid_spent: c.unpaid_spent + oldExpense.amount }
+        : c
+    );
+  } else if (oldIsUnpaid && newIsPaid) {
+    // unpaid → paid: move from unpaid_spent to spent
+    categories = categories.map(c =>
+      c.id === oldExpense.categoryId
+        ? { ...c, unpaid_spent: Math.max(0, c.unpaid_spent - oldExpense.amount), spent: c.spent + oldExpense.amount }
+        : c
+    );
+  }
+
+  globalState = { ...globalState, expenses, budget: { ...globalState.budget, categories } };
+  recalculateBudget();
   notify();
   persist();
 
@@ -1366,11 +1429,19 @@ export function updateExpense(expenseId: string, updates: Partial<Omit<Expense, 
   if (updates.amount !== undefined || updates.categoryId !== undefined) {
     const newAmount = updates.amount ?? old.amount;
     const newCatId = updates.categoryId ?? old.categoryId;
+    const isPaid = old.status === 'paid' || old.status === 'prepaid';
     categories = categories.map(c => {
       let spent = c.spent;
-      if (c.id === old.categoryId) spent -= old.amount;
-      if (c.id === newCatId) spent += newAmount;
-      return { ...c, spent: Math.max(0, spent) };
+      let unpaid = c.unpaid_spent;
+      if (c.id === old.categoryId) {
+        if (isPaid) spent -= old.amount;
+        else if (old.status === 'unpaid') unpaid -= old.amount;
+      }
+      if (c.id === newCatId) {
+        if (isPaid) spent += newAmount;
+        else if (old.status === 'unpaid') unpaid += newAmount;
+      }
+      return { ...c, spent: Math.max(0, spent), unpaid_spent: Math.max(0, unpaid) };
     });
   }
 
@@ -2140,6 +2211,7 @@ export async function loadBudgetAndExpensesFromBackend(): Promise<void> {
           ...c,
           // Use existing spent from backend, fall back to local
           spent: c.spent || (globalState.budget.categories.find(lc => lc.id === c.id)?.spent || 0),
+          unpaid_spent: c.unpaid_spent || (globalState.budget.categories.find(lc => lc.id === c.id)?.unpaid_spent || 0),
         }))
       : globalState.budget.categories;
 
@@ -2184,14 +2256,18 @@ export async function loadBudgetAndExpensesFromBackend(): Promise<void> {
 
 function _recalcSpentFromExpenses() {
   const totals: Record<string, number> = {};
+  const unpaidTotals: Record<string, number> = {};
   globalState.expenses.forEach(e => {
     if (e.status === 'paid' || e.status === 'prepaid') {
       totals[e.categoryId] = (totals[e.categoryId] || 0) + e.amount;
+    } else if (e.status === 'unpaid') {
+      unpaidTotals[e.categoryId] = (unpaidTotals[e.categoryId] || 0) + e.amount;
     }
   });
   globalState.budget.categories = globalState.budget.categories.map(c => ({
     ...c,
     spent: totals[c.id] || 0,
+    unpaid_spent: unpaidTotals[c.id] || 0,
   }));
   recalculateBudget();
 }
@@ -2485,14 +2561,14 @@ export function switchProject(projectId: string) {
   currentStates[globalState.activeProjectId] = {
     budget: {
       total: globalState.budget.total,
-      categories: globalState.budget.categories.map(c => ({ id: c.id, name: c.name, color: c.color, allocated: c.allocated, spent: c.spent })),
+      categories: globalState.budget.categories.map(c => ({ id: c.id, name: c.name, color: c.color, allocated: c.allocated, spent: c.spent, unpaid_spent: c.unpaid_spent })),
     },
     flowDoneStepIds: [...globalState.flowDoneStepIds],
   };
 
   // Load target project state (or defaults)
   const target = currentStates[projectId];
-  const targetBudget = target?.budget || { total: 0, categories: DEFAULT_BUDGET_CATEGORIES.map(c => ({ id: c.id, name: c.name, color: c.color, allocated: 0, spent: 0 })) };
+  const targetBudget = target?.budget || { total: 0, categories: DEFAULT_BUDGET_CATEGORIES.map(c => ({ id: c.id, name: c.name, color: c.color, allocated: 0, spent: 0, unpaid_spent: 0 })) };
   const targetFlowDone = target?.flowDoneStepIds || [];
 
   globalState = {

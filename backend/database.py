@@ -139,25 +139,39 @@ async def _migrate_integration(conn):
     except (sqlite3.OperationalError, Exception):
         pass
 
+    # --- v12: add unpaid_spent column to budget_categories (idempotent) ---
+    try:
+        await conn.run_sync(
+            lambda c: c.exec_driver_sql(
+                "ALTER TABLE budget_categories ADD COLUMN unpaid_spent FLOAT DEFAULT 0"
+            )
+        )
+    except (sqlite3.OperationalError, Exception):
+        pass
+
 
 async def _recalc_all_spent(session):
-    """Recalculate spent for all budget categories across all projects on startup."""
+    """Recalculate spent and unpaid_spent for all budget categories across all projects on startup."""
     from sqlalchemy import select as _sel
     from .models import Expense, BudgetCategory
 
-    result = await session.execute(
-        _sel(Expense).where(Expense.status.in_(["paid", "prepaid"]))
-    )
+    result = await session.execute(_sel(Expense))
     expenses = result.scalars().all()
-    totals: dict[str, float] = {}
+
+    paid_totals: dict[str, float] = {}
+    unpaid_totals: dict[str, float] = {}
     for e in expenses:
         category_key = e.category_id.rsplit("_", 1)[-1]
-        totals[category_key] = totals.get(category_key, 0.0) + e.amount
+        if e.status in ("paid", "prepaid"):
+            paid_totals[category_key] = paid_totals.get(category_key, 0.0) + e.amount
+        elif e.status == "unpaid":
+            unpaid_totals[category_key] = unpaid_totals.get(category_key, 0.0) + e.amount
 
     cat_result = await session.execute(_sel(BudgetCategory))
     for cat in cat_result.scalars():
         category_key = cat.id.rsplit("_", 1)[-1]
-        cat.spent = totals.get(category_key, 0.0)
+        cat.spent = paid_totals.get(category_key, 0.0)
+        cat.unpaid_spent = unpaid_totals.get(category_key, 0.0)
 
     await session.commit()
 

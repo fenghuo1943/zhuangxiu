@@ -23,6 +23,7 @@ export interface BudgetCategory {
   color: string;
   allocated: number;
   spent: number;
+  unpaid_spent: number;
 }
 
 export interface Budget {
@@ -242,10 +243,11 @@ export interface AppState {
   compareItems: CompareItem[];           // items with needs_compare + their models
   projectCompareItemIds: string[];       // item IDs in project compare list
   projectStates: Record<string, ProjectState>;
+  showUnpaid: boolean;                   // 预算面板是否显示未付款金额
 }
 
 export interface ProjectState {
-  budget: { total: number; categories: { id: string; name: string; color: string; allocated: number; spent: number }[] };
+  budget: { total: number; categories: { id: string; name: string; color: string; allocated: number; spent: number; unpaid_spent: number }[] };
   flowDoneStepIds: string[];
 }
 

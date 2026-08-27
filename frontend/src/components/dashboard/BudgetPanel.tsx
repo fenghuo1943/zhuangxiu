@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   useStore, setTotalBudget, setCategoryAllocation, adjustAdjacentBudgets,
-  getBudgetRemaining, getBudgetUsageRate,
+  getBudgetRemaining, getBudgetUsageRate, toggleShowUnpaid,
 } from '../../data/store';
 import type { BudgetCategory } from '../../data/types';
 import { Card, CardHeader, CardBody } from '../common/Card';
@@ -214,9 +214,13 @@ export const BudgetPanel: React.FC = () => {
   const hasBudget = state.budget.total > 0;
   const totalBudget = state.budget.total || 0;
   const spent = state.budget.spent;
-  const remaining = totalBudget > 0 ? getBudgetRemaining() : 0;
-  const usageRate = totalBudget > 0 ? getBudgetUsageRate() : 0;
   const cats = state.budget.categories;
+  const showUnpaid = state.showUnpaid;
+  const unpaidTotal = cats.reduce((s, c) => s + (c.unpaid_spent || 0), 0);
+  const displaySpent = showUnpaid ? spent + unpaidTotal : spent;
+  const remaining = totalBudget > 0 ? getBudgetRemaining() : 0;
+  const displayRemaining = totalBudget > 0 ? totalBudget - displaySpent : 0;
+  const usageRate = totalBudget > 0 ? Math.round((displaySpent / totalBudget) * 100) : 0;
   const totalAllocated = cats.reduce((s, c) => s + c.allocated, 0);
   const overBudget = hasBudget && totalAllocated > state.budget.total;
 
@@ -254,6 +258,23 @@ export const BudgetPanel: React.FC = () => {
         <div className="card-title-row">
           <span className="iconbox iconbox-coral"><IconPiggy size={16} /></span>
           <div><h3>预算设置与阶段分配</h3></div>
+          <div className="budget-header-right">
+            <label className="budget-toggle-label">
+              <input
+                type="checkbox"
+                checked={showUnpaid}
+                onChange={toggleShowUnpaid}
+                className="budget-toggle-checkbox"
+              />
+              <span className="budget-toggle-slider" />
+              <span className="budget-toggle-text">显示未付款</span>
+            </label>
+            {unpaidTotal > 0 && !showUnpaid && (
+              <span className="budget-unpaid-hint">
+                未付 ¥{Math.round(unpaidTotal).toLocaleString()}
+              </span>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardBody>
@@ -261,7 +282,14 @@ export const BudgetPanel: React.FC = () => {
         <div className="budget-summary-bar">
           <div className="budget-summary-left">
             <div className="budget-summary-labels">
-              <span>已支出 ¥{Math.round(spent).toLocaleString()}</span>
+              <span>
+                {showUnpaid ? '已付+未付' : '已支出'} ¥{Math.round(displaySpent).toLocaleString()}
+                {showUnpaid && unpaidTotal > 0 && (
+                  <span style={{ fontSize: '0.75em', opacity: 0.7, marginLeft: 4 }}>
+                    (已付¥{Math.round(spent).toLocaleString()} + 未付¥{Math.round(unpaidTotal).toLocaleString()})
+                  </span>
+                )}
+              </span>
               <span>总预算 ¥{Math.round(totalBudget).toLocaleString()}</span>
             </div>
             <div className="budget-summary-progress">
@@ -270,12 +298,12 @@ export const BudgetPanel: React.FC = () => {
             <div className="budget-summary-labels">
               <span>{usageRate}% 已用</span>
               <span className="budget-remaining-label">
-                剩余 ¥{Math.round(remaining).toLocaleString()}
+                剩余 ¥{Math.round(displayRemaining).toLocaleString()}
               </span>
             </div>
           </div>
           <div className="budget-summary-right">
-            <b>{formatCompact(Math.round(remaining))}</b>
+            <b>{formatCompact(Math.round(displayRemaining))}</b>
             <span>剩余</span>
           </div>
         </div>
@@ -360,7 +388,8 @@ export const BudgetPanel: React.FC = () => {
         {/* ===== Category Detail Rows ===== */}
         <div className="budget-detail-rows">
           {cats.map(cat => {
-            const spentPct = cat.allocated > 0 ? Math.min(100, Math.round((cat.spent / cat.allocated) * 100)) : 0;
+            const catDisplaySpent = showUnpaid ? cat.spent + (cat.unpaid_spent || 0) : cat.spent;
+            const spentPct = cat.allocated > 0 ? Math.min(100, Math.round((catDisplaySpent / cat.allocated) * 100)) : 0;
             return (
               <div key={cat.id} className="budget-detail-row">
                 <span className="budget-detail-dot" style={{ background: cat.color }} />
@@ -374,7 +403,12 @@ export const BudgetPanel: React.FC = () => {
                   </div>
                 </div>
                 <span className="budget-detail-spent" style={{ color: cat.color }}>
-                  ¥{Math.round(cat.spent).toLocaleString()}
+                  ¥{Math.round(catDisplaySpent).toLocaleString()}
+                  {showUnpaid && (cat.unpaid_spent || 0) > 0 && (
+                    <span style={{ fontSize: '0.75em', opacity: 0.7, marginLeft: 2 }}>
+                      (未付¥{Math.round(cat.unpaid_spent).toLocaleString()})
+                    </span>
+                  )}
                 </span>
                 <span className="budget-detail-pct">{spentPct}%</span>
               </div>

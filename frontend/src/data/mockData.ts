@@ -13,11 +13,11 @@ export const DEFAULT_STAGES: Stage[] = [
 ];
 
 export const DEFAULT_BUDGET_CATEGORIES: BudgetCategory[] = [
-  { id: 'hard', name: '硬装工程', color: '#e45b3f', allocated: 0, spent: 0 },
-  { id: 'material', name: '主材选购', color: '#5f9f77', allocated: 0, spent: 0 },
-  { id: 'equipment', name: '设备系统', color: '#5c7fa8', allocated: 0, spent: 0 },
-  { id: 'soft', name: '软装家电', color: '#be7b2f', allocated: 0, spent: 0 },
-  { id: 'service', name: '服务杂项', color: '#9b928b', allocated: 0, spent: 0 },
+  { id: 'hard', name: '硬装工程', color: '#e45b3f', allocated: 0, spent: 0, unpaid_spent: 0 },
+  { id: 'material', name: '主材选购', color: '#5f9f77', allocated: 0, spent: 0, unpaid_spent: 0 },
+  { id: 'equipment', name: '设备系统', color: '#5c7fa8', allocated: 0, spent: 0, unpaid_spent: 0 },
+  { id: 'soft', name: '软装家电', color: '#be7b2f', allocated: 0, spent: 0, unpaid_spent: 0 },
+  { id: 'service', name: '服务杂项', color: '#9b928b', allocated: 0, spent: 0, unpaid_spent: 0 },
 ];
 
 export const DEFAULT_EXPENSE_GROUPS: ExpenseGroup[] = [

@@ -60,6 +60,7 @@ class BudgetCategoryOut(BaseModel):
     color: str
     allocated: float
     spent: float
+    unpaid_spent: float = 0.0
 
     model_config = {"from_attributes": True}
 

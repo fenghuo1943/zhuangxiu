@@ -69,6 +69,7 @@ class BudgetCategory(Base):
     color = Column(String(10), nullable=False)
     allocated = Column(Float, default=0.0)
     spent = Column(Float, default=0.0)
+    unpaid_spent = Column(Float, default=0.0)
 
     project = relationship("Project", back_populates="categories")
 

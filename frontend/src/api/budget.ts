@@ -20,6 +20,7 @@ interface BudgetCategoryApiResponse {
   color: string;
   allocated: number;
   spent: number;
+  unpaid_spent: number;
 }
 
 export interface BudgetData {
@@ -34,6 +35,7 @@ function fromApiCategory(c: BudgetCategoryApiResponse): BudgetCategory {
     color: c.color,
     allocated: c.allocated,
     spent: c.spent,
+    unpaid_spent: c.unpaid_spent || 0,
   };
 }
 
