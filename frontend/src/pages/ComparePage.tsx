@@ -295,10 +295,9 @@ const ComparePage: React.FC = () => {
         <div className="compare-header">
           <div className="compare-header-content">
             <span className="eyebrow">
-              <IconCompare size={14} /> 采购比价
+              <IconCompare size={14} /> 多渠道比价，选最优方案
             </span>
-            <h1>多渠道比价，选最优方案</h1>
-            <p>添加待购物品后，为每个物品收集不同渠道的报价进行对比。</p>
+            <h1>采购比价</h1>
           </div>
           <div className="compare-header-stats">
             <div className="flow-stat">
