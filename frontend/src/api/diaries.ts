@@ -65,6 +65,28 @@ export async function uploadDiaryImage(file: File): Promise<{ url: string; filen
   return res.json();
 }
 
+export async function cleanupUploadedDiaryImages(urls: string[]): Promise<{ deleted_count: number; message: string }> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  const token = getAuthHeaders()['Authorization'];
+  if (token) {
+    headers['Authorization'] = token;
+  }
+
+  const res = await fetch(`${API_BASE}/api/upload/cleanup`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ urls }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function cleanupUnusedImages(): Promise<{ deleted_count: number; message: string }> {
   const headers: Record<string, string> = {};
   const token = getAuthHeaders()['Authorization'];
