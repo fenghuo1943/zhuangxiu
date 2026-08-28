@@ -4,7 +4,8 @@ import { EmptyState } from '../components/common';
 import { IconPlus, IconSearch, IconX, IconDiary, IconImage, IconEdit, IconTrash } from '../components/common/Icons';
 import { useAuth } from '../api/useAuth';
 import { useStore } from '../data/store';
-import { fetchDiaries, fetchDiariesCount, createDiary, updateDiary, deleteDiary, uploadDiaryImage, cleanupUploadedDiaryImages, cleanupUnusedImages } from '../api/diaries';
+import { fetchDiaries, fetchDiariesCount, createDiary, updateDiary, deleteDiary, uploadDiaryImage, cleanupUnusedImages } from '../api/diaries';
+import { usePendingUploadsCleanup } from '../hooks/usePendingUploadsCleanup';
 import type { Diary } from '../data/types';
 
 const DIARY_BANNER = 'diary';
@@ -53,7 +54,13 @@ const DiaryPage: React.FC = () => {
   }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const pendingDraftImageUrlsRef = useRef<string[]>([]);
+  const {
+    pendingUrlsRef: pendingDraftImageUrlsRef,
+    trackUploadedUrls,
+    removeTrackedUrl,
+    clearTrackedUrls,
+    cleanupPendingUploads,
+  } = usePendingUploadsCleanup();
 
   // 获取阶段选项
   const stageOptions = useMemo(() => {
@@ -99,19 +106,8 @@ const DiaryPage: React.FC = () => {
   }, [loadDiaries]);
 
   // ---- Modal actions ----
-  const cleanupPendingDraftImages = useCallback(async () => {
-    const pendingUrls = [...pendingDraftImageUrlsRef.current];
-    pendingDraftImageUrlsRef.current = [];
-    if (pendingUrls.length === 0) return;
-    try {
-      await cleanupUploadedDiaryImages(pendingUrls);
-    } catch (err) {
-      console.warn('清理未保存的日记图片失败:', err);
-    }
-  }, []);
-
   const openAddModal = () => {
-    pendingDraftImageUrlsRef.current = [];
+    clearTrackedUrls();
     setEditingId(null);
     setFormTitle('');
     setFormDate(new Date().toISOString().split('T')[0]);
@@ -123,7 +119,7 @@ const DiaryPage: React.FC = () => {
   };
 
   const openEditModal = (diary: Diary) => {
-    pendingDraftImageUrlsRef.current = [];
+    clearTrackedUrls();
     setEditingId(diary.id);
     setFormTitle(diary.title);
     setFormDate(diary.date);
@@ -138,7 +134,7 @@ const DiaryPage: React.FC = () => {
     setModalOpen(false);
     setEditingId(null);
     setSaveError(null);
-    await cleanupPendingDraftImages();
+    await cleanupPendingUploads();
   };
 
   const handleSave = async () => {
@@ -158,7 +154,7 @@ const DiaryPage: React.FC = () => {
       } else {
         await createDiary(activeProjectId, payload);
       }
-      pendingDraftImageUrlsRef.current = [];
+      clearTrackedUrls();
       closeModal();
       loadDiaries();
     } catch (e: any) {
@@ -208,7 +204,7 @@ const DiaryPage: React.FC = () => {
         urls.push(res.url);
       }
       setFormImages(prev => [...prev, ...urls]);
-      pendingDraftImageUrlsRef.current = [...pendingDraftImageUrlsRef.current, ...urls];
+      trackUploadedUrls(urls);
     } catch (err: any) {
       setSaveError(err.message || '图片上传失败');
     } finally {
@@ -219,7 +215,7 @@ const DiaryPage: React.FC = () => {
 
   const removeImage = (url: string) => {
     setFormImages(prev => prev.filter(u => u !== url));
-    pendingDraftImageUrlsRef.current = pendingDraftImageUrlsRef.current.filter(u => u !== url);
+    removeTrackedUrl(url);
   };
 
   // ---- Unauthenticated state ----
