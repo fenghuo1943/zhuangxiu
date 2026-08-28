@@ -157,6 +157,21 @@ function notify() {
 // 防止多次并发触发整个同步流程（例如多个组件在短时间内调用 syncFromServerAfterLogin）
 let syncInitPromise: Promise<void> | null = null;
 
+// 防止 loadFlowFromBackend 并发调用
+let flowLoadPromise: Promise<void> | null = null;
+
+// 防止 loadCustomFlowSteps 并发调用
+let customFlowLoadPromise: Promise<void> | null = null;
+
+// 防止 loadFlowStagesFromBackend 并发调用（按 flowType 分别保护）
+let flowStagesLoadPromises: Record<string, Promise<void> | null> = {};
+
+// 防止 loadBudgetAndExpensesFromBackend 并发调用
+let budgetExpensesLoadPromise: Promise<void> | null = null;
+
+// 防止 loadCompareItemsFromBackend 并发调用
+let compareItemsLoadPromise: Promise<void> | null = null;
+
 function persist() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(globalState));
@@ -1220,29 +1235,42 @@ export async function loadProjectCompareIdsFromBackend(): Promise<void> {
 /** Load full compare items (with models & quotes) from backend */
 export async function loadCompareItemsFromBackend(): Promise<void> {
   if (!isAuthenticated()) return;
-  try {
-    const { fetchCompareItems } = await import('../api/compare');
-    const items = await fetchCompareItems(globalState.activeProjectId);
-    const normalizedItems = items.map(_normalizeStoredCompareItem);
 
-    // 从后端数据重建 bestQuoteIds（持久化的最优报价选择，跨客户端同步）
-    const bestQuoteIds: Record<string, string> = { ...globalState.bestQuoteIds };
-    for (const ci of normalizedItems) {
-      for (const model of ci.models) {
-        if (model.best_quote_id) {
-          bestQuoteIds[model.id] = model.best_quote_id;
+  // 如果已有加载在进行中，直接返回该 Promise（防止并发调用）
+  if (compareItemsLoadPromise) {
+    return compareItemsLoadPromise;
+  }
+
+  compareItemsLoadPromise = (async () => {
+    try {
+      const { fetchCompareItems } = await import('../api/compare');
+      const items = await fetchCompareItems(globalState.activeProjectId);
+      const normalizedItems = items.map(_normalizeStoredCompareItem);
+
+      // 从后端数据重建 bestQuoteIds（持久化的最优报价选择，跨客户端同步）
+      const bestQuoteIds: Record<string, string> = { ...globalState.bestQuoteIds };
+      for (const ci of normalizedItems) {
+        for (const model of ci.models) {
+          if (model.best_quote_id) {
+            bestQuoteIds[model.id] = model.best_quote_id;
+          }
         }
       }
-    }
 
-    globalState = {
-      ...globalState,
-      compareItems: normalizedItems,
-      bestQuoteIds,
-    };
-    notify();
-    persist();
-  } catch { /* backend unreachable */ }
+      globalState = {
+        ...globalState,
+        compareItems: normalizedItems,
+        bestQuoteIds,
+      };
+      notify();
+      persist();
+    } catch { /* backend unreachable */ }
+    finally {
+      compareItemsLoadPromise = null;
+    }
+  })();
+
+  return compareItemsLoadPromise;
 }
 
 // ── Add purchase item to compare ──
@@ -2170,91 +2198,114 @@ async function syncFlowToBackend() {
 /** Load flow progress from backend, merging with local state */
 export async function loadFlowFromBackend(): Promise<void> {
   if (!isAuthenticated()) return;
-  try {
-    const remote = await fetchFlowProgress(globalState.activeProjectId);
-    // Merge: remote is authoritative for flow_type, done_step_ids, custom_order
-    globalState = {
-      ...globalState,
-      flowType: (remote.flow_type as 'new' | 'old') || globalState.flowType,
-      flowDoneStepIds: remote.done_step_ids || [],
-      flowCustomOrder: remote.custom_order || null,
-    };
-    notify();
-    persist();
-  } catch {
-    // Silently fail — backend may be unreachable
+
+  // 如果已有加载在进行中，直接返回该 Promise（防止并发调用）
+  if (flowLoadPromise) {
+    return flowLoadPromise;
   }
+
+  flowLoadPromise = (async () => {
+    try {
+      const remote = await fetchFlowProgress(globalState.activeProjectId);
+      // Merge: remote is authoritative for flow_type, done_step_ids, custom_order
+      globalState = {
+        ...globalState,
+        flowType: (remote.flow_type as 'new' | 'old') || globalState.flowType,
+        flowDoneStepIds: remote.done_step_ids || [],
+        flowCustomOrder: remote.custom_order || null,
+      };
+      notify();
+      persist();
+    } catch {
+      // Silently fail — backend may be unreachable
+    } finally {
+      flowLoadPromise = null;
+    }
+  })();
+
+  return flowLoadPromise;
 }
 
 /** Load budget and expenses from backend, merging with local state */
 export async function loadBudgetAndExpensesFromBackend(): Promise<void> {
   if (!isAuthenticated()) return;
 
-  const pid = globalState.activeProjectId;
-
-  try {
-    // Load budget
-    const budgetData = await fetchBudget(pid);
-    // Frontend state must only contain keys such as "hard" and "equipment".
-    const categories = budgetData.categories.map(c => ({
-      ...c,
-      id: _categoryKey(c.id),
-    }));
-    // Deduplicate categories by ID (keep last occurrence to prefer newer data)
-    const seen = new Set<string>();
-    const dedupedCategories = categories.filter(c => {
-      if (seen.has(c.id)) return false;
-      seen.add(c.id);
-      return true;
-    });
-    // Preserve existing category IDs if backend returns different set
-    const existingIds = new Set(globalState.budget.categories.map(c => c.id));
-    const mergedCategories = dedupedCategories.length > 0
-      ? dedupedCategories.map(c => ({
-          ...c,
-          // Use existing spent from backend, fall back to local
-          spent: c.spent || (globalState.budget.categories.find(lc => lc.id === c.id)?.spent || 0),
-          unpaid_spent: c.unpaid_spent || (globalState.budget.categories.find(lc => lc.id === c.id)?.unpaid_spent || 0),
-        }))
-      : globalState.budget.categories;
-
-    globalState = {
-      ...globalState,
-      budget: {
-        total: budgetData.total,
-        spent: mergedCategories.reduce((s, c) => s + c.spent, 0),
-        categories: mergedCategories,
-      },
-    };
-    recalculateBudget();
-    notify();
-    persist();
-  } catch {
-    // Backend unreachable, keep local data
+  // 如果已有加载在进行中，直接返回该 Promise（防止并发调用）
+  if (budgetExpensesLoadPromise) {
+    return budgetExpensesLoadPromise;
   }
 
-  try {
-    // Load expenses — backend is authoritative (handles deletions from other devices)
-    const remoteExpenses = await fetchExpenses(pid);
-    // Merge: keep local-only items that don't have the standard exp_ prefix
-    // (old-format items or items created while offline).
-    // Items with exp_ prefix that are absent from remote were deleted elsewhere.
-    const remoteIds = new Set(remoteExpenses.map(e => e.id));
-    const localOnly = globalState.expenses.filter(e => !remoteIds.has(e.id) && !e.id.startsWith('exp_'));
-    const merged = [...remoteExpenses, ...localOnly];
-    merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    globalState = {
-      ...globalState,
-      expenses: merged,
-      recentExpenses: merged.slice(0, 5),
-    };
-    // Recalculate budget spent from backend data
-    _recalcSpentFromExpenses();
-    notify();
-    persist();
-  } catch {
-    // Backend unreachable, keep local data
-  }
+  budgetExpensesLoadPromise = (async () => {
+    const pid = globalState.activeProjectId;
+
+    try {
+      // Load budget
+      const budgetData = await fetchBudget(pid);
+      // Frontend state must only contain keys such as "hard" and "equipment".
+      const categories = budgetData.categories.map(c => ({
+        ...c,
+        id: _categoryKey(c.id),
+      }));
+      // Deduplicate categories by ID (keep last occurrence to prefer newer data)
+      const seen = new Set<string>();
+      const dedupedCategories = categories.filter(c => {
+        if (seen.has(c.id)) return false;
+        seen.add(c.id);
+        return true;
+      });
+      // Preserve existing category IDs if backend returns different set
+      const existingIds = new Set(globalState.budget.categories.map(c => c.id));
+      const mergedCategories = dedupedCategories.length > 0
+        ? dedupedCategories.map(c => ({
+            ...c,
+            // Use existing spent from backend, fall back to local
+            spent: c.spent || (globalState.budget.categories.find(lc => lc.id === c.id)?.spent || 0),
+            unpaid_spent: c.unpaid_spent || (globalState.budget.categories.find(lc => lc.id === c.id)?.unpaid_spent || 0),
+          }))
+        : globalState.budget.categories;
+
+      globalState = {
+        ...globalState,
+        budget: {
+          total: budgetData.total,
+          spent: mergedCategories.reduce((s, c) => s + c.spent, 0),
+          categories: mergedCategories,
+        },
+      };
+      recalculateBudget();
+      notify();
+      persist();
+    } catch {
+      // Backend unreachable, keep local data
+    }
+
+    try {
+      // Load expenses — backend is authoritative (handles deletions from other devices)
+      const remoteExpenses = await fetchExpenses(pid);
+      // Merge: keep local-only items that don't have the standard exp_ prefix
+      // (old-format items or items created while offline).
+      // Items with exp_ prefix that are absent from remote were deleted elsewhere.
+      const remoteIds = new Set(remoteExpenses.map(e => e.id));
+      const localOnly = globalState.expenses.filter(e => !remoteIds.has(e.id) && !e.id.startsWith('exp_'));
+      const merged = [...remoteExpenses, ...localOnly];
+      merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      globalState = {
+        ...globalState,
+        expenses: merged,
+        recentExpenses: merged.slice(0, 5),
+      };
+      // Recalculate budget spent from backend data
+      _recalcSpentFromExpenses();
+      notify();
+      persist();
+    } catch {
+      // Backend unreachable, keep local data
+    } finally {
+      budgetExpensesLoadPromise = null;
+    }
+  })();
+
+  return budgetExpensesLoadPromise;
 }
 
 function _recalcSpentFromExpenses() {
@@ -2413,18 +2464,30 @@ function _convertBackendStages(rawStages: FlowStageRaw[]): FlowStep[] {
 /** Load flow stages from backend and store them */
 export async function loadFlowStagesFromBackend(flowType: 'new' | 'old'): Promise<void> {
   if (!isAuthenticated()) return;
-  try {
-    const raw = await fetchFlowStages(flowType);
-    const steps = _convertBackendStages(raw);
-    globalState = {
-      ...globalState,
-      flowStepsFromBackend: { ...globalState.flowStepsFromBackend, [flowType]: steps },
-    };
-    notify();
-    persist();
-  } catch {
-    // Backend unreachable — fall back to mockData
+
+  // 如果已有相同 flowType 的加载在进行中，直接返回该 Promise（防止并发调用）
+  if (flowStagesLoadPromises[flowType]) {
+    return flowStagesLoadPromises[flowType]!;
   }
+
+  flowStagesLoadPromises[flowType] = (async () => {
+    try {
+      const raw = await fetchFlowStages(flowType);
+      const steps = _convertBackendStages(raw);
+      globalState = {
+        ...globalState,
+        flowStepsFromBackend: { ...globalState.flowStepsFromBackend, [flowType]: steps },
+      };
+      notify();
+      persist();
+    } catch {
+      // Backend unreachable — fall back to mockData
+    } finally {
+      flowStagesLoadPromises[flowType] = null;
+    }
+  })();
+
+  return flowStagesLoadPromises[flowType]!;
 }
 
 /** Merge custom steps into the built-in flow step list */
@@ -2542,17 +2605,29 @@ export async function removeCustomFlowStep(stepId: string): Promise<void> {
 
 export async function loadCustomFlowSteps(): Promise<void> {
   if (!isAuthenticated()) return;
-  try {
-    const steps = await fetchCustomSteps(globalState.activeProjectId, globalState.flowType);
-    globalState = {
-      ...globalState,
-      customFlowSteps: steps,
-    };
-    notify();
-    persist();
-  } catch {
-    // Silently fail — backend may be unreachable
+
+  // 如果已有加载在进行中，直接返回该 Promise（防止并发调用）
+  if (customFlowLoadPromise) {
+    return customFlowLoadPromise;
   }
+
+  customFlowLoadPromise = (async () => {
+    try {
+      const steps = await fetchCustomSteps(globalState.activeProjectId, globalState.flowType);
+      globalState = {
+        ...globalState,
+        customFlowSteps: steps,
+      };
+      notify();
+      persist();
+    } catch {
+      // Silently fail — backend may be unreachable
+    } finally {
+      customFlowLoadPromise = null;
+    }
+  })();
+
+  return customFlowLoadPromise;
 }
 
 // ==================== Project Actions ====================
