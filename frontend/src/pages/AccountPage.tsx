@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import AppShell from '../components/layout/AppShell';
 import { useStore, exportAllData, importAllData, resetAllData } from '../data/store';
 import { useAuth } from '../api/useAuth';
 import { isAuthenticated } from '../api/client';
-import { IconDownload, IconUpload, IconTrash, IconTools, IconCategory, IconPalette } from '../components/common/Icons';
+import { IconDownload, IconUpload, IconTrash, IconTools, IconCategory, IconPalette, IconDiary } from '../components/common/Icons';
+import { cleanupUnusedImages } from '../api/diaries';
 
 const AccountPage: React.FC = () => {
   const state = useStore();
@@ -13,6 +14,18 @@ const AccountPage: React.FC = () => {
   const project = state.projects.find(p => p.id === state.activeProjectId);
   const [importMsg, setImportMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  // ---- Toast ----
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const showToast = useCallback((msg: string) => {
+    setToastMsg(msg);
+    setToastVisible(true);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastVisible(false), 3000);
+  }, []);
 
   const handleExport = () => {
     const json = exportAllData();
@@ -59,6 +72,16 @@ const AccountPage: React.FC = () => {
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  const handleCleanupImages = async () => {
+    if (!window.confirm('确定清理未使用的图片资源？此操作不可恢复。')) return;
+    try {
+      const result = await cleanupUnusedImages();
+      showToast(result.message);
+    } catch (e: any) {
+      showToast(e.message || '清理失败');
+    }
   };
 
   return (
@@ -159,6 +182,23 @@ const AccountPage: React.FC = () => {
           </Link>
         </div>
 
+        {/* Cleanup Images Entry Card */}
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div
+            onClick={handleCleanupImages}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 20, cursor: 'pointer' }}
+          >
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--color-primary-light, #EEF2FF)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+              <IconDiary size={20} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ margin: '0 0 2px', fontSize: 15 }}>🗑️ 清理未用图片</h3>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-muted)' }}>清理所有未被使用的图片资源，释放存储空间</p>
+            </div>
+            <span style={{ fontSize: 18, color: 'var(--color-text-muted)' }}>→</span>
+          </div>
+        </div>
+
         {/* Data Management Card */}
         <div className="card">
           <div className="card-hd"><h3>💾 数据管理</h3></div>
@@ -191,6 +231,11 @@ const AccountPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Toast */}
+      {toastVisible && (
+        <div className="toast success">{toastMsg}</div>
+      )}
     </AppShell>
   );
 };

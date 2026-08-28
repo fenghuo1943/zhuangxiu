@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from pathlib import Path
 from ..database import get_db
-from ..models import User, Project, RenovationDiary, PurchaseRefStage
+from ..models import User, Project, RenovationDiary, PurchaseRefStage, Tip
 from ..schemas import DiaryCreate, DiaryUpdate, DiaryOut
 from ..auth import get_current_user
 import uuid
@@ -22,6 +22,36 @@ def _delete_image_files(images: list[str]):
             filepath = IMAGE_DIR / filename
             if filepath.exists():
                 filepath.unlink()
+
+
+async def _get_all_used_images(user_id: str, db: AsyncSession) -> set[str]:
+    """获取所有被使用的图片URL"""
+    used_images = set()
+
+    # 获取用户的所有项目
+    result = await db.execute(
+        select(Project).where(Project.user_id == user_id)
+    )
+    projects = result.scalars().all()
+
+    for project in projects:
+        # 获取项目下的所有日记图片
+        diary_result = await db.execute(
+            select(RenovationDiary.images).where(RenovationDiary.project_id == project.id)
+        )
+        for (images,) in diary_result:
+            if images:
+                used_images.update(images)
+
+    # 获取用户的所有装修技巧图片
+    tip_result = await db.execute(
+        select(Tip.images).where(Tip.user_id == user_id)
+    )
+    for (images,) in tip_result:
+        if images:
+            used_images.update(images)
+
+    return used_images
 
 router = APIRouter(tags=["Diaries"])
 
@@ -221,3 +251,37 @@ async def delete_diary(
     # 删除日记
     await db.delete(diary)
     await db.commit()
+
+
+@router.post("/api/cleanup-unused-images")
+async def cleanup_unused_images(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """清理未使用的图片资源"""
+    # 确保图片目录存在
+    if not IMAGE_DIR.exists():
+        return {"deleted_count": 0, "message": "图片目录不存在"}
+
+    # 获取所有文件中的图片
+    all_files = set()
+    for file in IMAGE_DIR.iterdir():
+        if file.is_file():
+            all_files.add(f"/assets/flow-images/{file.name}")
+
+    # 获取所有被使用的图片
+    used_images = await _get_all_used_images(user.id, db)
+
+    # 找出未使用的图片
+    unused_images = all_files - used_images
+
+    # 删除未使用的图片
+    deleted_count = 0
+    for img_url in unused_images:
+        filename = img_url.split("/assets/flow-images/")[-1]
+        filepath = IMAGE_DIR / filename
+        if filepath.exists():
+            filepath.unlink()
+            deleted_count += 1
+
+    return {"deleted_count": deleted_count, "message": f"已清理 {deleted_count} 张未使用的图片"}

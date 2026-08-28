@@ -4,7 +4,7 @@ import { EmptyState } from '../components/common';
 import { IconPlus, IconSearch, IconX, IconDiary, IconImage, IconEdit, IconTrash } from '../components/common/Icons';
 import { useAuth } from '../api/useAuth';
 import { useStore } from '../data/store';
-import { fetchDiaries, fetchDiariesCount, createDiary, updateDiary, deleteDiary, uploadDiaryImage } from '../api/diaries';
+import { fetchDiaries, fetchDiariesCount, createDiary, updateDiary, deleteDiary, uploadDiaryImage, cleanupUnusedImages } from '../api/diaries';
 import type { Diary } from '../data/types';
 
 const DIARY_BANNER = 'diary';
@@ -39,6 +39,18 @@ const DiaryPage: React.FC = () => {
   // ---- Image Preview ----
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
+
+  // ---- Toast ----
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const showToast = useCallback((msg: string) => {
+    setToastMsg(msg);
+    setToastVisible(true);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastVisible(false), 3000);
+  }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -152,6 +164,17 @@ const DiaryPage: React.FC = () => {
     }
   };
 
+  // ---- Cleanup unused images ----
+  const handleCleanupImages = async () => {
+    if (!window.confirm('确定清理未使用的图片资源？此操作不可恢复。')) return;
+    try {
+      const result = await cleanupUnusedImages();
+      showToast(result.message);
+    } catch (e: any) {
+      showToast(e.message || '清理失败');
+    }
+  };
+
   // ---- Image upload ----
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -209,9 +232,14 @@ const DiaryPage: React.FC = () => {
             </h2>
             <span className="diary-count">共 {totalCount} 篇</span>
           </div>
-          <button className="btn btn-primary btn-sm" onClick={openAddModal}>
-            <IconPlus size={16} /> 写日记
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-outline btn-sm" onClick={handleCleanupImages}>
+              清理未用图片
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={openAddModal}>
+              <IconPlus size={16} /> 写日记
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -460,6 +488,11 @@ const DiaryPage: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* Toast */}
+      {toastVisible && (
+        <div className="toast success">{toastMsg}</div>
       )}
     </AppShell>
   );
