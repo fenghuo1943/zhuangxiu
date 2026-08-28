@@ -2,11 +2,26 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
+from pathlib import Path
 from ..database import get_db
 from ..models import User, Project, RenovationDiary, PurchaseRefStage
 from ..schemas import DiaryCreate, DiaryUpdate, DiaryOut
 from ..auth import get_current_user
 import uuid
+
+# 图片存储目录
+IMAGE_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "public" / "assets" / "flow-images"
+
+
+def _delete_image_files(images: list[str]):
+    """删除图片文件列表"""
+    for img_url in images:
+        # 从URL提取文件名: /assets/flow-images/xxx.jpg -> xxx.jpg
+        if "/assets/flow-images/" in img_url:
+            filename = img_url.split("/assets/flow-images/")[-1]
+            filepath = IMAGE_DIR / filename
+            if filepath.exists():
+                filepath.unlink()
 
 router = APIRouter(tags=["Diaries"])
 
@@ -158,6 +173,12 @@ async def update_diary(
     if len(images) > 9:
         raise HTTPException(status_code=400, detail="最多上传9张图片")
 
+    # 删除被移除的图片文件
+    if data.images is not None:
+        removed_images = set(diary.images or []) - set(data.images)
+        if removed_images:
+            _delete_image_files(list(removed_images))
+
     # 更新字段
     if data.title is not None:
         diary.title = data.title
@@ -193,6 +214,10 @@ async def delete_diary(
     if not diary:
         raise HTTPException(status_code=404, detail="日记不存在")
 
-    # 删除日记（图片文件由前端管理，后端仅删除数据库记录）
+    # 删除图片文件
+    if diary.images:
+        _delete_image_files(diary.images)
+
+    # 删除日记
     await db.delete(diary)
     await db.commit()
