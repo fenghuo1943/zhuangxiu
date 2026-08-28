@@ -172,6 +172,12 @@ let budgetExpensesLoadPromise: Promise<void> | null = null;
 // 防止 loadCompareItemsFromBackend 并发调用
 let compareItemsLoadPromise: Promise<void> | null = null;
 
+// 防止 loadPurchasedFromBackend 并发调用
+let purchasedLoadPromise: Promise<void> | null = null;
+
+// 防止 loadProjectCompareIdsFromBackend 并发调用
+let projectCompareIdsLoadPromise: Promise<void> | null = null;
+
 function persist() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(globalState));
@@ -1202,34 +1208,60 @@ export function addCompareToSelected(itemId: string) {
 /** Load purchased items from backend */
 export async function loadPurchasedFromBackend(): Promise<void> {
   if (!isAuthenticated()) return;
-  try {
-    const { fetchPurchasedItems } = await import('../api/purchase');
-    const items = await fetchPurchasedItems(globalState.activeProjectId);
-    const purchasedItemIds = items.map(it => it.item_id);
-    const purchasedExpenseMap: Record<string, string> = {};
-    for (const it of items) {
-      if (it.expense_id) {
-        purchasedExpenseMap[it.item_id] = it.expense_id;
+
+  // 如果已有加载在进行中，直接返回该 Promise（防止并发调用）
+  if (purchasedLoadPromise) {
+    return purchasedLoadPromise;
+  }
+
+  purchasedLoadPromise = (async () => {
+    try {
+      const { fetchPurchasedItems } = await import('../api/purchase');
+      const items = await fetchPurchasedItems(globalState.activeProjectId);
+      const purchasedItemIds = items.map(it => it.item_id);
+      const purchasedExpenseMap: Record<string, string> = {};
+      for (const it of items) {
+        if (it.expense_id) {
+          purchasedExpenseMap[it.item_id] = it.expense_id;
+        }
       }
+      // Merge with existing local map (keep local-only entries)
+      const mergedMap = { ...globalState.purchasedExpenseMap, ...purchasedExpenseMap };
+      globalState = { ...globalState, purchasedItemIds, purchasedExpenseMap: mergedMap };
+      notify();
+      persist();
+    } catch { /* backend unreachable */ }
+    finally {
+      purchasedLoadPromise = null;
     }
-    // Merge with existing local map (keep local-only entries)
-    const mergedMap = { ...globalState.purchasedExpenseMap, ...purchasedExpenseMap };
-    globalState = { ...globalState, purchasedItemIds, purchasedExpenseMap: mergedMap };
-    notify();
-    persist();
-  } catch { /* backend unreachable */ }
+  })();
+
+  return purchasedLoadPromise;
 }
 
 /** Load project compare item IDs from backend */
 export async function loadProjectCompareIdsFromBackend(): Promise<void> {
   if (!isAuthenticated()) return;
-  try {
-    const { fetchProjectCompareIds } = await import('../api/purchase');
-    const ids = await fetchProjectCompareIds(globalState.activeProjectId);
-    globalState = { ...globalState, projectCompareItemIds: ids };
-    notify();
-    persist();
-  } catch { /* backend unreachable */ }
+
+  // 如果已有加载在进行中，直接返回该 Promise（防止并发调用）
+  if (projectCompareIdsLoadPromise) {
+    return projectCompareIdsLoadPromise;
+  }
+
+  projectCompareIdsLoadPromise = (async () => {
+    try {
+      const { fetchProjectCompareIds } = await import('../api/purchase');
+      const ids = await fetchProjectCompareIds(globalState.activeProjectId);
+      globalState = { ...globalState, projectCompareItemIds: ids };
+      notify();
+      persist();
+    } catch { /* backend unreachable */ }
+    finally {
+      projectCompareIdsLoadPromise = null;
+    }
+  })();
+
+  return projectCompareIdsLoadPromise;
 }
 
 /** Load full compare items (with models & quotes) from backend */
