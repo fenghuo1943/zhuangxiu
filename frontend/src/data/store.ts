@@ -2861,7 +2861,22 @@ async function syncProjectsFromBackend(): Promise<void> {
   }
 }
 
-/** Call after login to pull server data and merge with local */
+/**
+ * 登录后从服务器拉取数据，与本地状态合并。
+ * 只加载主页（首页）必需的数据，其他页面的数据由各页面组件按需加载。
+ *
+ * 主页需要的数据：
+ * - 项目列表（essential）
+ * - 预算和支出（BudgetPanel, ExpenseSummary）
+ * - 流程进度（ProgressCard, StageRoute）
+ * - 采购参考和已选采购（PurchaseSummary）
+ * - 子分类（expense categorization）
+ *
+ * 其他页面按需加载：
+ * - FlowPage: loadCustomFlowSteps(), loadFlowStagesFromBackend()
+ * - PurchasePage: loadPurchasedFromBackend()
+ * - ComparePage: loadProjectCompareIdsFromBackend(), loadCompareItemsFromBackend()
+ */
 export async function syncFromServerAfterLogin(): Promise<void> {
   if (!isAuthenticated()) return;
 
@@ -2870,15 +2885,18 @@ export async function syncFromServerAfterLogin(): Promise<void> {
 
   syncInitPromise = (async () => {
     try {
+      // 1. 项目列表（essential - 需要知道当前项目）
       await syncProjectsFromBackend();
+      // 2. 预算和支出（主页 BudgetPanel, ExpenseSummary 需要）
       await loadBudgetAndExpensesFromBackend();
+      // 3. 流程进度（主页 ProgressCard, StageRoute 需要）
       await loadFlowFromBackend();
+      // 4. 采购参考（主页 PurchaseSummary 需要）
       await loadPurchaseReferencesFromBackend();
+      // 5. 已选采购（主页 PurchaseSummary 需要）
       await loadSelectedPurchasesFromBackend();
-      await loadPurchasedFromBackend();
-      await loadProjectCompareIdsFromBackend();
-      await loadCompareItemsFromBackend();
-      await loadSubCategoriesFromBackend();  // 加载子分类（默认+项目专属）
+      // 6. 子分类（记账页面需要）
+      await loadSubCategoriesFromBackend();
     } catch {
       // Server unreachable — keep local data
     } finally {

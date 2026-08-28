@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import AppShell from '../components/layout/AppShell';
 import {
   useStore, togglePurchaseRef, addCustomPurchaseItem,
@@ -8,7 +8,7 @@ import {
   getItemBestChannel,
   checkPurchaseReadiness, purchaseItem, getPurchasedExpenseId, unpurchaseItem,
   getSelectedExpenseId, getItemPriceWithSource, updateItemPrice,
-  loadSubCategoriesFromBackend,
+  loadSubCategoriesFromBackend, loadPurchasedFromBackend,
 } from '../data/store';
 import { DEFAULT_BUDGET_CATEGORIES } from '../data/mockData';
 import type { PurchaseReferenceStage, PurchaseReferenceSubgroup, PurchaseReferenceItem } from '../data/types';
@@ -166,6 +166,11 @@ const PurchasePage: React.FC = () => {
     toastTimerRef.current = setTimeout(() => {
       setToastVisible(false);
     }, 1600);
+  }, []);
+
+  // 页面挂载时从后端加载已购商品数据
+  useEffect(() => {
+    loadPurchasedFromBackend();
   }, []);
 
   // ── Stats ──
