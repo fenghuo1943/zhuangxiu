@@ -30,6 +30,8 @@ function getCachedThemePreference(): ThemePreference {
   return DEFAULT_THEME_PREFERENCE;
 }
 
+let themeFetchPromise: Promise<ThemePreference> | null = null;
+
 // ---- Context 类型 ----
 interface ThemeContextValue {
   /** 当前已应用的配置 */
@@ -146,7 +148,11 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      const pref = await fetchThemePreference();
+      // 使用单例 Promise 避免短时间内重复发起相同请求
+      if (!themeFetchPromise) {
+        themeFetchPromise = fetchThemePreference().finally(() => { themeFetchPromise = null; });
+      }
+      const pref = await themeFetchPromise;
       applyTheme(pref);
     } catch (err: any) {
       console.error('Failed to fetch theme preference:', err);

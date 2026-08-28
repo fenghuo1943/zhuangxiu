@@ -24,6 +24,9 @@ function notify() {
   listeners.forEach(l => l());
 }
 
+// 单例初始化 Promise，防止多个组件 mount 导致重复的初始化请求（尤其在 React.StrictMode 下）
+let authInitPromise: Promise<void> | null = null;
+
 export function useAuth(): AuthState & {
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
@@ -35,31 +38,40 @@ export function useAuth(): AuthState & {
   useEffect(() => {
     const cb = () => setTick(t => t + 1);
     listeners.push(cb);
-    // Auto-check auth on mount
+
+    // Auto-check auth on mount — use single shared promise so multiple mounts
+    // (e.g. caused by React.StrictMode in dev) don't trigger duplicated network calls.
     if (globalAuthState.loading) {
-      if (isAuthenticated()) {
-        // 每次访问后台主动轮换一对新令牌（有刷新令牌时），不阻塞页面加载
-        if (getRefreshToken()) {
-          rotateTokens().catch(() => {});
-        }
-        getMe()
-          .then(user => {
-            globalAuthState = { user, loading: false, error: null, isLoggedIn: true };
-            notify();
-            // Pull server data after verifying token is valid
-            syncFromServerAfterLogin();
-          })
-          .catch(() => {
-            clearTokens();
+      if (!authInitPromise) {
+        authInitPromise = (async () => {
+          if (isAuthenticated()) {
+            // 每次访问后台主动轮换一对新令牌（有刷新令牌时），不阻塞页面加载
+            if (getRefreshToken()) {
+              rotateTokens().catch(() => {});
+            }
+            try {
+              const user = await getMe();
+              globalAuthState = { user, loading: false, error: null, isLoggedIn: true };
+              notify();
+              // Pull server data after verifying token is valid
+              // syncFromServerAfterLogin 可能包含多次 API 请求，保证只被触发一次
+              await syncFromServerAfterLogin();
+            } catch (e) {
+              clearTokens();
+              globalAuthState = { user: null, loading: false, error: null, isLoggedIn: false };
+              notify();
+            }
+          } else {
+            // No token stored — not logged in, use local data only
             globalAuthState = { user: null, loading: false, error: null, isLoggedIn: false };
             notify();
-          });
-      } else {
-        // No token stored — not logged in, use local data only
-        globalAuthState = { user: null, loading: false, error: null, isLoggedIn: false };
-        notify();
+          }
+        })().finally(() => {
+          authInitPromise = null;
+        });
       }
     }
+
     return () => { listeners.splice(listeners.indexOf(cb), 1); };
   }, []);
 

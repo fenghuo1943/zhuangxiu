@@ -154,6 +154,9 @@ function notify() {
   listeners.forEach(l => l());
 }
 
+// 防止多次并发触发整个同步流程（例如多个组件在短时间内调用 syncFromServerAfterLogin）
+let syncInitPromise: Promise<void> | null = null;
+
 function persist() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(globalState));
@@ -2787,19 +2790,28 @@ async function syncProjectsFromBackend(): Promise<void> {
 export async function syncFromServerAfterLogin(): Promise<void> {
   if (!isAuthenticated()) return;
 
-  try {
-    await syncProjectsFromBackend();
-    await loadBudgetAndExpensesFromBackend();
-    await loadFlowFromBackend();
-    await loadPurchaseReferencesFromBackend();
-    await loadSelectedPurchasesFromBackend();
-    await loadPurchasedFromBackend();
-    await loadProjectCompareIdsFromBackend();
-    await loadCompareItemsFromBackend();
-    await loadSubCategoriesFromBackend();  // 加载子分类（默认+项目专属）
-  } catch {
-    // Server unreachable — keep local data
-  }
+  // 如果已有进行中的同步，直接复用同一个 Promise，避免重复并发请求
+  if (syncInitPromise) return syncInitPromise;
+
+  syncInitPromise = (async () => {
+    try {
+      await syncProjectsFromBackend();
+      await loadBudgetAndExpensesFromBackend();
+      await loadFlowFromBackend();
+      await loadPurchaseReferencesFromBackend();
+      await loadSelectedPurchasesFromBackend();
+      await loadPurchasedFromBackend();
+      await loadProjectCompareIdsFromBackend();
+      await loadCompareItemsFromBackend();
+      await loadSubCategoriesFromBackend();  // 加载子分类（默认+项目专属）
+    } catch {
+      // Server unreachable — keep local data
+    } finally {
+      syncInitPromise = null;
+    }
+  })();
+
+  return syncInitPromise;
 }
 
 // ==================== Computed Helpers ====================
