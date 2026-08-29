@@ -1478,7 +1478,6 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   min-width: 80px;
   justify-content: center;
 }
-}
 
 /* Desktop/Mobile visibility helpers */
 .desktop-only { display: block; }

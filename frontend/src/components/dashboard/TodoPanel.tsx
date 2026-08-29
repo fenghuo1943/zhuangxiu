@@ -110,7 +110,7 @@ export const TodoPanel: React.FC = () => {
     if (!start && !end) return { text: '无截止日期', color };
     if (start && !end) return { text: `${formatDateCN(start)}-未定`, color };
     if (!start && end) return { text: `未定-${formatDateCN(end)}`, color };
-    return { text: `${formatDateCN(start)}-${formatDateCN(end)}`, color };
+    return { text: `${formatDateCN(start!)}-${formatDateCN(end!)}`, color };
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

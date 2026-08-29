@@ -3,14 +3,7 @@ import type { BudgetCategory } from '../data/types';
 
 interface BudgetApiResponse {
   total: number;
-  categories: Array<{
-    id: string;
-    project_id: string;
-    name: string;
-    color: string;
-    allocated: number;
-    spent: number;
-  }>;
+  categories: BudgetCategoryApiResponse[];
 }
 
 interface BudgetCategoryApiResponse {
