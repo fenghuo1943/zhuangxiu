@@ -1276,7 +1276,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 }
 
 .fresh-todo:hover { background: #fff9f5; }
-.fresh-todo.done { opacity: .55; }
+.fresh-todo.done { opacity: .55; grid-template-columns: 24px minmax(0, 1fr) auto; }
 .fresh-todo.dragging { opacity: .5; }
 .fresh-todo.drag-over { border-color: var(--fresh-coral); }
 
