@@ -5257,7 +5257,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
   .purchase-page-v2 {
     width: 100%;
-    padding: 14px 12px 86px;
+    padding: 14px 12px 10px;
   }
 
   .purchase-page-title-row h1 { font-size: 20px; }
