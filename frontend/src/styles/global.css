@@ -87,3 +87,10 @@ a:hover {
 /* Mobile: < 768px */
 /* Tablet: 768px - 1023px */
 /* Desktop: >= 1024px */
+
+/* ==================== Mobile Hide Utilities ==================== */
+@media (max-width: 767px) {
+  .live-widgets-hide-mobile {
+    display: none !important;
+  }
+}

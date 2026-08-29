@@ -2140,11 +2140,10 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .desktop-only { display: none !important; }
   .mobile-only { display: block; }
 
-  /* Hide stage route, mobile summary cards and top todo on mobile */
-  /* 保证在移动端不显示阶段路线和移动端摘要卡片以及首页顶部待办卡 */
+  /* Hide stage route and mobile summary cards on mobile */
+  /* 保证在移动端不显示阶段路线和移动端摘要卡片 */
   .stage-route-card,
-  .mobile-summary-cards,
-  #homeTodoCard {
+  .mobile-summary-cards {
     display: none !important;
   }
 

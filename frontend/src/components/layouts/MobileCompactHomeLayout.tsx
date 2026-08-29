@@ -7,6 +7,7 @@ import {
   ReminderCard,
   ProgressCard,
   BudgetPanel,
+  TodoPanel,
   TodayFocus,
   PurchaseSummary,
   ExpenseSummary,
@@ -24,8 +25,9 @@ const MobileCompactHomeLayout: React.FC = () => {
         <TodayFocus />
       </section>
 
-      {/* 高频信息前置：待购 + 支出（已隐藏待办） */}
+      {/* 高频信息前置：待办 + 待购 + 支出 */}
       <section className="live-widgets">
+        <TodoPanel />
         <PurchaseSummary />
         <ExpenseSummary />
       </section>
