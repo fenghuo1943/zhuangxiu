@@ -3,7 +3,7 @@ import { useStore, addTodo, toggleTodo, deleteTodo, reorderTodos, getOrderedFlow
 import type { Todo } from '../../data/types';
 import { Card, CardHeader, CardBody } from '../common/Card';
 import { EmptyState } from '../common/EmptyState';
-import { IconCheck, IconTrash, IconCalendar, IconDrag } from '../common/Icons';
+import { IconCheck, IconTrash, IconCalendar, IconDrag, IconPlus } from '../common/Icons';
 import { TodoDetail } from './TodoDetail';
 
 type TodoMode = 'detailed' | 'simple';
@@ -18,6 +18,7 @@ export const TodoPanel: React.FC = () => {
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [isMobileAddOpen, setIsMobileAddOpen] = useState(false);
 
   // 筛选状态
   const [filterStageId, setFilterStageId] = useState<string>('all');
@@ -51,6 +52,7 @@ export const TodoPanel: React.FC = () => {
     addTodo(title, newStageId, newFlowStepId || undefined, newStartDate || undefined);
     setNewTitle('');
     setNewStartDate('');
+    setIsMobileAddOpen(false);
   };
 
   // 格式化日期为中文格式 (MM-DD -> X月X日)
@@ -140,14 +142,25 @@ export const TodoPanel: React.FC = () => {
   return (
     <Card id="homeTodoCard">
       <CardHeader>
-        <div className="card-title-row">
-          <span className="iconbox iconbox-green">
-            <IconCheck size={16} />
-          </span>
-          <div>
-            <h3>待办事项</h3>
-            <span className="card-subtitle">{pendingTodos.length} 项待处理</span>
+        <div className="card-title-row todo-card-title-row">
+          <div className="todo-title-group">
+            <span className="iconbox iconbox-green">
+              <IconCheck size={16} />
+            </span>
+            <div>
+              <h3>待办事项</h3>
+              <span className="card-subtitle">{pendingTodos.length} 项待处理</span>
+            </div>
           </div>
+          <button
+            type="button"
+            className="mobile-todo-add-trigger"
+            aria-label="新增待办"
+            title="新增待办"
+            onClick={() => setIsMobileAddOpen(true)}
+          >
+            <IconPlus size={18} />
+          </button>
         </div>
         <div className="card-header-actions">
           <div className="todo-filters">
@@ -244,6 +257,72 @@ export const TodoPanel: React.FC = () => {
             添加
           </button>
         </div>
+
+        {isMobileAddOpen && (
+          <div className="mobile-todo-modal" onClick={() => setIsMobileAddOpen(false)}>
+            <div className="mobile-todo-modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="mobile-todo-modal-header">
+                <h4>新增待办</h4>
+                <button
+                  type="button"
+                  className="mobile-todo-close"
+                  aria-label="关闭"
+                  onClick={() => setIsMobileAddOpen(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="mobile-todo-form">
+                <input
+                  type="text"
+                  className="input"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="待办内容"
+                  autoFocus
+                />
+                {mode === 'detailed' && (
+                  <>
+                    <select
+                      className="input todo-stage-select"
+                      name="mobileTodoStage"
+                      value={newStageId}
+                      onChange={(e) => setNewStageId(e.target.value)}
+                    >
+                      {currentStage.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="input todo-flow-step-select"
+                      name="mobileTodoFlowStep"
+                      value={newFlowStepId}
+                      onChange={(e) => setNewFlowStepId(e.target.value)}
+                    >
+                      <option value="">不关联阶段</option>
+                      {flowSteps.map(step => (
+                        <option key={step.id} value={step.id}>
+                          {step.order}. {step.title}{step.id === currentStepId ? ' (当前)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="date"
+                      className="input todo-date-input"
+                      name="mobileTodoStartDate"
+                      value={newStartDate}
+                      onChange={(e) => setNewStartDate(e.target.value)}
+                    />
+                  </>
+                )}
+                <button className="btn btn-primary" onClick={handleAdd}>
+                  添加
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Todo List */}
         {projectTodos.length === 0 ? (
