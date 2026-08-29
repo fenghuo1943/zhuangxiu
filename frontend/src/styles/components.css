@@ -1802,7 +1802,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   .home-pro > .hero {
     display: block;
     width: 100%;
-    margin: 0 0 12px;
+    margin: 0;
   }
 
   .hero-card {
@@ -1850,7 +1850,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
     display: grid;
     grid-template-columns: 1fr;
     gap: 10px;
-    margin: 0 0 12px;
+    margin: 0;
   }
 
   .progress-card-pct { font-size: 18px; }
@@ -2222,7 +2222,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   }
 
   .home-pro > .hero,
-  .home-pro > .live-widgets { margin-bottom: 8px; width: 100%; }
+  .home-pro > .live-widgets { margin-bottom: 0; width: 100%; }
   .home-pro > .layout { gap: 8px; }
   .hero-card { width: 100%; box-sizing: border-box; }
 
