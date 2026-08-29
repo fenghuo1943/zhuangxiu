@@ -5,10 +5,8 @@
 import React from 'react';
 import {
   ReminderCard,
-  StageRoute,
   ProgressCard,
   BudgetPanel,
-  TodoPanel,
   TodayFocus,
   PurchaseSummary,
   ExpenseSummary,
@@ -26,17 +24,15 @@ const MobileCompactHomeLayout: React.FC = () => {
         <TodayFocus />
       </section>
 
-      {/* 高频信息前置：待办 + 待购 + 支出 */}
+      {/* 高频信息前置：待购 + 支出（已隐藏待办） */}
       <section className="live-widgets">
-        <TodoPanel />
         <PurchaseSummary />
         <ExpenseSummary />
       </section>
 
-      {/* 进度 + 流程 */}
+      {/* 进度（已隐藏阶段路线） */}
       <section className="live-widgets">
         <ProgressCard />
-        <StageRoute />
       </section>
 
       {/* 其他组件 */}
