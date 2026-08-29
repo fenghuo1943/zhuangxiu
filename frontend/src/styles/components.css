@@ -1954,6 +1954,20 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
     flex-wrap: wrap;
   }
 
+  /* 移动端：待办事项卡片标题行和筛选行分离 */
+  #homeTodoCard .card-hd {
+    flex-wrap: wrap;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+  #homeTodoCard .card-header-actions {
+    flex-basis: 100%;
+    justify-content: flex-end;
+    padding-top: 8px;
+    border-top: 1px solid var(--fresh-line);
+    margin-top: 8px;
+  }
+
   .tool-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
