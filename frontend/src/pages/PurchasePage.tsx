@@ -726,6 +726,7 @@ const PurchasePage: React.FC = () => {
               )}
             </div>
             <div className="purchase-shopping-hd-center">
+              <span></span>
               <div className="purchase-shopping-toggle">
                 <button
                   type="button"
@@ -741,6 +742,34 @@ const PurchasePage: React.FC = () => {
                 >
                   已购{purchasedShoppingCount > 0 ? ` (${purchasedShoppingCount})` : ''}
                 </button>
+              </div>
+              <div className="purchase-shopping-expand-btns">
+                <button
+                  type="button"
+                  className="purchase-shopping-expand-btn"
+                  onClick={() => {
+                    const displayItems = shoppingListView === 'pending'
+                      ? shoppingItemsWithPrice.filter(it => !isItemPurchased(it.itemId))
+                      : shoppingItemsWithPrice.filter(it => isItemPurchased(it.itemId));
+                    const allStageNames = new Set(displayItems.map(it => it.stageParent));
+                    setCollapsedGroups(prev => {
+                      const next = new Set(prev);
+                      allStageNames.forEach(name => next.delete(name));
+                      return next;
+                    });
+                  }}
+                >全部展开</button>
+                <button
+                  type="button"
+                  className="purchase-shopping-expand-btn"
+                  onClick={() => {
+                    const displayItems = shoppingListView === 'pending'
+                      ? shoppingItemsWithPrice.filter(it => !isItemPurchased(it.itemId))
+                      : shoppingItemsWithPrice.filter(it => isItemPurchased(it.itemId));
+                    const allStageNames = new Set(displayItems.map(it => it.stageParent));
+                    setCollapsedGroups(allStageNames);
+                  }}
+                >全部折叠</button>
               </div>
             </div>
             <div className="purchase-shopping-hd-right">
