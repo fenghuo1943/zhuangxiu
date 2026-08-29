@@ -11,8 +11,6 @@ import {
   TodayFocus,
   PurchaseSummary,
   GuideCard,
-  QuickEntries,
-  BackupPanel,
 } from '../dashboard';
 
 const MobileCompactHomeLayout: React.FC = () => {
@@ -41,10 +39,6 @@ const MobileCompactHomeLayout: React.FC = () => {
           <BudgetPanel />
           <GuideCard />
         </div>
-        <aside className="stack">
-          <QuickEntries />
-          <BackupPanel />
-        </aside>
       </section>
     </div>
   );

@@ -47,8 +47,8 @@ const DefaultHomeLayout: React.FC = () => {
         <aside className="stack">
           <PurchaseSummary />
           {!isMobile && <ExpenseSummary />}
-          <QuickEntries />
-          <BackupPanel />
+          {!isMobile && <QuickEntries />}
+          {!isMobile && <BackupPanel />}
         </aside>
       </section>
     </div>
