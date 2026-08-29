@@ -4215,9 +4215,9 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   }
 
   .purchase-shopping-toggle-btn {
-    height: 26px;
-    padding: 0 7px;
-    font-size: 11px;
+    height: 28px;
+    padding: 0 12px;
+    font-size: 12px;
   }
 
   .purchase-shopping-bd {
