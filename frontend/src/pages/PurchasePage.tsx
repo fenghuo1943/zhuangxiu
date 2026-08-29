@@ -561,10 +561,38 @@ const PurchasePage: React.FC = () => {
       <div className="purchase-page-v2">
         {/* ── Page title ── */}
         <div className="purchase-page-title-row">
-          <span className="purchase-stage-icon">
-            <IconCart size={20} />
-          </span>
-          <h1>{activeTab === 'shopping' ? '待购清单' : '采购参考库'}</h1>
+          <div className="purchase-title-left">
+            <span className="purchase-stage-icon">
+              <IconCart size={20} />
+            </span>
+            <h1>{activeTab === 'shopping' ? '待购清单' : '采购参考库'}</h1>
+          </div>
+          {activeTab === 'shopping' && (
+            <button
+              type="button"
+              className="purchase-ref-entry-btn"
+              onClick={() => setActiveTab('reference')}
+              title="采购参考库"
+            >
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+              </svg>
+              参考库
+            </button>
+          )}
+          {activeTab === 'reference' && (
+            <button
+              type="button"
+              className="purchase-ref-entry-btn"
+              onClick={() => setActiveTab('shopping')}
+              title="返回待购清单"
+            >
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+              </svg>
+              待购清单
+            </button>
+          )}
         </div>
         <p className="purchase-subtitle">
           {activeTab === 'shopping'
