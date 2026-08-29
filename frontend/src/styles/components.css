@@ -4187,6 +4187,17 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
     display: none;
   }
 
+  .purchase-page-title-row {
+    position: fixed;
+    top: 4px;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: #fff;
+    padding: 0 12px 10px;
+    margin-bottom: 0;
+  }
+
   .purchase-shopping-hd {
     grid-template-columns: 1fr;
     gap: 10px;
