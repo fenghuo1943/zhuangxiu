@@ -4183,6 +4183,10 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
     border-radius: 0;
   }
 
+  .purchase-subtitle {
+    display: none;
+  }
+
   .purchase-shopping-hd {
     grid-template-columns: 1fr;
     gap: 10px;
