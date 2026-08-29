@@ -530,10 +530,10 @@ export async function loadTodosFromBackend(): Promise<void> {
     try {
       const { fetchTodos } = await import('../api/todos');
       const remoteTodos = await fetchTodos(globalState.activeProjectId);
-      // Convert backend format to frontend format
+      // Convert backend format to frontend format, descope project_id
       const frontendTodos: Todo[] = remoteTodos.map(t => ({
         id: t.id,
-        projectId: t.project_id,
+        projectId: globalState.activeProjectId,  // Use local activeProjectId (descoped)
         title: t.title,
         stageId: t.stage_id,
         flowStepId: undefined,
@@ -544,7 +544,7 @@ export async function loadTodosFromBackend(): Promise<void> {
 
       // Merge: backend is authoritative, but keep local-only todos
       const remoteIds = new Set(frontendTodos.map(t => t.id));
-      const localOnly = globalState.todos.filter(t => !remoteIds.has(t.id) && !t.id.startsWith('todo_'));
+      const localOnly = globalState.todos.filter(t => !remoteIds.has(t.id));
       const merged = [...frontendTodos, ...localOnly];
       merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
