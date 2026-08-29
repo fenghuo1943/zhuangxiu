@@ -3,7 +3,7 @@ import { useStore, addTodo, toggleTodo, deleteTodo, reorderTodos, getOrderedFlow
 import type { Todo } from '../../data/types';
 import { Card, CardHeader, CardBody } from '../common/Card';
 import { EmptyState } from '../common/EmptyState';
-import { IconCheck, IconTrash, IconCalendar, IconDrag, IconPlus } from '../common/Icons';
+import { IconCheck, IconTrash, IconCalendar, IconDrag, IconPlus, IconSearch } from '../common/Icons';
 import { TodoDetail } from './TodoDetail';
 
 type TodoMode = 'detailed' | 'simple';
@@ -23,6 +23,7 @@ export const TodoPanel: React.FC = () => {
   // 筛选状态
   const [filterStageId, setFilterStageId] = useState<string>('all');
   const [filterFlowStepId, setFilterFlowStepId] = useState<string>('all');
+  const [searchKeyword, setSearchKeyword] = useState<string>('');
 
   const projectTodos = state.todos.filter(t => t.projectId === state.activeProjectId);
 
@@ -32,6 +33,11 @@ export const TodoPanel: React.FC = () => {
     if (filterStageId !== 'all' && t.stageId !== filterStageId) return false;
     // 筛选阶段路线
     if (filterFlowStepId !== 'all' && t.flowStepId !== filterFlowStepId) return false;
+    // 筛选关键词
+    if (searchKeyword.trim()) {
+      const keyword = searchKeyword.trim().toLowerCase();
+      if (!t.title.toLowerCase().includes(keyword)) return false;
+    }
     return true;
   });
 
@@ -152,15 +158,28 @@ export const TodoPanel: React.FC = () => {
               <span className="card-subtitle">{pendingTodos.length} 项待处理</span>
             </div>
           </div>
-          <button
-            type="button"
-            className="mobile-todo-add-trigger"
-            aria-label="新增待办"
-            title="新增待办"
-            onClick={() => setIsMobileAddOpen(true)}
-          >
-            <IconPlus size={18} />
-          </button>
+          <div className="todo-header-right">
+            <div className="todo-search-box">
+              <IconSearch size={14} className="todo-search-icon" />
+              <input
+                type="text"
+                className="input todo-search-input"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="搜索待办..."
+                aria-label="搜索待办事项"
+              />
+            </div>
+            <button
+              type="button"
+              className="mobile-todo-add-trigger"
+              aria-label="新增待办"
+              title="新增待办"
+              onClick={() => setIsMobileAddOpen(true)}
+            >
+              <IconPlus size={18} />
+            </button>
+          </div>
         </div>
         <div className="card-header-actions">
           <div className="todo-filters">
@@ -202,6 +221,19 @@ export const TodoPanel: React.FC = () => {
             >
               简洁
             </button>
+          </div>
+          <div className="todo-mobile-search mobile-only">
+            <div className="todo-search-box" style={{ display: 'block', width: '100%' }}>
+              <IconSearch size={14} className="todo-search-icon" />
+              <input
+                type="text"
+                className="input todo-search-input"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="搜索待办..."
+                aria-label="搜索待办事项"
+              />
+            </div>
           </div>
         </div>
       </CardHeader>
