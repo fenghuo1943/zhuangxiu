@@ -154,6 +154,17 @@ const PurchasePage: React.FC = () => {
     hasExpense: boolean;
   } | null>(null);
 
+  // Collapsed shopping groups on mobile
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroupCollapse = (stageName: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(stageName)) next.delete(stageName); else next.add(stageName);
+      return next;
+    });
+  };
+
   // Toast
   const [toastMsg, setToastMsg] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
@@ -807,10 +818,23 @@ const PurchasePage: React.FC = () => {
                           </div>
                         );
                       }
-                      return Array.from(grouped.entries()).map(([stageName, items]) => (
-                        <div key={stageName} className="purchase-shopping-group">
-                          <div className="purchase-shopping-group-label">{stageName}</div>
-                          {items.map(item => {
+                      return Array.from(grouped.entries()).map(([stageName, items]) => {
+                        const isGroupCollapsed = collapsedGroups.has(stageName);
+                        return (
+                        <div key={stageName} className={`purchase-shopping-group${isGroupCollapsed ? ' collapsed' : ''}`}>
+                          <div
+                            className="purchase-shopping-group-label purchase-shopping-group-toggle"
+                            onClick={() => toggleGroupCollapse(stageName)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') toggleGroupCollapse(stageName); }}
+                          >
+                            <span>{stageName}</span>
+                            <span className="purchase-shopping-group-chevron">
+                              <IconChevron size={14} open={!isGroupCollapsed} />
+                            </span>
+                          </div>
+                          {!isGroupCollapsed && items.map(item => {
                             const purchased = isItemPurchased(item.itemId);
                             const isEditing = editingShoppingId === item.itemId;
                             return (
@@ -1050,7 +1074,8 @@ const PurchasePage: React.FC = () => {
                             );
                           })}
                         </div>
-                      ));
+                      );
+                      });
                     })()}
                   </div>
                 )}

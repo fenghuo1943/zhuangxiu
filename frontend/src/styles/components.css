@@ -4101,6 +4101,23 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   margin-bottom: 4px;
 }
 
+.purchase-shopping-group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: default;
+}
+
+.purchase-shopping-group-chevron {
+  display: none;
+  color: #bbb;
+  transition: transform .2s;
+}
+
+.purchase-shopping-group.collapsed .purchase-shopping-group-label {
+  margin-bottom: 0;
+}
+
 .purchase-shopping-row {
   display: flex;
   align-items: center;
@@ -4253,6 +4270,31 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
     background: #fff;
     border-radius: 10px;
     padding: 8px 10px;
+  }
+
+  .purchase-shopping-group-toggle {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  .purchase-shopping-group-toggle:active {
+    opacity: .7;
+  }
+
+  .purchase-shopping-group-chevron {
+    display: flex;
+    align-items: center;
+  }
+
+  .purchase-shopping-group.collapsed {
+    padding: 6px 10px;
+  }
+
+  .purchase-shopping-group.collapsed .purchase-shopping-group-label {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding: 2px 0;
   }
 }
 
