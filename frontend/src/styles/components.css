@@ -4231,6 +4231,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
   .purchase-shopping-bd {
     margin-top: 10px;
+    padding: 0;
   }
 
   .purchase-shopping-group {
