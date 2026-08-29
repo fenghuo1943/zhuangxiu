@@ -2278,7 +2278,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 /* Small phones */
 @media (max-width: 680px) {
   .home-pro {
-    padding: 10px 10px 78px;
+    padding: 10px 10px 10px;
     gap: 8px;
   }
 
