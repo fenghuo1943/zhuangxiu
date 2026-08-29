@@ -4176,6 +4176,13 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 /* ── Shopping card mobile ── */
 @media (max-width: 767px) {
+  .purchase-shopping-card {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
   .purchase-shopping-hd {
     grid-template-columns: 1fr;
     gap: 10px;
