@@ -113,7 +113,8 @@ export const PurchaseSummary: React.FC = () => {
 
   // Group items by stage parent for display
   const grouped = new Map<string, SelectedItemInfo[]>();
-  const displayItems = showPurchased ? selectedItems : [...pendingItems, ...purchasedItems];
+  // 默认只显示待购物品，点击按钮后才显示已购物品
+  const displayItems = showPurchased ? purchasedItems : pendingItems;
   displayItems.forEach(item => {
     const list = grouped.get(item.stageParent) || [];
     list.push(item);
@@ -191,19 +192,11 @@ export const PurchaseSummary: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* Pending items */}
-              {pendingItems.length === 0 && purchasedItems.length > 0 ? (
+              {/* 当前显示的物品列表 */}
+              {displayItems.length === 0 ? (
                 <div className="empty-state" style={{ padding: '12px 0' }}>
-                  <div className="empty-state-icon">🎉</div>
-                  <p className="empty-state-title">全部已购</p>
-                  <p className="empty-state-desc">
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setShowPurchased(!showPurchased)}
-                    >
-                      {showPurchased ? '隐藏' : '查看'}已购物品
-                    </button>
-                  </p>
+                  <div className="empty-state-icon">{showPurchased ? '📦' : '🎉'}</div>
+                  <p className="empty-state-title">{showPurchased ? '暂无已购物品' : '全部已购'}</p>
                 </div>
               ) : (
                 <div className="purchase-summary-list">
@@ -216,14 +209,14 @@ export const PurchaseSummary: React.FC = () => {
                 </div>
               )}
 
-              {/* Purchased toggle */}
-              {purchasedItems.length > 0 && pendingItems.length > 0 && (
+              {/* 查看已购物品切换按钮 */}
+              {purchasedItems.length > 0 && (
                 <button
                   className="btn btn-ghost btn-sm"
                   style={{ marginTop: 8, fontSize: 11 }}
                   onClick={() => setShowPurchased(!showPurchased)}
                 >
-                  {showPurchased ? '隐藏' : '查看'} {purchasedItems.length} 件已购物品
+                  {showPurchased ? '返回待购清单' : `查看已购物品 (${purchasedItems.length})`}
                 </button>
               )}
             </>
