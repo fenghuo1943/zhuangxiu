@@ -4189,7 +4189,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
   .purchase-shopping-hd-center {
     order: 1;
-    justify-self: start;
+    justify-self: center;
   }
 
   .purchase-shopping-hd-right {
