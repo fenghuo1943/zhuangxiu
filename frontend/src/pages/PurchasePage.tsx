@@ -111,6 +111,15 @@ const PurchasePage: React.FC = () => {
   const [quickSubCategory, setQuickSubCategory] = useState('');
   const [quickPrice, setQuickPrice] = useState('');
 
+  // Mobile FAB + bottom sheet for quick-add
+  const [showMobileAddSheet, setShowMobileAddSheet] = useState(false);
+  const [mobileAddName, setMobileAddName] = useState('');
+  const [mobileAddStage, setMobileAddStage] = useState('0_0');
+  const [mobileAddQty, setMobileAddQty] = useState('1');
+  const [mobileAddCategory, setMobileAddCategory] = useState('');
+  const [mobileAddSubCategory, setMobileAddSubCategory] = useState('');
+  const [mobileAddPrice, setMobileAddPrice] = useState('');
+
   // Shopping card
   const [shoppingListView, setShoppingListView] = useState<'pending' | 'purchased'>('pending');
   const [filterStage, setFilterStage] = useState('');
@@ -564,6 +573,37 @@ const PurchasePage: React.FC = () => {
   const quickSubCategories = useMemo(() => {
     return state.expenseSubCategories.filter(s => s.categoryId === quickCategory);
   }, [state.expenseSubCategories, quickCategory]);
+
+  const mobileSubCategories = useMemo(() => {
+    return state.expenseSubCategories.filter(s => s.categoryId === mobileAddCategory);
+  }, [state.expenseSubCategories, mobileAddCategory]);
+
+  // ── Mobile quick-add handler ──
+  const handleMobileQuickAdd = () => {
+    if (!mobileAddName.trim()) return;
+    const [pi, si] = mobileAddStage.split('_').map(Number);
+    const stage = state.purchaseReferences[pi];
+    const sub = stage?.subs[si];
+    if (!stage || !sub) return;
+    const price = mobileAddPrice ? parseFloat(mobileAddPrice) : undefined;
+    addCustomPurchaseItem(
+      mobileAddName.trim(), stage.parent,
+      Math.max(1, parseInt(mobileAddQty) || 1),
+      '', sub.name, '个',
+      mobileAddCategory || undefined,
+      mobileAddSubCategory || undefined,
+      price && price > 0 ? price : undefined,
+    );
+    setMobileAddName('');
+    setMobileAddQty('1');
+    setMobileAddCategory('');
+    setMobileAddSubCategory('');
+    setMobileAddPrice('');
+    setExpandedParents(prev => new Set(prev).add(pi));
+    setExpandedSubs(prev => new Set(prev).add(`${pi}_${si}`));
+    setShowMobileAddSheet(false);
+    showToast(price && price > 0 ? '已添加到待购清单（含未支付账单）' : '已添加到首页待购清单');
+  };
 
   const isSelected = (itemId: string) => state.selectedPurchaseIds.includes(itemId);
 
@@ -1614,6 +1654,129 @@ const PurchasePage: React.FC = () => {
       >
         {toastMsg}
       </div>
+
+      {/* ── Mobile FAB (only on shopping tab) ── */}
+      {activeTab === 'shopping' && (
+        <button
+          type="button"
+          className="purchase-mobile-fab show-mobile"
+          onClick={() => setShowMobileAddSheet(true)}
+          aria-label="添加待购物品"
+        >
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+      )}
+
+      {/* ── Mobile Add Bottom Sheet ── */}
+      {showMobileAddSheet && (
+        <div className="purchase-mobile-sheet-overlay" onClick={() => setShowMobileAddSheet(false)}>
+          <div className="purchase-mobile-sheet" onClick={e => e.stopPropagation()}>
+            <div className="purchase-mobile-sheet-header">
+              <h4>添加待购物品</h4>
+              <button
+                type="button"
+                className="purchase-mobile-sheet-close"
+                onClick={() => setShowMobileAddSheet(false)}
+              >✕</button>
+            </div>
+            <div className="purchase-mobile-sheet-body">
+              <div className="purchase-mobile-sheet-field">
+                <label>物品名称 *</label>
+                <input
+                  name="mobileAddName"
+                  className="input"
+                  type="text"
+                  placeholder="例如：浴室柜、马桶"
+                  value={mobileAddName}
+                  onChange={e => setMobileAddName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleMobileQuickAdd()}
+                  autoFocus
+                />
+              </div>
+              <div className="purchase-mobile-sheet-field">
+                <label>装修阶段 / 子分组</label>
+                <select
+                  name="mobileAddStage"
+                  className="input"
+                  value={mobileAddStage}
+                  onChange={e => setMobileAddStage(e.target.value)}
+                >
+                  {quickStageOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="purchase-mobile-sheet-row">
+                <div className="purchase-mobile-sheet-field" style={{ flex: 1 }}>
+                  <label>数量</label>
+                  <input
+                    name="mobileAddQty"
+                    className="input"
+                    type="number"
+                    min="1"
+                    value={mobileAddQty}
+                    onChange={e => setMobileAddQty(e.target.value)}
+                  />
+                </div>
+                <div className="purchase-mobile-sheet-field" style={{ flex: 1 }}>
+                  <label>价格 (可选)</label>
+                  <input
+                    name="mobileAddPrice"
+                    className="input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={mobileAddPrice}
+                    onChange={e => setMobileAddPrice(e.target.value)}
+                    placeholder="¥0.00"
+                  />
+                </div>
+              </div>
+              <div className="purchase-mobile-sheet-row">
+                <div className="purchase-mobile-sheet-field" style={{ flex: 1 }}>
+                  <label>预算分类 (可选)</label>
+                  <select
+                    name="mobileAddCategory"
+                    className="input"
+                    value={mobileAddCategory}
+                    onChange={e => { setMobileAddCategory(e.target.value); setMobileAddSubCategory(''); }}
+                  >
+                    <option value="">不分类</option>
+                    {state.budget.categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="purchase-mobile-sheet-field" style={{ flex: 1 }}>
+                  <label>子分类 (可选)</label>
+                  <select
+                    name="mobileAddSubCategory"
+                    className="input"
+                    value={mobileAddSubCategory}
+                    onChange={e => setMobileAddSubCategory(e.target.value)}
+                    disabled={!mobileAddCategory}
+                  >
+                    <option value="">不选</option>
+                    {mobileSubCategories.map(sub => (
+                      <option key={sub.id} value={sub.id}>{sub.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <button
+                className="btn btn-primary"
+                type="button"
+                onClick={handleMobileQuickAdd}
+                style={{ width: '100%', justifyContent: 'center', marginTop: 8, minHeight: 44 }}
+              >
+                添加到待购清单
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 };
