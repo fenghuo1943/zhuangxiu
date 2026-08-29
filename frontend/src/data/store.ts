@@ -19,6 +19,7 @@ import {
 } from '../api/flow';
 import { isAuthenticated } from '../api/client';
 import { getAuthState } from '../api/useAuth';
+import { createTodo as apiCreateTodo, updateTodoApi, deleteTodoApi } from '../api/todos';
 import {
   fetchExpenses, createExpenseApi, updateExpenseApi, deleteExpenseApi,
 } from '../api/expenses';
@@ -342,8 +343,9 @@ export function toggleShowUnpaid() {
 
 export function addTodo(title: string, stageId: string, flowStepId?: string, plannedStartDate?: string) {
   assertLoggedIn();
+  const tempId = `todo_${Date.now()}`;
   const todo: Todo = {
-    id: `todo_${Date.now()}`,
+    id: tempId,
     projectId: globalState.activeProjectId,
     title,
     stageId,
@@ -355,16 +357,43 @@ export function addTodo(title: string, stageId: string, flowStepId?: string, pla
   globalState = { ...globalState, todos: [...globalState.todos, todo] };
   notify();
   persist();
+
+  // Sync to backend if authenticated
+  if (isAuthenticated()) {
+    apiCreateTodo(globalState.activeProjectId, {
+      title,
+      stage_id: stageId,
+      due_date: plannedStartDate || null,
+    }).then((backendTodo) => {
+      // Replace temp ID with backend-returned ID
+      const updatedTodos = globalState.todos.map(t =>
+        t.id === tempId ? { ...t, id: backendTodo.id } : t
+      );
+      globalState = { ...globalState, todos: updatedTodos };
+      notify();
+      persist();
+    }).catch(() => {});
+  }
 }
 
 export function toggleTodo(todoId: string) {
   assertLoggedIn();
+  const todo = globalState.todos.find(t => t.id === todoId);
+  if (!todo) return;
+
   const todos = globalState.todos.map(t =>
     t.id === todoId ? { ...t, completed: !t.completed } : t
   );
   globalState = { ...globalState, todos };
   notify();
   persist();
+
+  // Sync to backend if authenticated
+  if (isAuthenticated()) {
+    updateTodoApi(globalState.activeProjectId, todoId, {
+      completed: !todo.completed,
+    }).catch(() => {});
+  }
 }
 
 export function getProjectTodos(): Todo[] {
@@ -380,9 +409,7 @@ export function deleteTodo(todoId: string) {
 
   // Sync to backend if authenticated
   if (isAuthenticated()) {
-    import('../api/client').then(({ apiDelete }) => {
-      apiDelete(`/api/projects/${globalState.activeProjectId}/todos/${todoId}`).catch(() => {});
-    });
+    deleteTodoApi(globalState.activeProjectId, todoId).catch(() => {});
   }
 }
 
@@ -394,6 +421,19 @@ export function updateTodo(todoId: string, updates: Partial<Todo>) {
   globalState = { ...globalState, todos };
   notify();
   persist();
+
+  // Sync to backend if authenticated
+  if (isAuthenticated()) {
+    const backendUpdates: { title?: string; stage_id?: string; due_date?: string | null; completed?: boolean } = {};
+    if (updates.title !== undefined) backendUpdates.title = updates.title;
+    if (updates.stageId !== undefined) backendUpdates.stage_id = updates.stageId;
+    if (updates.plannedStartDate !== undefined) backendUpdates.due_date = updates.plannedStartDate || null;
+    if (updates.completed !== undefined) backendUpdates.completed = updates.completed;
+
+    if (Object.keys(backendUpdates).length > 0) {
+      updateTodoApi(globalState.activeProjectId, todoId, backendUpdates).catch(() => {});
+    }
+  }
 }
 
 export function addTodoSubItem(todoId: string, title: string) {
@@ -472,6 +512,53 @@ export function reorderTodos(fromIndex: number, toIndex: number) {
   globalState = { ...globalState, todos: [...otherTodos, ...updatedProjectTodos] };
   notify();
   persist();
+}
+
+// 防止 loadTodosFromBackend 并发调用
+let todosLoadPromise: Promise<void> | null = null;
+
+/** Load todos from backend, merging with local state */
+export async function loadTodosFromBackend(): Promise<void> {
+  if (!isAuthenticated()) return;
+
+  // 如果已有加载在进行中，直接返回该 Promise（防止并发调用）
+  if (todosLoadPromise) {
+    return todosLoadPromise;
+  }
+
+  todosLoadPromise = (async () => {
+    try {
+      const { fetchTodos } = await import('../api/todos');
+      const remoteTodos = await fetchTodos(globalState.activeProjectId);
+      // Convert backend format to frontend format
+      const frontendTodos: Todo[] = remoteTodos.map(t => ({
+        id: t.id,
+        projectId: t.project_id,
+        title: t.title,
+        stageId: t.stage_id,
+        flowStepId: undefined,
+        plannedStartDate: t.due_date || undefined,
+        completed: t.completed,
+        createdAt: t.created_at,
+      }));
+
+      // Merge: backend is authoritative, but keep local-only todos
+      const remoteIds = new Set(frontendTodos.map(t => t.id));
+      const localOnly = globalState.todos.filter(t => !remoteIds.has(t.id) && !t.id.startsWith('todo_'));
+      const merged = [...frontendTodos, ...localOnly];
+      merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      globalState = { ...globalState, todos: merged };
+      notify();
+      persist();
+    } catch {
+      // Backend unreachable, keep local data
+    } finally {
+      todosLoadPromise = null;
+    }
+  })();
+
+  return todosLoadPromise;
 }
 
 // ==================== Purchase Actions ====================
@@ -2929,6 +3016,8 @@ export async function syncFromServerAfterLogin(): Promise<void> {
       await loadSelectedPurchasesFromBackend();
       // 6. 子分类（记账页面需要）
       await loadSubCategoriesFromBackend();
+      // 7. 待办事项（首页 TodoPanel 需要）
+      await loadTodosFromBackend();
     } catch {
       // Server unreachable — keep local data
     } finally {

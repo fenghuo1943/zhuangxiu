@@ -6,12 +6,29 @@ from ..models import User, Project, Todo
 from ..schemas import TodoCreate, TodoUpdate, TodoOut
 from ..auth import get_current_user
 import uuid
+import re
 
 router = APIRouter(prefix="/api/projects/{project_id}/todos", tags=["Todos"])
 
 
+def _scoped_project_id(raw_project_id: str, user_id: str) -> str:
+    """Scope a frontend project ID (like 'p1') to the current user."""
+    scope = user_id.replace("-", "")[:8]
+    suffix = f"_{scope}"
+    if raw_project_id.endswith(suffix):
+        return raw_project_id
+    return f"{raw_project_id}_{scope}"
+
+
 async def _verify_owner(project_id: str, user: User, db: AsyncSession) -> Project:
+    # Try direct match first
     result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user.id))
+    project = result.scalar_one_or_none()
+    if project:
+        return project
+    # Try scoped ID
+    scoped_id = _scoped_project_id(project_id, user.id)
+    result = await db.execute(select(Project).where(Project.id == scoped_id, Project.user_id == user.id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
@@ -20,8 +37,8 @@ async def _verify_owner(project_id: str, user: User, db: AsyncSession) -> Projec
 
 @router.get("", response_model=list[TodoOut])
 async def list_todos(project_id: str, completed: bool = Query(None), user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
-    q = select(Todo).where(Todo.project_id == project_id)
+    proj = await _verify_owner(project_id, user, db)
+    q = select(Todo).where(Todo.project_id == proj.id)
     if completed is not None:
         q = q.where(Todo.completed == completed)
     q = q.order_by(Todo.created_at.desc())
@@ -31,8 +48,8 @@ async def list_todos(project_id: str, completed: bool = Query(None), user: User 
 
 @router.post("", response_model=TodoOut, status_code=201)
 async def create_todo(project_id: str, data: TodoCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
-    todo = Todo(id=f"todo_{uuid.uuid4().hex[:12]}", project_id=project_id, title=data.title, stage_id=data.stage_id, due_date=data.due_date)
+    proj = await _verify_owner(project_id, user, db)
+    todo = Todo(id=f"todo_{uuid.uuid4().hex[:12]}", project_id=proj.id, title=data.title, stage_id=data.stage_id, due_date=data.due_date)
     db.add(todo)
     await db.commit()
     await db.refresh(todo)
@@ -41,8 +58,8 @@ async def create_todo(project_id: str, data: TodoCreate, user: User = Depends(ge
 
 @router.put("/{todo_id}", response_model=TodoOut)
 async def update_todo(project_id: str, todo_id: str, data: TodoUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
-    result = await db.execute(select(Todo).where(Todo.id == todo_id, Todo.project_id == project_id))
+    proj = await _verify_owner(project_id, user, db)
+    result = await db.execute(select(Todo).where(Todo.id == todo_id, Todo.project_id == proj.id))
     todo = result.scalar_one_or_none()
     if not todo:
         raise HTTPException(status_code=404, detail="待办不存在")
@@ -56,8 +73,8 @@ async def update_todo(project_id: str, todo_id: str, data: TodoUpdate, user: Use
 
 @router.delete("/{todo_id}", status_code=204)
 async def delete_todo(project_id: str, todo_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _verify_owner(project_id, user, db)
-    result = await db.execute(select(Todo).where(Todo.id == todo_id, Todo.project_id == project_id))
+    proj = await _verify_owner(project_id, user, db)
+    result = await db.execute(select(Todo).where(Todo.id == todo_id, Todo.project_id == proj.id))
     todo = result.scalar_one_or_none()
     if not todo:
         raise HTTPException(status_code=404, detail="待办不存在")
