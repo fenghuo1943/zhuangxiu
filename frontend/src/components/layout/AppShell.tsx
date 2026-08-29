@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import DesktopHeader from './DesktopHeader';
-import MobileHeader from './MobileHeader';
 import MobileBottomNav from './MobileBottomNav';
 import DesktopSidebarWorkbenchShell from '../layouts/DesktopSidebarWorkbenchShell';
 import { useTheme } from '../theme/ThemeProvider';
@@ -25,7 +24,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children, currentPage, class
   if (isMobile) {
     return (
       <div className={`app-shell ${className}`}>
-        <MobileHeader currentPage={currentPage} />
         <main className="main-content">
           {children}
         </main>
