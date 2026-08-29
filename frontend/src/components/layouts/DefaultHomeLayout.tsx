@@ -17,6 +17,8 @@ import {
 } from '../dashboard';
 
 const DefaultHomeLayout: React.FC = () => {
+  const isMobile = window.innerWidth < 768;
+
   return (
     <div className="home-pro">
       {/* Hero / Reminder + TodayFocus */}
@@ -44,7 +46,7 @@ const DefaultHomeLayout: React.FC = () => {
         </div>
         <aside className="stack">
           <PurchaseSummary />
-          <ExpenseSummary />
+          {!isMobile && <ExpenseSummary />}
           <QuickEntries />
           <BackupPanel />
         </aside>

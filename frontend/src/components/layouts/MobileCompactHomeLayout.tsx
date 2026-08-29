@@ -10,7 +10,6 @@ import {
   TodoPanel,
   TodayFocus,
   PurchaseSummary,
-  ExpenseSummary,
   GuideCard,
   QuickEntries,
   BackupPanel,
@@ -25,11 +24,10 @@ const MobileCompactHomeLayout: React.FC = () => {
         <TodayFocus />
       </section>
 
-      {/* 高频信息前置：待办 + 待购 + 支出 */}
+      {/* 高频信息前置：待办 + 待购 */}
       <section className="live-widgets">
         <TodoPanel />
         <PurchaseSummary />
-        <ExpenseSummary />
       </section>
 
       {/* 进度（已隐藏阶段路线） */}
