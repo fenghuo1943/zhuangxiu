@@ -4193,7 +4193,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
     left: 0;
     right: 0;
     z-index: 100;
-    background: #fff;
+    background: var(--fresh-bg);
     padding: 10px 12px;
     margin-bottom: 0;
   }
