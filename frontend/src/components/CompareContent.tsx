@@ -14,7 +14,7 @@ import {
 } from './common/Icons';
 import { getItemCategory } from '../utils/categoryMapping';
 
-const CompareContent: React.FC = () => {
+const CompareContent: React.FC<{ hideStats?: boolean }> = ({ hideStats = false }) => {
   const state = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStage, setFilterStage] = useState('');
@@ -197,6 +197,7 @@ const CompareContent: React.FC = () => {
   return (
     <div className="compare-content-wrapper">
       {/* Stats */}
+      {!hideStats && (
       <div className="compare-content-stats">
         <span className="compare-stat-item">
           <span className="compare-stat-value" style={{ color: 'var(--fresh-coral, #e45b3f)' }}>{ci.length}</span>
@@ -213,6 +214,7 @@ const CompareContent: React.FC = () => {
           <span className="compare-stat-label">已购</span>
         </span>
       </div>
+      )}
 
       {/* Quick-Add Bar */}
       <div className="purchase-quick-add-v2">

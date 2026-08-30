@@ -210,6 +210,14 @@ const PurchasePage: React.FC = () => {
     return { totalItems: total, selectedItems: selected };
   }, [state.purchaseReferences, state.selectedPurchaseIds]);
 
+  // ── Compare items stats ──
+  const compareStats = useMemo(() => {
+    const total = state.compareItems.length;
+    const pending = state.compareItems.filter(c => !isItemPurchased(c.item_id)).length;
+    const purchased = state.compareItems.filter(c => isItemPurchased(c.item_id)).length;
+    return { total, pending, purchased };
+  }, [state.compareItems]);
+
   // ── Filtered data for search ──
   const filteredRefs = useMemo(() => {
     if (!searchQuery.trim()) return state.purchaseReferences;
@@ -709,8 +717,18 @@ const PurchasePage: React.FC = () => {
             {pageMode === 'compare' ? (
               <>
                 <span className="purchase-stat-item">
-                  <span className="purchase-stat-value" style={{ color: '#e45b3f' }}>{compareItems.length}</span>
-                  <span className="purchase-stat-label">比价物品</span>
+                  <span className="purchase-stat-value" style={{ color: '#e45b3f' }}>{compareStats.total}</span>
+                  <span className="purchase-stat-label">比价</span>
+                </span>
+                <span className="purchase-stat-divider"></span>
+                <span className="purchase-stat-item">
+                  <span className="purchase-stat-value" style={{ color: '#e45b3f' }}>{compareStats.pending}</span>
+                  <span className="purchase-stat-label">待购</span>
+                </span>
+                <span className="purchase-stat-divider"></span>
+                <span className="purchase-stat-item">
+                  <span className="purchase-stat-value" style={{ color: '#48bb78' }}>{compareStats.purchased}</span>
+                  <span className="purchase-stat-label">已购</span>
                 </span>
               </>
             ) : activeTab === 'reference' ? (
@@ -1547,7 +1565,7 @@ const PurchasePage: React.FC = () => {
 
         {/* ── Compare content (shown when pageMode === 'compare') ── */}
         {pageMode === 'compare' && (
-          <CompareContent />
+          <CompareContent hideStats />
         )}
       </div>
 
