@@ -712,30 +712,65 @@ export function addCustomPurchaseItem(name: string, stageParent: string, qty: nu
         sub_category_id: subCategoryId || null,
         price,
       }).then((result) => {
+        const backendId = result.id;
+        // 用后端返回的 ID 更新本地状态
+        if (backendId && backendId !== id) {
+          // 更新 purchaseReferences 中的 item ID
+          const updatedPurchaseReferences = globalState.purchaseReferences.map(stage => ({
+            ...stage,
+            subs: stage.subs.map(sub => ({
+              ...sub,
+              items: sub.items.map(it =>
+                it.id === id ? { ...it, id: backendId } : it
+              ),
+            })),
+          }));
+          // 更新 selectedPurchaseIds
+          const updatedSelectedPurchaseIds = globalState.selectedPurchaseIds.map(itemId =>
+            itemId === id ? backendId : itemId
+          );
+          // 更新 selectedExpenseMap
+          const map = { ...globalState.selectedExpenseMap };
+          if (map[id]) {
+            map[backendId] = map[id];
+            delete map[id];
+          }
+          // 更新 projectCompareItemIds（如果已在比价列表中）
+          const updatedCompareItemIds = globalState.projectCompareItemIds.map(itemId =>
+            itemId === id ? backendId : itemId
+          );
+          globalState = {
+            ...globalState,
+            purchaseReferences: updatedPurchaseReferences,
+            selectedPurchaseIds: updatedSelectedPurchaseIds,
+            selectedExpenseMap: map,
+            projectCompareItemIds: updatedCompareItemIds,
+          };
+        }
         // 用后端返回的 expense_id 更新本地映射和账单 ID
         if (result.expense_id && expenseId && result.expense_id !== expenseId) {
           const newId = result.expense_id;
-          const map = { ...globalState.selectedExpenseMap };
-          map[id] = newId;
+          const currentMap = { ...globalState.selectedExpenseMap };
+          const itemId = backendId || id;
+          currentMap[itemId] = newId;
           // 同步更新账单列表中的 ID
           const updatedExpenses = globalState.expenses.map(e =>
             e.id === expenseId ? { ...e, id: newId } : e
           );
           globalState = {
             ...globalState,
-            selectedExpenseMap: map,
+            selectedExpenseMap: currentMap,
             expenses: updatedExpenses,
             recentExpenses: updatedExpenses.slice(0, 5),
           };
-          notify();
-          persist();
         } else if (result.expense_id) {
           const map = { ...globalState.selectedExpenseMap };
-          map[id] = result.expense_id;
+          const itemId = backendId || id;
+          map[itemId] = result.expense_id;
           globalState = { ...globalState, selectedExpenseMap: map };
-          notify();
-          persist();
         }
+        notify();
+        persist();
       }).catch(() => {});
     });
   }
@@ -1423,11 +1458,28 @@ export function addPurchaseToCompare(item: {
   notify();
   persist();
 
-  // Sync to backend
+  // Sync to backend - for custom items, wait a bit for the addCustomPurchaseItem sync to complete
   if (isAuthenticated()) {
-    import('../api/purchase').then(({ toggleItemCompare }) => {
-      toggleItemCompare(globalState.activeProjectId, item.itemId).catch(() => {});
-    });
+    const isCustomItem = item.itemId.startsWith('p_custom_');
+    const delay = isCustomItem ? 1500 : 0; // Wait 1.5 seconds for custom items to ensure backend sync
+    setTimeout(() => {
+      // Find the current item ID in state (it might have been updated by addCustomPurchaseItem backend sync)
+      let currentItemId = item.itemId;
+      for (const stage of globalState.purchaseReferences) {
+        if (stage.parent === item.stageParent) {
+          for (const sub of stage.subs) {
+            const found = sub.items.find(it => it.name === item.name && it.spec === (item.spec || ''));
+            if (found) {
+              currentItemId = found.id;
+              break;
+            }
+          }
+        }
+      }
+      import('../api/purchase').then(({ toggleItemCompare }) => {
+        toggleItemCompare(globalState.activeProjectId, currentItemId).catch(() => {});
+      });
+    }, delay);
   }
 }
 

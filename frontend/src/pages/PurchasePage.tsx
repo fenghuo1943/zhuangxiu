@@ -514,14 +514,23 @@ const PurchasePage: React.FC = () => {
     const sub = stage?.subs[si];
     if (!stage || !sub) return;
     const price = quickPrice ? parseFloat(quickPrice) : undefined;
-    addCustomPurchaseItem(
+    const qty = Math.max(1, parseInt(quickQty) || 1);
+    const newItemId = addCustomPurchaseItem(
       quickName.trim(), stage.parent,
-      Math.max(1, parseInt(quickQty) || 1),
+      qty,
       '', sub.name, '个',
       quickCategory || undefined,
       quickSubCategory || undefined,
       price && price > 0 ? price : undefined,
     );
+    // 同时添加到比价
+    addPurchaseToCompare({
+      itemId: newItemId,
+      name: quickName.trim(),
+      spec: undefined,
+      stageParent: stage.parent,
+      qty: qty,
+    });
     setQuickName('');
     setQuickQty('1');
     setQuickCategory('');
@@ -530,7 +539,7 @@ const PurchasePage: React.FC = () => {
     // Auto-expand target
     setExpandedParents(prev => new Set(prev).add(pi));
     setExpandedSubs(prev => new Set(prev).add(`${pi}_${si}`));
-    showToast(price && price > 0 ? '已添加到待购清单（含未支付账单）' : '已添加到首页待购清单');
+    showToast(price && price > 0 ? '已添加到待购清单和比价（含未支付账单）' : '已添加到待购清单和比价');
   };
 
   // ── Custom add within subgroup ──
@@ -552,21 +561,30 @@ const PurchasePage: React.FC = () => {
     const sub = stage?.subs[si];
     if (!stage || !sub) return;
     const price = input.price ? parseFloat(input.price) : undefined;
-    addCustomPurchaseItem(
+    const qty = Math.max(1, parseInt(input.qty) || 1);
+    const newItemId = addCustomPurchaseItem(
       input.name.trim(), stage.parent,
-      Math.max(1, parseInt(input.qty) || 1),
+      qty,
       input.spec.trim(), sub.name, '个',
       input.category || undefined,
       input.subCategory || undefined,
       price && price > 0 ? price : undefined,
     );
+    // 同时添加到比价
+    addPurchaseToCompare({
+      itemId: newItemId,
+      name: input.name.trim(),
+      spec: input.spec.trim() || undefined,
+      stageParent: stage.parent,
+      qty: qty,
+    });
     setCustomInput(key, 'name', '');
     setCustomInput(key, 'spec', '');
     setCustomInput(key, 'qty', '1');
     setCustomInput(key, 'category', '');
     setCustomInput(key, 'subCategory', '');
     setCustomInput(key, 'price', '');
-    showToast(price && price > 0 ? '已添加到待购清单（含未支付账单）' : '已添加到首页待购清单');
+    showToast(price && price > 0 ? '已添加到待购清单和比价（含未支付账单）' : '已添加到待购清单和比价');
   };
 
   // ── Quick-stage options ──
@@ -599,14 +617,23 @@ const PurchasePage: React.FC = () => {
     const sub = stage?.subs[si];
     if (!stage || !sub) return;
     const price = mobileAddPrice ? parseFloat(mobileAddPrice) : undefined;
-    addCustomPurchaseItem(
+    const qty = Math.max(1, parseInt(mobileAddQty) || 1);
+    const newItemId = addCustomPurchaseItem(
       mobileAddName.trim(), stage.parent,
-      Math.max(1, parseInt(mobileAddQty) || 1),
+      qty,
       mobileAddSpec.trim(), sub.name, '个',
       mobileAddCategory || undefined,
       mobileAddSubCategory || undefined,
       price && price > 0 ? price : undefined,
     );
+    // 同时添加到比价
+    addPurchaseToCompare({
+      itemId: newItemId,
+      name: mobileAddName.trim(),
+      spec: mobileAddSpec.trim() || undefined,
+      stageParent: stage.parent,
+      qty: qty,
+    });
     setMobileAddName('');
     setMobileAddSpec('');
     setMobileAddQty('1');
@@ -616,7 +643,7 @@ const PurchasePage: React.FC = () => {
     setExpandedParents(prev => new Set(prev).add(pi));
     setExpandedSubs(prev => new Set(prev).add(`${pi}_${si}`));
     setShowMobileAddSheet(false);
-    showToast(price && price > 0 ? '已添加到待购清单（含未支付账单）' : '已添加到首页待购清单');
+    showToast(price && price > 0 ? '已添加到待购清单和比价（含未支付账单）' : '已添加到待购清单和比价');
   };
 
   const isSelected = (itemId: string) => state.selectedPurchaseIds.includes(itemId);
