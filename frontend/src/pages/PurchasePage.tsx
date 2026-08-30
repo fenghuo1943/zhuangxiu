@@ -114,6 +114,7 @@ const PurchasePage: React.FC = () => {
   // Mobile FAB + bottom sheet for quick-add
   const [showMobileAddSheet, setShowMobileAddSheet] = useState(false);
   const [mobileAddName, setMobileAddName] = useState('');
+  const [mobileAddSpec, setMobileAddSpec] = useState('');
   const [mobileAddStage, setMobileAddStage] = useState('0_0');
   const [mobileAddQty, setMobileAddQty] = useState('1');
   const [mobileAddCategory, setMobileAddCategory] = useState('');
@@ -589,12 +590,13 @@ const PurchasePage: React.FC = () => {
     addCustomPurchaseItem(
       mobileAddName.trim(), stage.parent,
       Math.max(1, parseInt(mobileAddQty) || 1),
-      '', sub.name, '个',
+      mobileAddSpec.trim(), sub.name, '个',
       mobileAddCategory || undefined,
       mobileAddSubCategory || undefined,
       price && price > 0 ? price : undefined,
     );
     setMobileAddName('');
+    setMobileAddSpec('');
     setMobileAddQty('1');
     setMobileAddCategory('');
     setMobileAddSubCategory('');
@@ -1693,6 +1695,18 @@ const PurchasePage: React.FC = () => {
                   onChange={e => setMobileAddName(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleMobileQuickAdd()}
                   autoFocus
+                />
+              </div>
+              <div className="purchase-mobile-sheet-field">
+                <label>规格 (可选)</label>
+                <input
+                  name="mobileAddSpec"
+                  className="input"
+                  type="text"
+                  placeholder="例如：1.5m宽、白色款"
+                  value={mobileAddSpec}
+                  onChange={e => setMobileAddSpec(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleMobileQuickAdd()}
                 />
               </div>
               <div className="purchase-mobile-sheet-field">
