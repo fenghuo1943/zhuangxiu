@@ -663,18 +663,51 @@ const PurchasePage: React.FC = () => {
             )}
           </div>
           )}
-          {/* ── Add purchase item button (desktop only) ── */}
-          <button
-            type="button"
-            className="purchase-desktop-add-btn hide-mobile"
-            onClick={() => setShowMobileAddSheet(true)}
-            title="添加待购物品"
-          >
-            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            添加物品
-          </button>
+          {/* ── Desktop buttons (reference + add) ── */}
+          <div className="purchase-desktop-actions hide-mobile">
+            {/* ── Reference library entry ── */}
+            <button
+              type="button"
+              className="purchase-desktop-add-btn"
+              onClick={() => {
+                if (pageMode === 'compare') {
+                  setPageMode('purchase');
+                  setActiveTab('reference');
+                } else {
+                  setActiveTab(activeTab === 'reference' ? 'shopping' : 'reference');
+                }
+              }}
+              title={pageMode === 'compare' ? '采购参考库' : (activeTab === 'reference' ? '返回待购清单' : '采购参考库')}
+            >
+              {pageMode === 'compare' || activeTab !== 'reference' ? (
+                <>
+                  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                  </svg>
+                  参考库
+                </>
+              ) : (
+                <>
+                  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                  </svg>
+                  待购清单
+                </>
+              )}
+            </button>
+            {/* ── Add purchase item button ── */}
+            <button
+              type="button"
+              className="purchase-desktop-add-btn"
+              onClick={() => setShowMobileAddSheet(true)}
+              title="添加待购物品"
+            >
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              添加物品
+            </button>
+          </div>
         </div>
 
         {/* ── Page mode toggle + Stats row ── */}
@@ -762,33 +795,6 @@ const PurchasePage: React.FC = () => {
         {/* ── Purchase content (shown when pageMode === 'purchase') ── */}
         {pageMode === 'purchase' && (
           <>
-        {/* ── Tab switcher ── */}
-        <div className="purchase-tab-container">
-          <div className="purchase-tab-switcher">
-            <button
-              type="button"
-              className={`purchase-tab-btn${activeTab === 'shopping' ? ' active' : ''}`}
-              onClick={() => setActiveTab('shopping')}
-            >
-              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-              </svg>
-              待购清单
-              {pendingShoppingCount > 0 && <span className="purchase-tab-badge">{pendingShoppingCount}</span>}
-            </button>
-            <button
-              type="button"
-              className={`purchase-tab-btn${activeTab === 'reference' ? ' active' : ''}`}
-              onClick={() => setActiveTab('reference')}
-            >
-              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-              </svg>
-              采购参考库
-            </button>
-          </div>
-        </div>
-
         {/* ── 待购清单卡片（仅在 shopping tab 显示） ── */}
         {activeTab === 'shopping' && (
         <div className="purchase-shopping-card">

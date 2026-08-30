@@ -3880,21 +3880,16 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   opacity: .88;
 }
 
+.purchase-desktop-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .purchase-page-title-row h1 {
   font-size: 22px;
   margin: 0;
   color: #1a1a2e;
-}
-
-/* ── Tab switcher + Stats ── */
-.purchase-tab-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--fresh-border);
-  padding-bottom: 12px;
 }
 
 /* ── Page header row: toggle + stats ── */
@@ -3964,58 +3959,6 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   border-radius: 14px;
   border: 1px dashed var(--fresh-border, #d9dee1);
   color: #8a9298;
-}
-
-.purchase-tab-switcher {
-  display: flex;
-  gap: 8px;
-}
-
-.purchase-tab-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border: 1px solid var(--fresh-border);
-  border-radius: 8px;
-  background: var(--fresh-surface);
-  color: var(--fresh-body);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.purchase-tab-btn:hover {
-  background: var(--fresh-bg);
-  border-color: var(--theme-primary);
-  color: var(--theme-primary);
-}
-
-.purchase-tab-btn.active {
-  background: var(--theme-primary);
-  border-color: var(--theme-primary);
-  color: #fff;
-}
-
-.purchase-tab-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  background: var(--fresh-coral);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.purchase-tab-btn.active .purchase-tab-badge {
-  background: #fff;
-  color: var(--theme-primary);
 }
 
 /* ── Tab stats ── */
@@ -4764,8 +4707,6 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
-  .purchase-tab-switcher { display: none !important; }
-  .purchase-tab-container { display: none !important; }
   .purchase-page-stats {
     gap: 8px;
   }
