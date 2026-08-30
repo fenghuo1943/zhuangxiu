@@ -676,13 +676,6 @@ const PurchasePage: React.FC = () => {
             添加物品
           </button>
         </div>
-        <p className="purchase-subtitle">
-          {pageMode === 'compare'
-            ? '对比不同渠道的报价，选择最优方案。'
-            : activeTab === 'shopping'
-              ? '管理已选择的待购物品，标记已购或移出清单。'
-              : '按装修阶段整理需要采购的物品，勾选后自动同步到首页待购清单。'}
-        </p>
 
         {/* ── Page mode toggle + Stats row ── */}
         <div className="purchase-page-header-row">
