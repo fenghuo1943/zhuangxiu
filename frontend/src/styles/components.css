@@ -3880,12 +3880,6 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   opacity: .88;
 }
 
-.purchase-desktop-actions {
-  display: flex;
-  gap: 8px;
-  margin-left: auto;
-}
-
 .purchase-page-title-row h1 {
   font-size: 22px;
   margin: 0;
