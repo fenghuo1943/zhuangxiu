@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  useStore, addCompareItem, removeCompareItem,
+  useStore, removeCompareItem,
   addPriceModel, deletePriceModel, updatePriceModel,
   addChannelQuote, deleteChannelQuote, updateChannelQuote,
   selectBestQuote, getModelDisplayPrice, getItemDisplayPrice,
@@ -26,21 +26,6 @@ const CompareContent: React.FC<{ hideStats?: boolean }> = ({ hideStats = false }
   useEffect(() => {
     loadCompareItemsFromBackend();
   }, []);
-
-  // Quick-add state (matches PurchasePage's quick-add bar)
-  const [quickName, setQuickName] = useState('');
-  const [quickStage, setQuickStage] = useState('0_0');
-  const [quickQty, setQuickQty] = useState('1');
-  const [quickCategory, setQuickCategory] = useState('');
-  const [quickSubCategory, setQuickSubCategory] = useState('');
-
-  // Build stage/subgroup dropdown options
-  const quickStageOptions: { value: string; label: string }[] = [];
-  state.purchaseReferences.forEach((stage, pi) => {
-    stage.subs.forEach((sub, si) => {
-      quickStageOptions.push({ value: `${pi}_${si}`, label: `${stage.parent} / ${sub.name}` });
-    });
-  });
 
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
@@ -125,19 +110,6 @@ const CompareContent: React.FC<{ hideStats?: boolean }> = ({ hideStats = false }
     });
   };
 
-  const handleQuickAdd = () => {
-    if (!quickName.trim()) return;
-    const [pi, si] = quickStage.split('_').map(Number);
-    const stage = state.purchaseReferences[pi];
-    const sub = stage?.subs[si];
-    if (!stage || !sub) return;
-    const qty = Math.max(1, parseInt(quickQty) || 1);
-    addCompareItem(quickName.trim(), stage.parent, sub.name, qty, '', '个',
-      quickCategory || undefined, quickSubCategory || undefined);
-    setQuickName(''); setQuickQty('1');
-    setQuickCategory(''); setQuickSubCategory('');
-  };
-
   const handleAddModel = (itemId: string) => {
     if (!newModelName.trim()) return;
     addPriceModel(itemId, newModelName.trim(), newModelSpec.trim(), newModelNote.trim(), 1);
@@ -215,72 +187,6 @@ const CompareContent: React.FC<{ hideStats?: boolean }> = ({ hideStats = false }
         </span>
       </div>
       )}
-
-      {/* Quick-Add Bar */}
-      <div className="purchase-quick-add-v2">
-        <input
-          name="compareQuickName"
-          className="purchase-quick-name"
-          type="text"
-          placeholder="添加比价物品，例如：冰箱"
-          value={quickName}
-          onChange={e => setQuickName(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
-          style={{ minWidth: 0 }}
-        />
-        <span className="purchase-quick-row">
-          <select
-            name="compareQuickStage"
-            className="purchase-quick-stage"
-            value={quickStage}
-            onChange={e => setQuickStage(e.target.value)}
-            style={{ fontSize: 12 }}
-          >
-            {quickStageOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          <span className="purchase-quick-qty" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: 12, color: 'var(--fresh-muted)', whiteSpace: 'nowrap' }}>数量：</span>
-            <input
-              name="compareQuickQty"
-              type="number"
-              min="1"
-              value={quickQty}
-              onChange={e => setQuickQty(e.target.value.replace(/\D/g, '') || '1')}
-              style={{ width: 56, fontSize: 12 }}
-            />
-          </span>
-        </span>
-        <span className="purchase-quick-cat-group">
-          <select
-            name="compareQuickCategory"
-            value={quickCategory}
-            onChange={e => { setQuickCategory(e.target.value); setQuickSubCategory(''); }}
-            style={{ fontSize: 12 }}
-            title="预算分类（可选）"
-          >
-            <option value="">分类(可选)</option>
-            {budgetCategories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-          <select
-            name="compareQuickSubCategory"
-            value={quickSubCategory}
-            onChange={e => setQuickSubCategory(e.target.value)}
-            style={{ fontSize: 12 }}
-            title="子分类（可选）"
-            disabled={!quickCategory}
-          >
-            <option value="">子分类(可选)</option>
-            {state.expenseSubCategories.filter(s => s.categoryId === quickCategory).map(sub => (
-              <option key={sub.id} value={sub.id}>{sub.name}</option>
-            ))}
-          </select>
-        </span>
-        <button className="btn btn-primary purchase-quick-btn" type="button" onClick={handleQuickAdd}>添加</button>
-      </div>
 
       {/* Search & Filters + Toggle */}
       <div className="compare-toolbar">
@@ -371,7 +277,7 @@ const CompareContent: React.FC<{ hideStats?: boolean }> = ({ hideStats = false }
                   ? '尝试调整筛选条件'
                   : compareTab === 'purchased'
                     ? '在待购页面标记已购后，物品将自动移动到此处'
-                    : '使用上方快速添加栏，先添加物品再进行比价'}
+                    : '在采购页面添加物品时会自动同步到比价列表'}
               </div>
             </div>
           );
