@@ -729,6 +729,18 @@ const PurchasePage: React.FC = () => {
           </div>
         </div>
 
+        {/* ── Mobile page switch: 采购 ↔ 比价 ── */}
+        {activeTab === 'shopping' && (
+          <div className="purchase-mobile-page-switch show-mobile">
+            <a href="/compare" className="purchase-mobile-page-switch-btn">
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+              切换到比价页面
+            </a>
+          </div>
+        )}
+
         {/* ── 待购清单卡片（仅在 shopping tab 显示） ── */}
         {activeTab === 'shopping' && (
         <div className="purchase-shopping-card">

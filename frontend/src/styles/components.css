@@ -3903,6 +3903,31 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   padding-bottom: 12px;
 }
 
+/* ── Mobile page switch (采购 ↔ 比价) ── */
+.purchase-mobile-page-switch {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.purchase-mobile-page-switch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border-radius: 10px;
+  background: var(--fresh-surface, #f7f5f3);
+  border: 1px solid var(--fresh-border, #e8e4df);
+  color: var(--fresh-coral, #e45b3f);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.purchase-mobile-page-switch-btn:hover {
+  background: var(--fresh-coral-soft, #fff0ea);
+  box-shadow: 0 2px 8px rgba(228, 91, 63, 0.1);
+}
+
 .purchase-tab-switcher {
   display: flex;
   gap: 8px;
