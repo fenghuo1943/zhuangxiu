@@ -676,36 +676,82 @@ const PurchasePage: React.FC = () => {
               : '按装修阶段整理需要采购的物品，勾选后自动同步到首页待购清单。'}
         </p>
 
-        {/* ── Page mode toggle: 采购 ↔ 比价 ── */}
-        <div className="purchase-page-mode-toggle">
-          <div className="purchase-shopping-toggle">
-            <button
-              type="button"
-              className={`purchase-shopping-toggle-btn${pageMode === 'purchase' ? ' active' : ''}`}
-              onClick={() => setPageMode('purchase')}
-            >
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-              </svg>
-              采购
-            </button>
-            <button
-              type="button"
-              className={`purchase-shopping-toggle-btn${pageMode === 'compare' ? ' active' : ''}`}
-              onClick={() => setPageMode('compare')}
-            >
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-              </svg>
-              比价
-            </button>
+        {/* ── Page mode toggle + Stats row ── */}
+        <div className="purchase-page-header-row">
+          {/* 左侧：采购/比价切换按钮 */}
+          <div className="purchase-page-mode-toggle">
+            <div className="purchase-shopping-toggle">
+              <button
+                type="button"
+                className={`purchase-shopping-toggle-btn${pageMode === 'purchase' ? ' active' : ''}`}
+                onClick={() => setPageMode('purchase')}
+              >
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                </svg>
+                采购
+              </button>
+              <button
+                type="button"
+                className={`purchase-shopping-toggle-btn${pageMode === 'compare' ? ' active' : ''}`}
+                onClick={() => setPageMode('compare')}
+              >
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+                比价
+              </button>
+            </div>
+          </div>
+
+          {/* 右侧：数据统计 */}
+          <div className="purchase-page-stats">
+            {pageMode === 'compare' ? (
+              <>
+                <span className="purchase-stat-item">
+                  <span className="purchase-stat-value" style={{ color: '#e45b3f' }}>{compareItems.length}</span>
+                  <span className="purchase-stat-label">比价物品</span>
+                </span>
+              </>
+            ) : activeTab === 'reference' ? (
+              <>
+                <span className="purchase-stat-item">
+                  <span className="purchase-stat-value" style={{ color: '#e45b3f' }}>{totalItems}</span>
+                  <span className="purchase-stat-label">参考</span>
+                </span>
+                <span className="purchase-stat-divider"></span>
+                <span className="purchase-stat-item">
+                  <span className="purchase-stat-value" style={{ color: '#48bb78' }}>{selectedItems}</span>
+                  <span className="purchase-stat-label">已选</span>
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="purchase-stat-item">
+                  <span className="purchase-stat-value" style={{ color: '#e45b3f' }}>{pendingShoppingCount}</span>
+                  <span className="purchase-stat-label">待购</span>
+                </span>
+                <span className="purchase-stat-divider"></span>
+                <span className="purchase-stat-item">
+                  <span className="purchase-stat-value" style={{ color: '#999' }}>{purchasedShoppingCount}</span>
+                  <span className="purchase-stat-label">已购</span>
+                </span>
+                <span className="purchase-stat-divider"></span>
+                <span className="purchase-stat-item">
+                  <span className="purchase-stat-value" style={{ color: '#4a90d9' }}>
+                    ¥{(shoppingListView === 'pending' ? pendingCost : purchasedCost).toLocaleString()}
+                  </span>
+                  <span className="purchase-stat-label">{shoppingListView === 'pending' ? '预估' : '已购'}</span>
+                </span>
+              </>
+            )}
           </div>
         </div>
 
         {/* ── Purchase content (shown when pageMode === 'purchase') ── */}
         {pageMode === 'purchase' && (
           <>
-        {/* ── Tab switcher + Stats ── */}
+        {/* ── Tab switcher ── */}
         <div className="purchase-tab-container">
           <div className="purchase-tab-switcher">
             <button
@@ -729,40 +775,6 @@ const PurchasePage: React.FC = () => {
               </svg>
               采购参考库
             </button>
-          </div>
-          <div className="purchase-tab-stats">
-            {activeTab === 'reference' ? (
-              <>
-                <span className="purchase-stat-item">
-                  <span className="purchase-stat-value" style={{ color: '#e45b3f' }}>{totalItems}</span>
-                  <span className="purchase-stat-label">参考物品</span>
-                </span>
-                <span className="purchase-stat-divider"></span>
-                <span className="purchase-stat-item">
-                  <span className="purchase-stat-value" style={{ color: '#48bb78' }}>{selectedItems}</span>
-                  <span className="purchase-stat-label">已选待购</span>
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="purchase-stat-item">
-                  <span className="purchase-stat-value" style={{ color: '#e45b3f' }}>{pendingShoppingCount}</span>
-                  <span className="purchase-stat-label">待购</span>
-                </span>
-                <span className="purchase-stat-divider"></span>
-                <span className="purchase-stat-item">
-                  <span className="purchase-stat-value" style={{ color: '#999' }}>{purchasedShoppingCount}</span>
-                  <span className="purchase-stat-label">已购</span>
-                </span>
-                <span className="purchase-stat-divider"></span>
-                <span className="purchase-stat-item">
-                  <span className="purchase-stat-value" style={{ color: '#4a90d9' }}>
-                    ¥{(shoppingListView === 'pending' ? pendingCost : purchasedCost).toLocaleString()}
-                  </span>
-                  <span className="purchase-stat-label">{shoppingListView === 'pending' ? '预估' : '已购'}</span>
-                </span>
-              </>
-            )}
           </div>
         </div>
 

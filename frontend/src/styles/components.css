@@ -3903,17 +3903,31 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   padding-bottom: 12px;
 }
 
-/* ── Page mode toggle (采购 ↔ 比价) ── */
-.purchase-page-mode-toggle {
+/* ── Page header row: toggle + stats ── */
+.purchase-page-header-row {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 16px;
 }
 
 @media (max-width: 767px) {
-  .purchase-page-mode-toggle {
+  .purchase-page-header-row {
     padding-top: 52px; /* 为 fixed 标题行留出空间 */
   }
+}
+
+/* ── Page mode toggle (采购 ↔ 比价) ── */
+.purchase-page-mode-toggle {
+  display: flex;
+  flex-shrink: 0;
+}
+
+/* ── Page stats (右侧统计) ── */
+.purchase-page-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 /* ── Compare content wrapper (嵌入采购页面时) ── */
@@ -4761,8 +4775,18 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .purchase-tab-switcher { display: none !important; }
-  .purchase-tab-container {
-    justify-content: flex-end;
+  .purchase-tab-container { display: none !important; }
+  .purchase-page-stats {
+    gap: 8px;
+  }
+  .purchase-stat-item {
+    gap: 2px;
+  }
+  .purchase-stat-value {
+    font-size: 14px;
+  }
+  .purchase-stat-label {
+    font-size: 10px;
   }
   .purchase-ref-item { flex-wrap: wrap; }
   .purchase-quick-add-v2 {
