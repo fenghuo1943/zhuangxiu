@@ -1217,8 +1217,8 @@ const PurchasePage: React.FC = () => {
               </div>
             )}
 
-            {/* ── Quick-add ── */}
-            <div className="purchase-quick-add-v2">
+            {/* ── Quick-add (hidden on mobile, replaced by FAB + bottom sheet) ── */}
+            <div className="purchase-quick-add-v2 hide-mobile">
               <input
                 name="purchaseQuickName"
                 className="purchase-quick-name"
@@ -1406,9 +1406,9 @@ const PurchasePage: React.FC = () => {
                                       </div>
                                     ))}
 
-                                    {/* ── Custom item add within subgroup ── */}
+                                    {/* ── Custom item add within subgroup (hidden on mobile) ── */}
                                     {!searchQuery.trim() && (
-                                      <div className="purchase-add-custom">
+                                      <div className="purchase-add-custom hide-mobile">
                                         <input
                                           name={`custom-add-name-${subKey}`}
                                           type="text"
@@ -1657,8 +1657,8 @@ const PurchasePage: React.FC = () => {
         {toastMsg}
       </div>
 
-      {/* ── Mobile FAB (only on shopping tab) ── */}
-      {activeTab === 'shopping' && (
+      {/* ── Mobile FAB (both tabs) ── */}
+      {(activeTab === 'shopping' || activeTab === 'reference') && (
         <button
           type="button"
           className="purchase-mobile-fab show-mobile"
