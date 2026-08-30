@@ -3866,10 +3866,10 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   align-items: center;
   gap: 5px;
   padding: 6px 14px;
-  border: 1px solid var(--fresh-border);
+  border: 1px solid var(--theme-primary);
   border-radius: 8px;
-  background: var(--fresh-surface);
-  color: var(--fresh-body);
+  background: var(--theme-primary);
+  color: #fff;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -3877,9 +3877,7 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   white-space: nowrap;
 }
 .purchase-desktop-add-btn:hover {
-  background: var(--theme-primary);
-  border-color: var(--theme-primary);
-  color: #fff;
+  opacity: .88;
 }
 
 .purchase-page-title-row h1 {
