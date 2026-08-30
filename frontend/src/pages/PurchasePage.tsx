@@ -117,6 +117,8 @@ const PurchasePage: React.FC = () => {
 
   // Mobile FAB + bottom sheet for quick-add
   const [showMobileAddSheet, setShowMobileAddSheet] = useState(false);
+  // Desktop centered modal for quick-add
+  const [showDesktopAddModal, setShowDesktopAddModal] = useState(false);
   const [mobileAddName, setMobileAddName] = useState('');
   const [mobileAddSpec, setMobileAddSpec] = useState('');
   const [mobileAddStage, setMobileAddStage] = useState('0_0');
@@ -646,6 +648,43 @@ const PurchasePage: React.FC = () => {
     showToast(price && price > 0 ? '已添加到待购清单和比价（含未支付账单）' : '已添加到待购清单和比价');
   };
 
+  // ── Desktop quick-add handler (for centered modal) ──
+  const handleDesktopAdd = () => {
+    if (!mobileAddName.trim()) return;
+    const [pi, si] = mobileAddStage.split('_').map(Number);
+    const stage = state.purchaseReferences[pi];
+    const sub = stage?.subs[si];
+    if (!stage || !sub) return;
+    const price = mobileAddPrice ? parseFloat(mobileAddPrice) : undefined;
+    const qty = Math.max(1, parseInt(mobileAddQty) || 1);
+    const newItemId = addCustomPurchaseItem(
+      mobileAddName.trim(), stage.parent,
+      qty,
+      mobileAddSpec.trim(), sub.name, '个',
+      mobileAddCategory || undefined,
+      mobileAddSubCategory || undefined,
+      price && price > 0 ? price : undefined,
+    );
+    // 同时添加到比价
+    addPurchaseToCompare({
+      itemId: newItemId,
+      name: mobileAddName.trim(),
+      spec: mobileAddSpec.trim() || undefined,
+      stageParent: stage.parent,
+      qty: qty,
+    });
+    setMobileAddName('');
+    setMobileAddSpec('');
+    setMobileAddQty('1');
+    setMobileAddCategory('');
+    setMobileAddSubCategory('');
+    setMobileAddPrice('');
+    setExpandedParents(prev => new Set(prev).add(pi));
+    setExpandedSubs(prev => new Set(prev).add(`${pi}_${si}`));
+    setShowDesktopAddModal(false);
+    showToast(price && price > 0 ? '已添加到待购清单和比价（含未支付账单）' : '已添加到待购清单和比价');
+  };
+
   const isSelected = (itemId: string) => state.selectedPurchaseIds.includes(itemId);
 
   return (
@@ -663,7 +702,7 @@ const PurchasePage: React.FC = () => {
           <button
             type="button"
             className="purchase-desktop-add-btn hide-mobile"
-            onClick={() => setShowMobileAddSheet(true)}
+            onClick={() => setShowDesktopAddModal(true)}
             title="添加待购物品"
           >
             <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1847,6 +1886,136 @@ const PurchasePage: React.FC = () => {
                 style={{ width: '100%', justifyContent: 'center', marginTop: 8, minHeight: 44 }}
               >
                 添加到待购清单
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Desktop Add Modal (centered) ── */}
+      {showDesktopAddModal && (
+        <div className="modal-overlay" onClick={() => setShowDesktopAddModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 'min(480px, 100%)' }}>
+            <div className="modal-header">
+              <h3>添加待购物品</h3>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowDesktopAddModal(false)}
+                style={{ padding: '2px 8px', fontSize: 16 }}
+              >✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>物品名称 *</label>
+                <input
+                  name="desktopAddName"
+                  className="input"
+                  type="text"
+                  placeholder="例如：浴室柜、马桶"
+                  value={mobileAddName}
+                  onChange={e => setMobileAddName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleDesktopAdd()}
+                  autoFocus
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div className="form-group">
+                <label>规格 (可选)</label>
+                <input
+                  name="desktopAddSpec"
+                  className="input"
+                  type="text"
+                  placeholder="例如：1.5m宽、白色款"
+                  value={mobileAddSpec}
+                  onChange={e => setMobileAddSpec(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleDesktopAdd()}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div className="form-group">
+                <label>装修阶段 / 子分组</label>
+                <select
+                  name="desktopAddStage"
+                  className="input"
+                  value={mobileAddStage}
+                  onChange={e => setMobileAddStage(e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  {quickStageOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>数量</label>
+                  <input
+                    name="desktopAddQty"
+                    className="input"
+                    type="number"
+                    min="1"
+                    value={mobileAddQty}
+                    onChange={e => setMobileAddQty(e.target.value)}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>价格 (可选)</label>
+                  <input
+                    name="desktopAddPrice"
+                    className="input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={mobileAddPrice}
+                    onChange={e => setMobileAddPrice(e.target.value)}
+                    placeholder="¥0.00"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>预算分类 (可选)</label>
+                  <select
+                    name="desktopAddCategory"
+                    className="input"
+                    value={mobileAddCategory}
+                    onChange={e => { setMobileAddCategory(e.target.value); setMobileAddSubCategory(''); }}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="">不分类</option>
+                    {state.budget.categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>子分类 (可选)</label>
+                  <select
+                    name="desktopAddSubCategory"
+                    className="input"
+                    value={mobileAddSubCategory}
+                    onChange={e => setMobileAddSubCategory(e.target.value)}
+                    disabled={!mobileAddCategory}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="">不选</option>
+                    {mobileSubCategories.map(sub => (
+                      <option key={sub.id} value={sub.id}>{sub.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setShowDesktopAddModal(false)}>取消</button>
+              <button
+                className="btn btn-primary"
+                onClick={handleDesktopAdd}
+              >
+                添加
               </button>
             </div>
           </div>
