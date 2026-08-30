@@ -3903,29 +3903,59 @@ input[type="checkbox"] { accent-color: var(--fresh-green); width: 18px; height: 
   padding-bottom: 12px;
 }
 
-/* ── Mobile page switch (采购 ↔ 比价) ── */
-.purchase-mobile-page-switch {
+/* ── Page mode toggle (采购 ↔ 比价) ── */
+.purchase-page-mode-toggle {
   display: flex;
   justify-content: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
-.purchase-mobile-page-switch-btn {
-  display: inline-flex;
+
+@media (max-width: 767px) {
+  .purchase-page-mode-toggle {
+    padding-top: 52px; /* 为 fixed 标题行留出空间 */
+  }
+}
+
+/* ── Compare content wrapper (嵌入采购页面时) ── */
+.compare-content-wrapper {
+  margin-top: 0;
+}
+.compare-content-stats {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 20px;
-  border-radius: 10px;
-  background: var(--fresh-surface, #f7f5f3);
+  gap: 16px;
+  padding: 14px 18px;
+  background: white;
+  border-radius: 14px;
   border: 1px solid var(--fresh-border, #e8e4df);
-  color: var(--fresh-coral, #e45b3f);
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: background 0.15s, box-shadow 0.15s;
+  margin-bottom: 14px;
 }
-.purchase-mobile-page-switch-btn:hover {
-  background: var(--fresh-coral-soft, #fff0ea);
-  box-shadow: 0 2px 8px rgba(228, 91, 63, 0.1);
+.compare-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.compare-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+}
+.compare-stat-label {
+  font-size: 11px;
+  color: var(--fresh-muted, #999);
+}
+.compare-stat-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--fresh-border, #e8e4df);
+}
+.compare-content-empty {
+  text-align: center;
+  padding: 32px 16px;
+  background: white;
+  border-radius: 14px;
+  border: 1px dashed var(--fresh-border, #d9dee1);
+  color: #8a9298;
 }
 
 .purchase-tab-switcher {

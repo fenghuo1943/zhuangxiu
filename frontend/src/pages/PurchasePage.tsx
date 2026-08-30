@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import AppShell from '../components/layout/AppShell';
+import CompareContent from '../components/CompareContent';
 import {
   useStore, togglePurchaseRef, addCustomPurchaseItem,
   deletePurchaseRefItem, updatePurchaseRefQty, isItemPurchased,
@@ -102,6 +103,9 @@ const PurchasePage: React.FC = () => {
 
   // 页面切换状态：'shopping' = 待购清单，'reference' = 采购参考库
   const [activeTab, setActiveTab] = useState<'shopping' | 'reference'>('shopping');
+
+  // 页面模式切换：'purchase' = 采购页面，'compare' = 比价页面
+  const [pageMode, setPageMode] = useState<'purchase' | 'compare'>('purchase');
 
   // Quick-add state
   const [quickName, setQuickName] = useState('');
@@ -618,9 +622,10 @@ const PurchasePage: React.FC = () => {
             <span className="purchase-stage-icon">
               <IconCart size={20} />
             </span>
-            <h1>{activeTab === 'shopping' ? '待购清单' : '采购参考库'}</h1>
+            <h1>{pageMode === 'compare' ? '采购比价' : (activeTab === 'shopping' ? '待购清单' : '采购参考库')}</h1>
           </div>
-          {/* ── Tab nav buttons (mobile only) ── */}
+          {/* ── Tab nav buttons (mobile only, purchase mode only) ── */}
+          {pageMode === 'purchase' && (
           <div className="hide-desktop">
             {activeTab === 'shopping' && (
               <button
@@ -649,6 +654,7 @@ const PurchasePage: React.FC = () => {
               </button>
             )}
           </div>
+          )}
           {/* ── Add purchase item button (desktop only) ── */}
           <button
             type="button"
@@ -663,11 +669,42 @@ const PurchasePage: React.FC = () => {
           </button>
         </div>
         <p className="purchase-subtitle">
-          {activeTab === 'shopping'
-            ? '管理已选择的待购物品，标记已购或移出清单。'
-            : '按装修阶段整理需要采购的物品，勾选后自动同步到首页待购清单。'}
+          {pageMode === 'compare'
+            ? '对比不同渠道的报价，选择最优方案。'
+            : activeTab === 'shopping'
+              ? '管理已选择的待购物品，标记已购或移出清单。'
+              : '按装修阶段整理需要采购的物品，勾选后自动同步到首页待购清单。'}
         </p>
 
+        {/* ── Page mode toggle: 采购 ↔ 比价 ── */}
+        <div className="purchase-page-mode-toggle">
+          <div className="purchase-shopping-toggle">
+            <button
+              type="button"
+              className={`purchase-shopping-toggle-btn${pageMode === 'purchase' ? ' active' : ''}`}
+              onClick={() => setPageMode('purchase')}
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+              </svg>
+              采购
+            </button>
+            <button
+              type="button"
+              className={`purchase-shopping-toggle-btn${pageMode === 'compare' ? ' active' : ''}`}
+              onClick={() => setPageMode('compare')}
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+              比价
+            </button>
+          </div>
+        </div>
+
+        {/* ── Purchase content (shown when pageMode === 'purchase') ── */}
+        {pageMode === 'purchase' && (
+          <>
         {/* ── Tab switcher + Stats ── */}
         <div className="purchase-tab-container">
           <div className="purchase-tab-switcher">
@@ -728,18 +765,6 @@ const PurchasePage: React.FC = () => {
             )}
           </div>
         </div>
-
-        {/* ── Mobile page switch: 采购 ↔ 比价 ── */}
-        {activeTab === 'shopping' && (
-          <div className="purchase-mobile-page-switch show-mobile">
-            <a href="/compare" className="purchase-mobile-page-switch-btn">
-              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-              </svg>
-              切换到比价页面
-            </a>
-          </div>
-        )}
 
         {/* ── 待购清单卡片（仅在 shopping tab 显示） ── */}
         {activeTab === 'shopping' && (
@@ -1504,6 +1529,13 @@ const PurchasePage: React.FC = () => {
               )}
             </div>
           </>
+        )}
+          </>
+        )}
+
+        {/* ── Compare content (shown when pageMode === 'compare') ── */}
+        {pageMode === 'compare' && (
+          <CompareContent />
         )}
       </div>
 
